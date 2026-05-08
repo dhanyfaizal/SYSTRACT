@@ -62,8 +62,8 @@ export async function printPresensi({ supabase, courseId, userId }) {
     .header { border-bottom: 3px double #111; padding-bottom: 10px; margin-bottom: 14px; }
     .header-inner { display: flex; align-items: center; gap: 16px; }
     .header-logo  { width: 64px; height: 64px; object-fit: contain; flex-shrink: 0; }
-    .header-text  { text-align: center; flex: 1; }
-    .header .inst  { font-size: 10pt; letter-spacing: 1px; text-transform: uppercase; }
+    .header-text  { text-align: center; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .header .inst  { font-size: 11pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
     .header .title { font-size: 16pt; font-weight: bold; margin: 6px 0 4px; text-transform: uppercase; letter-spacing: 2px; }
     .header .sub   { font-size: 11pt; }
 
@@ -230,7 +230,7 @@ export async function printPresensi({ supabase, courseId, userId }) {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Jurnal Perkuliahan — ${course.code} ${course.name}</title>
+  <title>Berita Acara Pembelajaran — ${course.code} ${course.name}</title>
   <style>${css}</style>
 </head>
 <body>
@@ -242,8 +242,8 @@ export async function printPresensi({ supabase, courseId, userId }) {
       <img class="header-logo" src="https://i.ibb.co.com/kgV7WDhF/Logo-SYS.png" alt="STIKOM"/>
       <div class="header-text">
         <div class="inst">STIKOM Yos Sudarso Purwokerto</div>
-        <div class="title">Jurnal Perkuliahan</div>
-        <div class="sub">Tahun Akademik ${course.semester}</div>
+        <div class="title">Berita Acara Pembelajaran</div>
+        <div class="sub">Tahun Akademik ${course.semester?.replace(/^(Genap|Ganjil)\s*/i, '') || course.semester}</div>
       </div>
     </div>
   </div>
