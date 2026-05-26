@@ -175,3 +175,30 @@ INSERT INTO shop_items (name, description, category, price, image_url, rarity, s
   ('Cool',             'Ekspresi keren santai',           'face',     30, '/assets/avatar/face_cool.svg',      'rare',      3),
   ('Fokus',            'Ekspresi fokus belajar',          'face',     25, '/assets/avatar/face_focus.svg',     'rare',      4)
 ON CONFLICT DO NOTHING;
+
+-- ── 7. STORAGE BUCKET: avatar-items ────────────────────────
+-- Jalankan bagian ini TERPISAH jika bucket sudah ada
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatar-items', 'avatar-items', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Policy: Semua bisa baca (public bucket)
+CREATE POLICY "avatar_items_public_read"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'avatar-items');
+
+-- Policy: Admin bisa upload
+CREATE POLICY "avatar_items_admin_upload"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'avatar-items'
+    AND EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Policy: Admin bisa hapus
+CREATE POLICY "avatar_items_admin_delete"
+  ON storage.objects FOR DELETE
+  USING (
+    bucket_id = 'avatar-items'
+    AND EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );

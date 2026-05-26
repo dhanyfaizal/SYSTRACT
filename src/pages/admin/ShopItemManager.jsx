@@ -1,10 +1,10 @@
 /**
  * ShopItemManager — Admin CRUD for shop items.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   ShoppingBag, Plus, Edit2, Trash2, X, Save, Loader2,
-  ToggleLeft, ToggleRight, Search
+  ToggleLeft, ToggleRight, Search, Upload, Image as ImageIcon
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import toast        from 'react-hot-toast'
@@ -29,6 +29,9 @@ export default function ShopItemManager() {
   const [modal,   setModal]   = useState(null) // null | 'new' | item object
   const [form,    setForm]    = useState(EMPTY_FORM)
   const [saving,  setSaving]  = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [dragOver,  setDragOver]  = useState(false)
+  const fileRef = useRef()
 
   useEffect(() => { fetchItems() }, [])
 
@@ -39,8 +42,59 @@ export default function ShopItemManager() {
     setLoading(false)
   }
 
-  function openNew() { setForm(EMPTY_FORM); setModal('new') }
-  function openEdit(item) { setForm({ ...item }); setModal(item) }
+  function openNew() { setForm(EMPTY_FORM); setUploading(false); setModal('new') }
+  function openEdit(item) { setForm({ ...item }); setUploading(false); setModal(item) }
+
+  // ── SVG Upload via Supabase Storage ──────────────────────
+  async function handleFileUpload(file) {
+    if (!file) return
+    // Validate SVG or image
+    const allowedTypes = ['image/svg+xml', 'image/png', 'image/jpeg', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Hanya file SVG, PNG, JPG, atau WebP yang diperbolehkan')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Ukuran file maksimal 2MB')
+      return
+    }
+
+    setUploading(true)
+    const ext = file.name.split('.').pop().toLowerCase()
+    const fileName = `${form.category}_${Date.now()}.${ext}`
+    const filePath = `shop/${fileName}`
+
+    const { error } = await supabase.storage
+      .from('avatar-items')
+      .upload(filePath, file, { cacheControl: '3600', upsert: false })
+
+    if (error) {
+      toast.error('Upload gagal: ' + error.message)
+      setUploading(false)
+      return
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('avatar-items')
+      .getPublicUrl(filePath)
+
+    setForm(f => ({ ...f, image_url: urlData.publicUrl }))
+    toast.success('✅ Gambar berhasil diupload!')
+    setUploading(false)
+  }
+
+  function onFileDrop(e) {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer?.files?.[0]
+    if (file) handleFileUpload(file)
+  }
+
+  function onFileSelect(e) {
+    const file = e.target.files?.[0]
+    if (file) handleFileUpload(file)
+    e.target.value = '' // reset agar bisa upload ulang file sama
+  }
 
   async function handleSave() {
     if (!form.name || !form.image_url) { toast.error('Nama dan URL gambar wajib diisi'); return }
@@ -215,16 +269,70 @@ export default function ShopItemManager() {
                   <input className="input" type="number" min="0" value={form.sort_order} onChange={e => setForm(f => ({ ...f, sort_order: e.target.value }))} />
                 </div>
               </div>
+              {/* ── Upload Zone ─────────────────────── */}
               <div className="input-group">
-                <label className="input-label">URL Gambar</label>
-                <input className="input" value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="/assets/avatar/nama_file.svg" />
-                <span className="input-hint">Path relatif ke public/ (contoh: /assets/avatar/hat_new.svg)</span>
-              </div>
-              {form.image_url && (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: 12, background: 'var(--gray-50)', borderRadius: 10 }}>
-                  <img src={form.image_url} alt="Preview" style={{ maxHeight: 80, maxWidth: 80, objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />
+                <label className="input-label">Gambar Item</label>
+                <div
+                  onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={onFileDrop}
+                  onClick={() => fileRef.current?.click()}
+                  style={{
+                    border: `2px dashed ${dragOver ? 'var(--indigo-500)' : 'var(--gray-200)'}`,
+                    borderRadius: 12,
+                    padding: 20,
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    background: dragOver ? 'var(--indigo-50)' : 'var(--gray-50)',
+                    transition: 'all .15s',
+                    position: 'relative',
+                  }}
+                >
+                  {uploading ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                      <Loader2 size={24} color="var(--indigo-500)" style={{ animation: 'spin .7s linear infinite' }} />
+                      <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>Mengupload...</span>
+                    </div>
+                  ) : form.image_url && form.image_url !== '/assets/avatar/' ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                      <img
+                        src={form.image_url}
+                        alt="Preview"
+                        style={{ maxHeight: 72, maxWidth: 72, objectFit: 'contain' }}
+                        onError={e => { e.target.style.display = 'none' }}
+                      />
+                      <span style={{ fontSize: 11, color: 'var(--gray-400)' }}>Klik atau drag untuk ganti gambar</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 48, height: 48, borderRadius: '50%',
+                        background: 'var(--indigo-50)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Upload size={20} color="var(--indigo-500)" />
+                      </div>
+                      <div>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--indigo-600)' }}>Upload gambar</span>
+                        <span style={{ fontSize: 12, color: 'var(--gray-400)' }}> atau drag & drop</span>
+                      </div>
+                      <span style={{ fontSize: 11, color: 'var(--gray-400)' }}>SVG, PNG, JPG, WebP (maks 2MB)</span>
+                    </div>
+                  )}
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".svg,image/svg+xml,image/png,image/jpeg,image/webp"
+                    style={{ display: 'none' }}
+                    onChange={onFileSelect}
+                  />
                 </div>
-              )}
+              </div>
+              {/* Manual URL fallback */}
+              <div className="input-group">
+                <label className="input-label" style={{ fontSize: 11, color: 'var(--gray-400)' }}>atau masukkan URL manual</label>
+                <input className="input" value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://... atau /assets/avatar/file.svg" style={{ fontSize: 12 }} />
+              </div>
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary btn-sm" onClick={() => setModal(null)} disabled={saving}>Batal</button>
