@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   User, Mail, BookOpen, Shield, Edit2, Save, X, Camera,
   Star, Trophy, Zap, Award, CheckCircle, MessageSquare,
-  Upload, Loader2, TrendingUp, Clock
+  Upload, Loader2, TrendingUp, Clock, Sparkles
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import AvatarPreview from '@/components/AvatarPreview'
 import toast from 'react-hot-toast'
 
 // ── Badge definitions (computed dari aktivitas) ─────────────
@@ -83,6 +85,7 @@ function timeAgo(iso) {
 
 export default function ProfilePage() {
   const { profile, user, refreshProfile } = useAuth()
+  const navigate = useNavigate()
   const [editing,   setEditing]   = useState(false)
   const [saving,    setSaving]    = useState(false)
   const [form,      setForm]      = useState({})
@@ -91,6 +94,8 @@ export default function ProfilePage() {
   const [activity,  setActivity]  = useState([])
   const [statsLoading, setStatsLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [avatarCfg,  setAvatarCfg]  = useState(null)
+  const [shopItems,  setShopItems]  = useState([])
   const fileRef = useRef()
 
   useEffect(() => {
@@ -103,7 +108,14 @@ export default function ProfilePage() {
   useEffect(() => {
     supabase.from('program_studi').select('id,name,code').order('name')
       .then(({ data }) => setProdiList(data || []))
-  }, [])
+    // Load avatar config + shop items for preview
+    if (user) {
+      supabase.from('user_avatar_config').select('*').eq('user_id', user.id).maybeSingle()
+        .then(({ data }) => setAvatarCfg(data))
+      supabase.from('shop_items').select('id,image_url').eq('is_active', true)
+        .then(({ data }) => setShopItems(data || []))
+    }
+  }, [user])
 
   async function fetchStats() {
     if (!user) return
@@ -173,6 +185,12 @@ export default function ProfilePage() {
   const xpPrev   = [0, 50, 150, 300, 600][xpLevel - 1]
   const xpPct    = xpToNext === Infinity ? 100 : Math.min(100, ((stats.totalXp - xpPrev) / (xpToNext - xpPrev)) * 100)
 
+  const itemMap = useMemo(() => {
+    const m = new Map()
+    shopItems.forEach(i => m.set(i.id, i))
+    return m
+  }, [shopItems])
+
   const ROLE_COLORS = { admin:'#dc2626', dosen:'#d97706', mahasiswa:'#4f46e5', guest:'#6b7280' }
   const ROLE_LABELS = { admin:'Administrator', dosen:'Dosen', mahasiswa:'Mahasiswa', guest:'Guest' }
 
@@ -193,7 +211,10 @@ export default function ProfilePage() {
                 display:'flex', alignItems:'center', justifyContent:'center',
                 overflow:'hidden', boxShadow:'0 4px 12px rgba(0,0,0,.15)',
               }}>
-                {profile?.avatar_url
+                {avatarCfg && itemMap.size > 0 ? (
+                  <AvatarPreview config={avatarCfg} items={itemMap} size={80}
+                    fallback={{ name: profile?.full_name, avatar_url: profile?.avatar_url }} />
+                ) : profile?.avatar_url
                   ? <img src={profile.avatar_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
                   : <span style={{ fontSize:28, fontWeight:700, color:'white' }}>{profile?.full_name?.[0]||'U'}</span>
                 }
@@ -239,13 +260,24 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <button
-            className={editing ? "btn btn-ghost btn-sm" : "btn btn-primary btn-sm"}
-            onClick={() => editing ? setEditing(false) : setEditing(true)}
-            style={{ display:'flex', alignItems:'center', gap:6 }}
-          >
-            {editing ? <><X size={13}/> Batal</> : <><Edit2 size={13}/> Edit Profil</>}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {profile?.role === 'mahasiswa' && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => navigate('/avatar-editor')}
+                style={{ display:'flex', alignItems:'center', gap:5 }}
+              >
+                <Sparkles size={13} color="#7C3AED" /> Edit Avatar
+              </button>
+            )}
+            <button
+              className={editing ? "btn btn-ghost btn-sm" : "btn btn-primary btn-sm"}
+              onClick={() => editing ? setEditing(false) : setEditing(true)}
+              style={{ display:'flex', alignItems:'center', gap:6 }}
+            >
+              {editing ? <><X size={13}/> Batal</> : <><Edit2 size={13}/> Edit Profil</>}
+            </button>
+          </div>
         </div>
 
         {/* Edit form */}

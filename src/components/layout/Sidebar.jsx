@@ -4,7 +4,7 @@ import {
   MessageSquare, BarChart2, GraduationCap,
   Users, Settings, ChevronRight, ChevronDown,
   BookMarked, Trophy, Shield, Database, LogOut, Megaphone,
-  CalendarDays, CheckCircle2, Calendar, Award, UserCheck
+  CalendarDays, CheckCircle2, Calendar, Award, UserCheck, ShoppingBag
 } from 'lucide-react'
 import { useAuth }    from '@/contexts/AuthContext'
 import { useSidebar } from './AppLayout'
@@ -33,6 +33,7 @@ const STATIC_NAV = {
     ]},
     { section:'Komunitas', items:[
       { label:'Leaderboard', icon:Trophy, to:'/leaderboard' },
+      { label:'Toko Avatar', icon:ShoppingBag, to:'/toko-avatar' },
     ]},
   ],
   dosen: [
@@ -59,6 +60,7 @@ const STATIC_NAV = {
     { section:'Akademik', items:[
       { label:'Mata Kuliah',   icon:BookOpen,      to:'/mata-kuliah'          },
       { label:'Program Studi', icon:GraduationCap, to:'/admin/program-studi'  },
+      { label:'Toko Avatar',   icon:ShoppingBag,    to:'/admin/shop-items'     },
       { label:'Badges',        icon:Trophy,        to:'/admin/badges'         },
     ]},
     { section:'Sistem', items:[
