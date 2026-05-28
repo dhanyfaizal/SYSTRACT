@@ -61,7 +61,7 @@ export default function ForumDetail() {
         ? replies.map(r => `- ${r.author?.full_name}: "${r.body}"`).join('\n')
         : 'Belum ada komentar sama sekali.'
 
-      const prompt = `Berikut adalah seluruh komentar/balasan dari forum diskusi berjudul "${forum.title}":\n\n${commentsText}\n\nTolong buat rangkuman singkat dan poin-poin diskusi yang menarik dari komentar-komentar tersebut dalam Bahasa Indonesia yang profesional dan mudah dipahami.`
+      const prompt = `Berikut adalah seluruh komentar/balasan dari forum diskusi berjudul "${forum.title}":\n\n${commentsText}\n\nInstruksi:\n1. Buat rangkuman singkat, padat, dan langsung ke inti diskusi (maksimal 150-200 kata).\n2. Tuliskan 3-4 poin menarik dari jalannya diskusi.\n3. Harap ringkas dan pastikan kalimat terakhir Anda selesai dengan sempurna (tidak terpotong di tengah kalimat/kata). Jawab dalam Bahasa Indonesia.`
 
       const res = await askGemini(prompt)
       setAiSummary(res)
