@@ -6,11 +6,128 @@ import AISettingsModal from './AISettingsModal'
 
 // System prompt adapts to user role
 function buildSystemPrompt(role, pageName = '') {
-  const base = `Kamu adalah Asisten AI EduSYS milik STIKOM Yos Sudarso. Jawab dalam Bahasa Indonesia yang ramah dan ringkas. Hindari markdown berlebihan.`
-  if (role === 'mahasiswa') return `${base} Bantu mahasiswa memahami materi kuliah, mengerjakan tugas, dan belajar lebih efektif.`
-  if (role === 'dosen')     return `${base} Bantu dosen membuat rubrik tugas, soal ujian, bahan ajar, dan memberikan feedback yang konstruktif.`
-  if (role === 'admin')     return `${base} Bantu admin mengelola sistem, menyusun laporan, dan membuat pengumuman institusi.`
+  const base = `Kamu adalah Asisten AI EduSYS milik STIKOM Yos Sudarso. Jawab dalam Bahasa Indonesia yang ramah, sopan, dan solutif. Format respons menggunakan susunan markdown yang rapi (seperti tebal, list poin, dan blok kode pemrograman jika diperlukan) agar mudah dibaca oleh pengguna.`
+  if (role === 'mahasiswa') return `${base} Bantu mahasiswa memahami materi kuliah, memberikan panduan pengerjaan tugas, dan memberikan tips belajar secara efektif.`
+  if (role === 'dosen')     return `${base} Bantu dosen merancang rubrik penilaian tugas, menyusun butir soal ujian, membuat modul bahan ajar, dan memberikan inspirasi feedback konstruktif.`
+  if (role === 'admin')     return `${base} Bantu admin mengelola alur kerja sistem, menyusun format laporan, dan menyusun teks pengumuman resmi institusi.`
   return base
+}
+
+function parseInlineMarkdown(text) {
+  if (!text) return ''
+  const tokens = text.split(/(\*\*.*?\*\*|`.*?`)/g)
+  return tokens.map((token, idx) => {
+    if (token.startsWith('**') && token.endsWith('**')) {
+      return <strong key={idx} style={{ fontWeight: 700 }}>{token.slice(2, -2)}</strong>
+    }
+    if (token.startsWith('`') && token.endsWith('`')) {
+      return (
+        <code key={idx} style={{
+          background: 'rgba(120, 120, 120, 0.15)',
+          color: 'inherit',
+          padding: '2px 5px',
+          borderRadius: 4,
+          fontFamily: 'monospace',
+          fontSize: '11.5px',
+          wordBreak: 'break-word'
+        }}>
+          {token.slice(1, -1)}
+        </code>
+      )
+    }
+    return token
+  })
+}
+
+function formatMessageText(text) {
+  if (!text) return ''
+  
+  // Split by code blocks first
+  const parts = text.split(/(```[\s\S]*?```)/g)
+  
+  return parts.map((part, index) => {
+    if (part.startsWith('```') && part.endsWith('```')) {
+      const codeLines = part.slice(3, -3).trim().split('\n')
+      let language = ''
+      if (codeLines.length > 0 && !codeLines[0].includes(' ') && codeLines[0].length < 15) {
+        language = codeLines.shift()
+      }
+      const codeContent = codeLines.join('\n')
+      return (
+        <div key={index} style={{
+          background: '#0f172a',
+          color: '#e2e8f0',
+          borderRadius: 8,
+          padding: '12px 14px',
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          margin: '10px 0',
+          overflowX: 'auto',
+          lineHeight: 1.5,
+          border: '1px solid #334155',
+          textAlign: 'left'
+        }}>
+          {language && (
+            <div style={{
+              fontSize: '10px',
+              color: '#94a3b8',
+              textTransform: 'uppercase',
+              marginBottom: 6,
+              paddingBottom: 4,
+              borderBottom: '1px solid #1e293b',
+              fontWeight: 700,
+              letterSpacing: '0.5px'
+            }}>
+              {language}
+            </div>
+          )}
+          <pre style={{ margin: 0, whiteSpace: 'pre' }}><code>{codeContent}</code></pre>
+        </div>
+      )
+    }
+    
+    const lines = part.split('\n')
+    return (
+      <div key={index}>
+        {lines.map((line, lineIdx) => {
+          const content = line
+          
+          // Bullet lists (- or * or digits)
+          const listMatch = content.match(/^(\s*)([-*]|\d+\.)\s+(.+)$/)
+          if (listMatch) {
+            const indent = listMatch[1].length * 10
+            const marker = listMatch[2]
+            const itemText = listMatch[3]
+            return (
+              <div key={lineIdx} style={{ display: 'flex', gap: 6, paddingLeft: indent + 8, margin: '4px 0', textAlign: 'left' }}>
+                <span style={{ color: 'var(--indigo-500)', fontWeight: 700 }}>{marker}</span>
+                <span style={{ flex: 1 }}>{parseInlineMarkdown(itemText)}</span>
+              </div>
+            )
+          }
+          
+          // Headings (#)
+          const headingMatch = content.match(/^(#{1,6})\s+(.+)$/)
+          if (headingMatch) {
+            const level = headingMatch[1].length
+            const headingText = headingMatch[2]
+            const size = level === 1 ? '16px' : level === 2 ? '14.5px' : '13px'
+            return (
+              <div key={lineIdx} style={{ fontWeight: 700, fontSize: size, margin: '12px 0 6px 0', color: 'inherit', textAlign: 'left' }}>
+                {parseInlineMarkdown(headingText)}
+              </div>
+            )
+          }
+          
+          return (
+            <p key={lineIdx} style={{ margin: content.trim() === '' ? '8px 0' : '3px 0', minHeight: content.trim() === '' ? '8px' : 'auto', textAlign: 'left' }}>
+              {parseInlineMarkdown(content)}
+            </p>
+          )
+        })}
+      </div>
+    )
+  })
 }
 
 export default function AIAssistant() {
@@ -135,7 +252,7 @@ export default function AIAssistant() {
           <div className="ai-messages">
             {messages.map((msg, i) => (
               <div key={i} className={`ai-msg ai-msg-${msg.role}`}>
-                {msg.text}
+                {formatMessageText(msg.text)}
               </div>
             ))}
             {loading && (
