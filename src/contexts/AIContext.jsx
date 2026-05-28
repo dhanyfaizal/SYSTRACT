@@ -121,7 +121,69 @@ export function AIProvider({ children }) {
     if (!keyToUse) throw new Error('NO_KEY')
 
     const normalizedBaseUrl = urlToUse.replace(/\/+$/, '')
+    const isCustomUrl = urlToUse !== 'https://generativelanguage.googleapis.com'
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 
+    // Gunakan proxy di produksi untuk custom URL guna mengatasi CORS
+    const useProxy = isCustomUrl && !isLocalhost
+
+    if (useProxy) {
+      const proxyBody = {
+        targetUrl: typeToUse === 'gemini'
+          ? `${normalizedBaseUrl}/v1beta/models/${modelToUse}:generateContent?key=${keyToUse}`
+          : `${normalizedBaseUrl}/chat/completions`,
+        method: 'POST',
+        headers: typeToUse === 'gemini'
+          ? { 'Content-Type': 'application/json' }
+          : {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${keyToUse}`
+            },
+        body: typeToUse === 'gemini'
+          ? {
+              system_instruction: systemPrompt
+                ? { parts: [{ text: systemPrompt }] }
+                : undefined,
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+            }
+          : {
+              model: modelToUse,
+              messages: [
+                ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+                { role: 'user', content: prompt }
+              ],
+              temperature: 0.7,
+              max_tokens: 2048
+            }
+      }
+
+      const response = await fetch('/api/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(proxyBody)
+      })
+
+      if (!response.ok) {
+        let errMsg = 'Gagal menghubungi AI via Proxy'
+        try {
+          const err = await response.json()
+          errMsg = err.error?.message || err.message || errMsg
+        } catch (_) {
+          errMsg = `${response.status} ${response.statusText}`
+        }
+        throw new Error(errMsg)
+      }
+
+      const data = await response.json()
+      if (typeToUse === 'gemini') {
+        return data.candidates?.[0]?.content?.parts?.[0]?.text || '(Tidak ada respons)'
+      } else {
+        return data.choices?.[0]?.message?.content || '(Tidak ada respons)'
+      }
+    }
+
+    // Direct Browser Calls (for official Gemini or local development)
     if (typeToUse === 'gemini') {
       const response = await fetch(
         `${normalizedBaseUrl}/v1beta/models/${modelToUse}:generateContent?key=${keyToUse}`,
