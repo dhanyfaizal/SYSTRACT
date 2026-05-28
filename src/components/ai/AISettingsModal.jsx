@@ -13,13 +13,19 @@ export default function AISettingsModal({ onClose }) {
   const [testMsg,  setTestMsg]  = useState('')
 
   async function handleTest() {
-    if (!draft.trim()) {
+    const key = draft.trim()
+    if (!key) {
       toast.error('Masukkan API Key terlebih dahulu')
+      return
+    }
+    if (!key.startsWith('AIzaSy')) {
+      setTestOk(false)
+      setTestMsg('API Key Gemini yang valid harus dimulai dengan "AIzaSy"')
       return
     }
     setTesting(true); setTestOk(null); setTestMsg('')
     try {
-      const res = await askGemini('Balas hanya dengan "OK" dalam satu kata.', '', draft.trim())
+      const res = await askGemini('Balas hanya dengan "OK" dalam satu kata.', '', key)
       setTestOk(true)
       setTestMsg(`✓ Respons: "${res.trim().slice(0,60)}"`)
     } catch (err) {
@@ -31,8 +37,13 @@ export default function AISettingsModal({ onClose }) {
   }
 
   function handleSave() {
-    if (!draft.trim()) { toast.error('API Key tidak boleh kosong'); return }
-    saveApiKey(draft.trim())
+    const key = draft.trim()
+    if (!key) { toast.error('API Key tidak boleh kosong'); return }
+    if (!key.startsWith('AIzaSy')) {
+      toast.error('API Key Gemini yang valid harus dimulai dengan "AIzaSy"')
+      return
+    }
+    saveApiKey(key)
     toast.success('API Key disimpan di browser Anda')
     onClose()
   }
