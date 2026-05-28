@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 
 const AI_KEY_STORAGE = 'edusys_gemini_api_key'
+const AI_BASE_URL_STORAGE = 'edusys_ai_base_url'
+const AI_TYPE_STORAGE = 'edusys_ai_type'
 const AI_MODEL_STORAGE = 'edusys_gemini_model'
 
 async function detectBestModel(key) {
@@ -36,6 +38,12 @@ export function AIProvider({ children }) {
   const [apiKey, setApiKeyState] = useState(
     () => localStorage.getItem(AI_KEY_STORAGE) || ''
   )
+  const [baseUrl, setBaseUrlState] = useState(
+    () => localStorage.getItem(AI_BASE_URL_STORAGE) || 'https://generativelanguage.googleapis.com'
+  )
+  const [apiType, setApiTypeState] = useState(
+    () => localStorage.getItem(AI_TYPE_STORAGE) || 'gemini'
+  )
   const [detectedModel, setDetectedModel] = useState(
     () => localStorage.getItem(AI_MODEL_STORAGE) || 'gemini-1.5-flash'
   )
@@ -49,73 +57,155 @@ export function AIProvider({ children }) {
 
   useEffect(() => {
     if (!apiKey) return
-    detectBestModel(apiKey).then(model => {
-      setDetectedModel(model)
-      localStorage.setItem(AI_MODEL_STORAGE, model)
-    })
-  }, [apiKey])
+    // Only detect best model when using official Gemini endpoint
+    if (apiType === 'gemini' && baseUrl === 'https://generativelanguage.googleapis.com') {
+      detectBestModel(apiKey).then(model => {
+        setDetectedModel(model)
+        localStorage.setItem(AI_MODEL_STORAGE, model)
+      })
+    }
+  }, [apiKey, apiType, baseUrl])
+
+  const saveSettings = useCallback((key, type, url, model) => {
+    localStorage.setItem(AI_KEY_STORAGE, key)
+    localStorage.setItem(AI_TYPE_STORAGE, type)
+    localStorage.setItem(AI_BASE_URL_STORAGE, url)
+    localStorage.setItem(AI_MODEL_STORAGE, model)
+    setApiKeyState(key)
+    setApiTypeState(type)
+    setBaseUrlState(url)
+    setDetectedModel(model)
+  }, [])
 
   const saveApiKey = useCallback((key) => {
-    localStorage.setItem(AI_KEY_STORAGE, key)
-    setApiKeyState(key)
-  }, [])
+    saveSettings(key, 'gemini', 'https://generativelanguage.googleapis.com', 'gemini-1.5-flash')
+  }, [saveSettings])
 
   const clearApiKey = useCallback(() => {
     localStorage.removeItem(AI_KEY_STORAGE)
+    localStorage.removeItem(AI_TYPE_STORAGE)
+    localStorage.removeItem(AI_BASE_URL_STORAGE)
     localStorage.removeItem(AI_MODEL_STORAGE)
     setApiKeyState('')
+    setApiTypeState('gemini')
+    setBaseUrlState('https://generativelanguage.googleapis.com')
     setDetectedModel('gemini-1.5-flash')
   }, [])
 
   const hasKey = Boolean(apiKey)
 
   /**
-   * Send a prompt to Gemini directly from browser
+   * Send a prompt to AI directly from browser
    * @param {string} prompt
    * @param {string} [systemPrompt]
+   * @param {string|object} [customSettings]
    * @returns {Promise<string>} AI response text
    */
-  const askGemini = useCallback(async (prompt, systemPrompt = '', customKey = null) => {
-    const keyToUse = customKey || apiKey
+  const askGemini = useCallback(async (prompt, systemPrompt = '', customSettings = null) => {
+    let keyToUse = apiKey
+    let typeToUse = apiType
+    let urlToUse = baseUrl
+    let modelToUse = detectedModel
+
+    if (customSettings) {
+      if (typeof customSettings === 'string') {
+        keyToUse = customSettings
+      } else {
+        keyToUse = customSettings.apiKey ?? apiKey
+        typeToUse = customSettings.apiType ?? apiType
+        urlToUse = customSettings.baseUrl ?? baseUrl
+        modelToUse = customSettings.modelName ?? detectedModel
+      }
+    }
+
     if (!keyToUse) throw new Error('NO_KEY')
 
-    let modelToUse = detectedModel
-    if (customKey) {
-      modelToUse = await detectBestModel(customKey)
-    }
+    const normalizedBaseUrl = urlToUse.replace(/\/+$/, '')
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${keyToUse}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: systemPrompt
-            ? { parts: [{ text: systemPrompt }] }
-            : undefined,
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
-        }),
+    if (typeToUse === 'gemini') {
+      const response = await fetch(
+        `${normalizedBaseUrl}/v1beta/models/${modelToUse}:generateContent?key=${keyToUse}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: systemPrompt
+              ? { parts: [{ text: systemPrompt }] }
+              : undefined,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        let errMsg = 'Gagal menghubungi AI'
+        try {
+          const err = await response.json()
+          errMsg = err.error?.message || errMsg
+        } catch (_) {
+          errMsg = `${response.status} ${response.statusText}`
+        }
+        throw new Error(errMsg)
       }
-    )
 
-    if (!response.ok) {
-      let errMsg = 'Gagal menghubungi AI'
-      try {
-        const err = await response.json()
-        errMsg = err.error?.message || errMsg
-      } catch (_) {
-        errMsg = `${response.status} ${response.statusText}`
+      const data = await response.json()
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || '(Tidak ada respons)'
+    } else {
+      // OpenAI Compatible
+      const response = await fetch(
+        `${normalizedBaseUrl}/chat/completions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${keyToUse}`
+          },
+          body: JSON.stringify({
+            model: modelToUse,
+            messages: [
+              ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.7,
+            max_tokens: 2048
+          })
+        }
+      )
+
+      if (!response.ok) {
+        let errMsg = 'Gagal menghubungi AI'
+        try {
+          const err = await response.json()
+          errMsg = err.error?.message || err.message || errMsg
+        } catch (_) {
+          errMsg = `${response.status} ${response.statusText}`
+        }
+        throw new Error(errMsg)
       }
-      throw new Error(errMsg)
-    }
 
-    const data = await response.json()
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '(Tidak ada respons)'
-  }, [apiKey, detectedModel])
+      const data = await response.json()
+      return data.choices?.[0]?.message?.content || '(Tidak ada respons)'
+    }
+  }, [apiKey, apiType, baseUrl, detectedModel])
 
   return (
-    <AIContext.Provider value={{ apiKey, hasKey, saveApiKey, clearApiKey, askGemini, chatOpen, setChatOpen, initialPrompt, setInitialPrompt, askWithContext }}>
+    <AIContext.Provider value={{
+      apiKey,
+      baseUrl,
+      apiType,
+      modelName: detectedModel,
+      hasKey,
+      saveApiKey,
+      saveSettings,
+      clearApiKey,
+      askGemini,
+      chatOpen,
+      setChatOpen,
+      initialPrompt,
+      setInitialPrompt,
+      askWithContext
+    }}>
       {children}
     </AIContext.Provider>
   )
