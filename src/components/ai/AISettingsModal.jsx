@@ -18,18 +18,13 @@ export default function AISettingsModal({ onClose }) {
       return
     }
     setTesting(true); setTestOk(null); setTestMsg('')
-    // Temporarily use draft key for the test
-    const origKey = apiKey
-    saveApiKey(draft)
     try {
-      const res = await askGemini('Balas hanya dengan "OK" dalam satu kata.')
+      const res = await askGemini('Balas hanya dengan "OK" dalam satu kata.', '', draft.trim())
       setTestOk(true)
       setTestMsg(`✓ Respons: "${res.trim().slice(0,60)}"`)
     } catch (err) {
       setTestOk(false)
       setTestMsg(err.message || 'Koneksi gagal')
-      // Revert to original key if test fails
-      saveApiKey(origKey)
     } finally {
       setTesting(false)
     }
