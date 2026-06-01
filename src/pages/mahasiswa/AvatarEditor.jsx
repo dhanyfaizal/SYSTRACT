@@ -224,24 +224,24 @@ export default function AvatarEditor() {
       </div>
 
       {/* Main Grid: Preview + Items */}
-      <div style={{ display: 'grid', gridTemplateColumns: '512px 1fr', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 24 }}>
 
         {/* ── Left: Preview ───────────────────────────── */}
         <div>
           <div className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
             {/* Big avatar */}
             <div style={{
-              width: 512, height: 512,
-              borderRadius: '24px',
+              width: 200, height: 200,
+              borderRadius: '16px',
               border: '4px solid var(--indigo-200)',
               boxShadow: '0 8px 32px rgba(99,102,241,.2)',
               overflow: 'hidden',
               background: config?.skin_color || '#FFDBB4',
               position: 'relative',
             }}>
-              <AvatarPreview config={config} items={itemMap} size={512}
+              <AvatarPreview config={config} items={itemMap} size={200}
                 fallback={{ name: profile?.full_name, avatar_url: profile?.avatar_url }}
-                style={{ borderRadius: '20px' }} />
+                style={{ borderRadius: '12px' }} />
             </div>
 
             {/* Skin Color */}
@@ -432,7 +432,7 @@ export default function AvatarEditor() {
       {/* Responsive override */}
       <style>{`
         @media (max-width: 768px) {
-          div[style*="gridTemplateColumns: 512px"] {
+          div[style*="gridTemplateColumns: 340px"] {
             grid-template-columns: 1fr !important;
           }
         }
