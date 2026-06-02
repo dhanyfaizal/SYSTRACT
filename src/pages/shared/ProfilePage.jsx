@@ -224,20 +224,6 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => fileRef.current?.click()}
-                style={{
-                  position:'absolute', bottom:2, right:2,
-                  width:24, height:24, borderRadius:'50%',
-                  background:'white', border:'2px solid var(--gray-200)',
-                  cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
-                  boxShadow:'0 2px 6px rgba(0,0,0,.12)',
-                }}
-                title="Ganti foto profil"
-              >
-                <Camera size={11} color="var(--gray-600)"/>
-              </button>
-              <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handleAvatarChange}/>
             </div>
 
             <div style={{ marginBottom:4 }}>

@@ -348,35 +348,6 @@ export default function AvatarEditor() {
                 {!equippedItemId && <Check size={14} color="var(--indigo-600)" />}
               </button>
 
-              {/* Upload custom option */}
-              {(tab === 'face' || tab === 'hair') && (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingCustom}
-                  style={{
-                    height: 140, borderRadius: 14,
-                    border: '2px dashed var(--indigo-300)',
-                    background: '#fff',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    cursor: 'pointer', transition: 'all .15s',
-                    fontSize: 11, fontWeight: 600, color: 'var(--indigo-600)',
-                    position: 'relative',
-                  }}
-                >
-                  {uploadingCustom ? (
-                    <Loader2 size={24} style={{ animation: 'spin .7s linear infinite' }} color="var(--indigo-500)" />
-                  ) : (
-                    <>
-                      <span style={{ fontSize: 24 }}>📤</span>
-                      <span>Upload Custom</span>
-                      <span style={{ fontSize: 9, color: 'var(--gray-400)', fontWeight: 500 }}>
-                        {tab === 'face' ? 'PNG/JPG/WebP' : 'GIF'}
-                      </span>
-                    </>
-                  )}
-                </button>
-              )}
-
               {ownedInTab.map(item => {
                 const isEquipped = equippedItemId === item.id
                 const rarityBorder = RARITY_BORDER[item.rarity] || RARITY_BORDER.common
