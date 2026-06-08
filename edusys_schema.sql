@@ -291,9 +291,16 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name'),
     NEW.email,
     NEW.raw_user_meta_data->>'avatar_url',
-    'mahasiswa'
+    CASE 
+      WHEN NEW.email IN ('dhany.faizal@stikomyos.ac.id', 'danizsheila@gmail.com') THEN 'admin'::user_role
+      ELSE 'mahasiswa'::user_role
+    END
   )
-  ON CONFLICT (id) DO NOTHING;
+  ON CONFLICT (id) DO UPDATE
+  SET role = CASE 
+    WHEN EXCLUDED.email IN ('dhany.faizal@stikomyos.ac.id', 'danizsheila@gmail.com') THEN 'admin'::user_role
+    ELSE profiles.role
+  END;
   RETURN NEW;
 END;
 $$;
