@@ -351,11 +351,12 @@ CREATE POLICY "Admin can update any profile" ON profiles
 
 -- courses
 DROP POLICY IF EXISTS "Enrolled users see courses"    ON courses;
+DROP POLICY IF EXISTS "Anyone authenticated can see courses" ON courses;
 DROP POLICY IF EXISTS "Dosen can insert courses"      ON courses;
 DROP POLICY IF EXISTS "Dosen can update own courses"  ON courses;
-CREATE POLICY "Enrolled users see courses" ON courses FOR SELECT
+CREATE POLICY "Anyone authenticated can see courses" ON courses FOR SELECT TO authenticated
   USING (
-    EXISTS (SELECT 1 FROM enrollments WHERE course_id = id AND student_id = auth.uid())
+    is_active = true
     OR dosen_id = auth.uid()
     OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
