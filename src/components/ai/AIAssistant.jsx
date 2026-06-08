@@ -6,7 +6,7 @@ import AISettingsModal from './AISettingsModal'
 
 // System prompt adapts to user role
 function buildSystemPrompt(role, pageName = '') {
-  const base = `Kamu adalah Asisten AI EduSYS milik STIKOM Yos Sudarso. Jawab dalam Bahasa Indonesia yang ramah, sopan, dan solutif. Format respons menggunakan susunan markdown yang rapi (seperti tebal, list poin, dan blok kode pemrograman jika diperlukan) agar mudah dibaca oleh pengguna.`
+  const base = `Kamu adalah Asisten AI SYSTRACT milik STIKOM Yos Sudarso. Jawab dalam Bahasa Indonesia yang ramah, sopan, dan solutif. Format respons menggunakan susunan markdown yang rapi (seperti tebal, list poin, dan blok kode pemrograman jika diperlukan) agar mudah dibaca oleh pengguna.`
   if (role === 'mahasiswa') return `${base} Bantu mahasiswa memahami materi kuliah, memberikan panduan pengerjaan tugas, dan memberikan tips belajar secara efektif.`
   if (role === 'dosen')     return `${base} Bantu dosen merancang rubrik penilaian tugas, menyusun butir soal ujian, membuat modul bahan ajar, dan memberikan inspirasi feedback konstruktif.`
   if (role === 'admin')     return `${base} Bantu admin mengelola alur kerja sistem, menyusun format laporan, dan menyusun teks pengumuman resmi institusi.`
@@ -135,7 +135,7 @@ export default function AIAssistant() {
   const { role } = useAuth()
 
   const [messages, setMessages] = useState([
-    { role: 'bot', text: 'Halo! 👋 Saya AI Assistant EduSYS. Ada yang bisa saya bantu?' }
+    { role: 'bot', text: 'Halo! 👋 Saya AI Assistant SYSTRACT. Ada yang bisa saya bantu?' }
   ])
   const [input,    setInput]    = useState('')
   const [loading,  setLoading]  = useState(false)

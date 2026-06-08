@@ -28,3 +28,6 @@ dist-ssr
 .env.*
 !.env.example
 .vercel
+
+# Google API client secrets
+client_secret_*.json

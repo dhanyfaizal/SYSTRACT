@@ -63,11 +63,10 @@ export default function Login() {
 
           {/* Title */}
           <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--gray-900)', textAlign: 'center', margin: 0 }}>
-            EduSYS
+            SYSTRACT
           </h1>
           <p style={{ fontSize: 13, color: 'var(--gray-500)', textAlign: 'center', marginTop: 4, marginBottom: 32 }}>
-            Learning Management System<br />
-            <strong style={{ color: 'var(--gray-700)' }}>STIKOM Yos Sudarso</strong>
+            STIKOM Yos Sudarso Training Center
           </p>
 
           {/* Login button */}

@@ -61,7 +61,7 @@ export default function AdminDashboard() {
             <span style={{ fontSize:11, fontWeight:700, color:'var(--indigo-600)', textTransform:'uppercase', letterSpacing:'.5px' }}>Administrator</span>
           </div>
           <h1 className="page-title">{greeting}, {profile?.full_name?.split(' ')[0] || 'Admin'} 👋</h1>
-          <p className="page-subtitle">Selamat datang di Admin Panel EduSYS</p>
+          <p className="page-subtitle">Selamat datang di Admin Panel SYSTRACT</p>
         </div>
       </div>
 

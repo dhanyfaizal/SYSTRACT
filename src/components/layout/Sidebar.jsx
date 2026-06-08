@@ -26,10 +26,12 @@ const DOSEN_COURSE_SUBS = [
 
 const STATIC_NAV = {
   mahasiswa: [
-    { section:'Beranda',  items:[{ label:'Dashboard',  icon:LayoutDashboard, to:'/dashboard' }] },
-    { section:'Akademik', items:[
-      { label:'Nilai',    icon:BarChart2, to:'/nilai'    },
-      { label:'Kalender', icon:Calendar,  to:'/kalender' },
+    { section:'Beranda',  items:[
+      { label:'Dashboard',  icon:LayoutDashboard, to:'/dashboard' },
+      { label:'Katalog Kursus', icon:BookOpen, to:'/katalog' }
+    ] },
+    { section:'Evaluasi', items:[
+      { label:'Nilai & Sertifikat', icon:BarChart2, to:'/nilai' },
     ]},
     { section:'Komunitas', items:[
       { label:'Leaderboard', icon:Trophy, to:'/leaderboard' },
@@ -43,10 +45,6 @@ const STATIC_NAV = {
       { label:'Penilaian',   icon:ClipboardList, to:'/penilaian'   },
       { label:'Nilai Akhir', icon:Award,         to:'/nilai-akhir' },
     ]},
-    { section:'Kehadiran & Jadwal', items:[
-      { label:'Presensi', icon:UserCheck, to:'/absensi'  },
-      { label:'Kalender', icon:Calendar,  to:'/kalender' },
-    ]},
     { section:'Informasi', items:[
       { label:'Pengumuman', icon:Megaphone, to:'/pengumuman' },
     ]},
@@ -58,7 +56,7 @@ const STATIC_NAV = {
       { label:'Enrollment', icon:GraduationCap, to:'/admin/enrollment'    },
     ]},
     { section:'Akademik', items:[
-      { label:'Mata Kuliah',   icon:BookOpen,      to:'/mata-kuliah'          },
+      { label:'Kursus',        icon:BookOpen,      to:'/mata-kuliah'          },
       { label:'Program Studi', icon:GraduationCap, to:'/admin/program-studi'  },
       { label:'Toko Avatar',   icon:ShoppingBag,    to:'/admin/shop-items'     },
       { label:'Badges',        icon:Trophy,        to:'/admin/badges'         },
@@ -73,8 +71,8 @@ const STATIC_NAV = {
 
 const ROLE_META = {
   admin:     { label:'Administrator', color:'badge-red'    },
-  dosen:     { label:'Dosen',         color:'badge-amber'  },
-  mahasiswa: { label:'Mahasiswa',     color:'badge-indigo' },
+  dosen:     { label:'Instruktur',    color:'badge-amber'  },
+  mahasiswa: { label:'Peserta',       color:'badge-indigo' },
 }
 
 // ── Simple NavItem (no children) ──────────────────────────────────
@@ -216,8 +214,8 @@ function CourseNavSection({ role, userId }) {
 
   return (
     <div style={{ marginTop:4 }}>
-      <div className="sidebar-section-label">Perkuliahan</div>
-
+      <div className="sidebar-section-label">Pembelajaran</div>
+      
       {/* Mata Kuliah toggle button */}
       <button onClick={toggle} style={{
         display:'flex', alignItems:'center', gap:8,
@@ -229,7 +227,7 @@ function CourseNavSection({ role, userId }) {
         borderRadius:6, transition:'background .15s',
       }}>
         <BookOpen size={16} style={{ flexShrink:0, color: isMKActive?'var(--indigo-600)':'var(--gray-400)' }}/>
-        <span style={{ flex:1 }}>Mata Kuliah</span>
+        <span style={{ flex:1 }}>Kursus Saya</span>
         {loading
           ? <div className="spinner" style={{ width:12, height:12, borderWidth:2, flexShrink:0 }}/>
           : expanded
@@ -244,7 +242,7 @@ function CourseNavSection({ role, userId }) {
           <div style={{ position:'absolute', left:24, top:0, bottom:4, width:1, background:'var(--gray-200)' }}/>
           {courses.length === 0 ? (
             <div style={{ padding:'8px 16px 4px 32px', fontSize:11, color:'var(--gray-300)' }}>
-              Belum ada mata kuliah
+              Belum ada kursus
             </div>
           ) : role === 'dosen'
             ? courses.map(c => <DosenCourseRow key={c.id} course={c} defaultOpen={courses.length===1}/>)
@@ -277,8 +275,8 @@ export default function Sidebar() {
       <div style={{ height:'var(--header-h)', flexShrink:0, display:'flex', alignItems:'center', padding:'0 16px', borderBottom:'1px solid var(--gray-200)', gap:10 }}>
         <img src={LOGO_URL} alt="STIKOM" className="sidebar-logo-img" />
         <div className="sidebar-logo-text">
-          <div className="sidebar-logo-brand">EduSYS</div>
-          <div className="sidebar-logo-sub">STIKOM Yos Sudarso</div>
+          <div className="sidebar-logo-brand">SYSTRACT</div>
+          <div className="sidebar-logo-sub">Yos Sudarso Training Center</div>
         </div>
       </div>
 

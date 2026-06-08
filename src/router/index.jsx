@@ -17,6 +17,8 @@ import Nilai              from '@/pages/mahasiswa/Nilai'
 import Leaderboard        from '@/pages/mahasiswa/Leaderboard'
 import AvatarShop         from '@/pages/mahasiswa/AvatarShop'
 import AvatarEditor       from '@/pages/mahasiswa/AvatarEditor'
+import KatalogKursus       from '@/pages/mahasiswa/KatalogKursus'
+
 
 // ── Dosen ────────────────────────────────────────────────────
 import DosenDashboard   from '@/pages/dosen/Dashboard'
@@ -145,6 +147,7 @@ export default function AppRouter() {
             <Route path="/leaderboard"         element={<Leaderboard />} />
             <Route path="/toko-avatar"         element={<AvatarShop />} />
             <Route path="/avatar-editor"       element={<AvatarEditor />} />
+            <Route path="/katalog"             element={<KatalogKursus />} />
             <Route path="/kalender"            element={<AcademicCalendar />} />
 
             {/* Dosen + Admin */}

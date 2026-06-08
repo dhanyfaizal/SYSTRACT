@@ -13,8 +13,8 @@ import toast from 'react-hot-toast'
 // ── Badge definitions (computed dari aktivitas) ─────────────
 const BADGE_DEFS = [
   {
-    id: 'member',     icon: '🎓', label: 'Anggota EduSYS',
-    desc: 'Bergabung dengan EduSYS',
+    id: 'member',     icon: '🎓', label: 'Anggota SYSTRACT',
+    desc: 'Bergabung dengan SYSTRACT',
     check: () => true,
     color: '#4f46e5',
   },

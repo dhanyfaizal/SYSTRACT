@@ -57,12 +57,71 @@ export default function MahasiswaDashboard() {
   }
 
   async function fetchCourses() {
-    const { data } = await supabase
-      .from('enrollments')
-      .select('course:courses(id,code,name,credits,semester,cover_color,dosen:profiles!courses_dosen_id_fkey(full_name))')
-      .eq('student_id', user.id)
-      .limit(6)
-    setCourses((data || []).map(e => e.course).filter(Boolean))
+    try {
+      const { data: enrollData } = await supabase
+        .from('enrollments')
+        .select('course:courses(id,code,name,credits,semester,cover_color,dosen:profiles!courses_dosen_id_fkey(full_name))')
+        .eq('student_id', user.id)
+        .limit(6)
+
+      const userCourses = (enrollData || []).map(e => e.course).filter(Boolean)
+
+      if (userCourses.length > 0) {
+        const courseIds = userCourses.map(c => c.id)
+
+        // Fetch total materials per course
+        const { data: materialsData } = await supabase
+          .from('materials')
+          .select('course_id')
+          .in('course_id', courseIds)
+
+        // Fetch completed materials per course
+        const { data: completedData } = await supabase
+          .from('course_progress')
+          .select('course_id, material_id')
+          .eq('student_id', user.id)
+          .in('course_id', courseIds)
+
+        // Group totals
+        const totalMap = {}
+        const completedMap = {}
+
+        courseIds.forEach(id => {
+          totalMap[id] = 0
+          completedMap[id] = 0
+        })
+
+        materialsData?.forEach(m => {
+          if (totalMap[m.course_id] !== undefined) {
+            totalMap[m.course_id]++
+          }
+        })
+
+        completedData?.forEach(cp => {
+          if (completedMap[cp.course_id] !== undefined) {
+            completedMap[cp.course_id]++
+          }
+        })
+
+        // Combine progress
+        const coursesWithProgress = userCourses.map(c => {
+          const total = totalMap[c.id] || 0
+          const completed = completedMap[c.id] || 0
+          const percent = total > 0 ? Math.round((completed / total) * 100) : 0
+          return {
+            ...c,
+            progress: { total, completed, percent }
+          }
+        })
+
+        setCourses(coursesWithProgress)
+      } else {
+        setCourses([])
+      }
+    } catch (err) {
+      console.error('[SYSTRACT] Error fetching dashboard courses:', err)
+      setCourses([])
+    }
   }
 
   async function fetchLeaderboard() {
@@ -148,7 +207,7 @@ export default function MahasiswaDashboard() {
 
       {/* Stats row */}
       <div className="stats-grid">
-        <StatCard icon={<BookOpen size={16} color="#4f46e5" />} iconBg="#eef2ff" label="Mata Kuliah" value={loading ? '–' : courses.length} sub="Terdaftar semester ini" />
+        <StatCard icon={<BookOpen size={16} color="#4f46e5" />} iconBg="#eef2ff" label="Kursus Saya" value={loading ? '–' : courses.length} sub="Kursus yang diikuti" />
         <StatCard icon={<CheckCircle2 size={16} color="#10b981" />} iconBg="#d1fae5" label="Tugas Selesai" value={loading ? '–' : stats.completed} sub={`dari ${stats.tasks} tugas`} />
         <StatCard icon={<Star size={16} color="#f59e0b" />} iconBg="#fef3c7" label="Total Poin" value={loading ? '–' : stats.points} sub="Poin gamifikasi" />
         <StatCard icon={<TrendingUp size={16} color="#ef4444" />} iconBg="#fee2e2" label="Peringkat" value={loading ? '–' : `#${stats.rank}`} sub="Leaderboard angkatan" />
@@ -163,7 +222,7 @@ export default function MahasiswaDashboard() {
             <div className="card-header">
               <div style={{ display:'flex', alignItems:'center', gap: 8 }}>
                 <BookOpen size={16} color="var(--gray-500)" />
-                <span style={{ fontWeight: 600, fontSize: 14 }}>Mata Kuliah Aktif</span>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>Kursus Saya</span>
               </div>
               <button className="btn btn-ghost btn-sm" onClick={() => navigate('/mata-kuliah')} style={{ gap: 4 }}>
                 Lihat Semua <ChevronRight size={13} />
@@ -177,8 +236,8 @@ export default function MahasiswaDashboard() {
               ) : courses.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-state-icon">📚</div>
-                  <p className="empty-state-text">Belum ada mata kuliah</p>
-                  <p className="empty-state-sub">Hubungi admin untuk enrollment</p>
+                  <p className="empty-state-text">Belum ada kursus</p>
+                  <p className="empty-state-sub">Silakan daftar kursus di Katalog</p>
                 </div>
               ) : (
                 <div className="course-grid">
@@ -196,10 +255,21 @@ export default function MahasiswaDashboard() {
                           <span>{c.credits} SKS</span>
                           <span>{c.semester}</span>
                         </div>
+                        {c.progress && (
+                          <div style={{ marginTop: 10 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--gray-400)', marginBottom: 4 }}>
+                              <span>Progres</span>
+                              <strong>{c.progress.percent}%</strong>
+                            </div>
+                            <div style={{ height: 6, background: 'var(--gray-100)', borderRadius: 99, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${c.progress.percent}%`, background: 'var(--success)', borderRadius: 99, transition: 'width .3s ease' }} />
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="course-card-footer">
                         <span style={{ display:'flex', alignItems:'center', gap: 4 }}>
-                          <Users size={11} /> {c.dosen?.full_name || 'Dosen TBA'}
+                          <Users size={11} /> {c.dosen?.full_name || 'Instruktur TBA'}
                         </span>
                         <ChevronRight size={12} />
                       </div>
