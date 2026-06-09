@@ -678,6 +678,72 @@ export default function DosenMataKuliah() {
     }
   }
 
+  function handleUpdateCplItem(index, value) {
+    setTempCpl(prev => {
+      const updated = [...prev]
+      updated[index] = value
+      return updated
+    })
+  }
+
+  function handleAddCplItem() {
+    setTempCpl(prev => [...prev, 'Mampu merancang dan mengimplementasikan...'])
+  }
+
+  function handleRemoveCplItem(index) {
+    setTempCpl(prev => prev.filter((_, idx) => idx !== index))
+  }
+
+  function handleUpdateCpmkItem(index, key, value) {
+    setTempCpmk(prev => {
+      const updated = [...prev]
+      if (key === 'cpl_ref') {
+        const refs = value.split(',').map(s => s.trim()).filter(Boolean)
+        updated[index] = { ...updated[index], cpl_ref: refs }
+      } else {
+        updated[index] = { ...updated[index], [key]: value }
+      }
+      return updated
+    })
+  }
+
+  function handleAddCpmkItem() {
+    setTempCpmk(prev => [
+      ...prev,
+      {
+        kode: `CPMK-${prev.length + 1}`,
+        deskripsi: 'Mahasiswa mampu...',
+        cpl_ref: []
+      }
+    ])
+  }
+
+  function handleRemoveCpmkItem(index) {
+    setTempCpmk(prev => {
+      const filtered = prev.filter((_, idx) => idx !== index)
+      return filtered.map((item, idx) => ({
+        ...item,
+        kode: `CPMK-${idx + 1}`
+      }))
+    })
+  }
+
+  function handleUpdateRefItem(index, value) {
+    setTempRefs(prev => {
+      const updated = [...prev]
+      updated[index] = value
+      return updated
+    })
+  }
+
+  function handleAddRefItem() {
+    setTempRefs(prev => [...prev, 'Nama Penulis. (Tahun). Judul Buku. Penerbit.'])
+  }
+
+  function handleRemoveRefItem(index) {
+    setTempRefs(prev => prev.filter((_, idx) => idx !== index))
+  }
+
   function handleUpdateWeeklyItem(index, key, value) {
     setTempWeekly(prev => {
       const updated = [...prev]
@@ -1661,46 +1727,136 @@ export default function DosenMataKuliah() {
                           </button>
                         </div>
 
-                        {tempCpl.length === 0 && tempCpmk.length === 0 && (
-                          <div style={{ padding: '30px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
-                            <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Belum ada data CPL/CPMK. Klik "Generate CPL & CPMK" untuk membuat pemetaan kompetensi berbasis OBE.</span>
-                          </div>
-                        )}
-
-                        {tempCpl.length > 0 && (
-                          <div>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>CPL yang Didukung:</span>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
-                              {tempCpl.map((c, idx) => (
-                                <div key={idx} style={{ display: 'flex', gap: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '6px 10px', borderRadius: 6, fontSize: 12 }}>
-                                  <span className="badge-pill badge-green" style={{ height: 20 }}>CPL-{idx+1}</span>
-                                  <span style={{ color: '#166534' }}>{c}</span>
-                                </div>
-                              ))}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                          {/* CPL Section */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>CPL yang Didukung (Bisa Diedit):</span>
+                              <button 
+                                type="button" 
+                                className="btn btn-secondary btn-sm" 
+                                onClick={handleAddCplItem}
+                                style={{ fontSize: 11, padding: '4px 10px', gap: 4 }}
+                              >
+                                <Plus size={12} /> Tambah CPL
+                              </button>
                             </div>
+                            
+                            {tempCpl.length === 0 ? (
+                              <div style={{ padding: '15px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
+                                <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Belum ada data CPL. Klik "Generate CPL & CPMK" atau "+ Tambah CPL".</span>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 8, background: '#f8fafc' }}>
+                                {tempCpl.map((c, idx) => (
+                                  <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#ffffff', border: '1px solid var(--gray-200)', padding: 6, borderRadius: 6 }}>
+                                    <span className="badge-pill badge-green" style={{ height: 24, fontSize: 10 }}>CPL-{idx+1}</span>
+                                    <input 
+                                      type="text" 
+                                      className="input" 
+                                      style={{ fontSize: 12, padding: '4px 8px', flex: 1 }}
+                                      value={c} 
+                                      onChange={e => handleUpdateCplItem(idx, e.target.value)} 
+                                      placeholder="Deskripsi Capaian Pembelajaran Lulusan..."
+                                    />
+                                    <button 
+                                      type="button" 
+                                      className="btn btn-ghost btn-icon btn-sm" 
+                                      style={{ color: 'var(--danger)', height: 24, width: 24 }}
+                                      onClick={() => handleRemoveCplItem(idx)}
+                                      title="Hapus CPL"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
 
-                        {tempCpmk.length > 0 && (
-                          <div>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>Rancangan CPMK:</span>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
-                              {tempCpmk.map((c, idx) => (
-                                <div key={idx} style={{ background: '#f8fafc', border: '1px solid var(--gray-200)', padding: '8px 12px', borderRadius: 6, fontSize: 12 }}>
-                                  <div style={{ fontWeight: 700, color: 'var(--gray-800)' }}>{c.kode || `CPMK-${idx+1}`}</div>
-                                  <div style={{ color: 'var(--gray-600)', marginTop: 2 }}>{c.deskripsi}</div>
-                                  {c.cpl_ref && c.cpl_ref.length > 0 && (
-                                    <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                                      {c.cpl_ref.map(r => (
-                                        <span key={r} style={{ background: '#eef2ff', color: 'var(--indigo-600)', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4 }}>{r}</span>
-                                      ))}
+                          {/* CPMK Section */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>Rancangan CPMK (Bisa Diedit):</span>
+                              <button 
+                                type="button" 
+                                className="btn btn-secondary btn-sm" 
+                                onClick={handleAddCpmkItem}
+                                style={{ fontSize: 11, padding: '4px 10px', gap: 4 }}
+                              >
+                                <Plus size={12} /> Tambah CPMK
+                              </button>
+                            </div>
+                            
+                            {tempCpmk.length === 0 ? (
+                              <div style={{ padding: '15px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
+                                <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Belum ada data CPMK. Klik "Generate CPL & CPMK" atau "+ Tambah CPMK".</span>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 250, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 8, background: '#f8fafc' }}>
+                                {tempCpmk.map((c, idx) => (
+                                  <div 
+                                    key={idx} 
+                                    style={{ 
+                                      display: 'flex', 
+                                      flexDirection: 'column', 
+                                      gap: 6, 
+                                      background: '#ffffff', 
+                                      border: '1px solid var(--gray-200)', 
+                                      padding: 10, 
+                                      borderRadius: 8 
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <input 
+                                        type="text" 
+                                        className="input" 
+                                        style={{ fontSize: 12, fontWeight: 700, padding: '4px 8px', width: 100, height: 28 }}
+                                        value={c.kode || `CPMK-${idx+1}`} 
+                                        onChange={e => handleUpdateCpmkItem(idx, 'kode', e.target.value)} 
+                                        placeholder="Kode CPMK"
+                                      />
+                                      <button 
+                                        type="button" 
+                                        className="btn btn-ghost btn-icon btn-sm" 
+                                        style={{ color: 'var(--danger)', height: 24, width: 24 }}
+                                        onClick={() => handleRemoveCpmkItem(idx)}
+                                        title="Hapus CPMK"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
                                     </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
+                                    
+                                    <div>
+                                      <textarea 
+                                        className="input" 
+                                        rows={2}
+                                        style={{ fontSize: 11, padding: '6px 8px', lineHeight: 1.4, resize: 'vertical' }}
+                                        value={c.deskripsi || ''} 
+                                        onChange={e => handleUpdateCpmkItem(idx, 'deskripsi', e.target.value)} 
+                                        placeholder="Deskripsi Capaian Pembelajaran Mata Kuliah..."
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <label style={{ fontSize: 9, fontWeight: 700, color: 'var(--gray-500)', display: 'block', marginBottom: 2 }}>
+                                        Referensi CPL (koma dipisah, contoh: CPL-1, CPL-2)
+                                      </label>
+                                      <input 
+                                        type="text" 
+                                        className="input" 
+                                        style={{ fontSize: 11, padding: '4px 8px', height: 24 }}
+                                        value={c.cpl_ref ? c.cpl_ref.join(', ') : ''} 
+                                        onChange={e => handleUpdateCpmkItem(idx, 'cpl_ref', e.target.value)} 
+                                        placeholder="Contoh: CPL-1, CPL-2"
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
                           <button className="btn btn-ghost btn-sm" onClick={() => setAiActiveStep(1)}>
@@ -1735,21 +1891,50 @@ export default function DosenMataKuliah() {
                           </button>
                         </div>
 
-                        {tempRefs.length === 0 && (
-                          <div style={{ padding: '30px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
-                            <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Belum ada data referensi pustaka. Klik "Generate Pustaka" untuk merumuskan buku & jurnal.</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>Daftar Pustaka (Bisa Diedit):</span>
+                            <button 
+                              type="button" 
+                              className="btn btn-secondary btn-sm" 
+                              onClick={handleAddRefItem}
+                              style={{ fontSize: 11, padding: '4px 10px', gap: 4 }}
+                            >
+                              <Plus size={12} /> Tambah Referensi
+                            </button>
                           </div>
-                        )}
-
-                        {tempRefs.length > 0 && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {tempRefs.map((r, idx) => (
-                              <div key={idx} style={{ padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, fontSize: 12, color: '#92400e' }}>
-                                📚 {r}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                          
+                          {tempRefs.length === 0 ? (
+                            <div style={{ padding: '15px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
+                              <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Belum ada data referensi. Klik "Generate Pustaka" atau "+ Tambah Referensi".</span>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 250, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 8, background: '#f8fafc' }}>
+                              {tempRefs.map((r, idx) => (
+                                <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', background: '#fffbeb', border: '1px solid #fde68a', padding: 8, borderRadius: 6 }}>
+                                  <span style={{ fontSize: 14, marginTop: 4 }}>📚</span>
+                                  <textarea 
+                                    className="input" 
+                                    rows={2}
+                                    style={{ fontSize: 11, padding: '6px 8px', lineHeight: 1.4, resize: 'vertical', flex: 1, background: '#ffffff' }}
+                                    value={r} 
+                                    onChange={e => handleUpdateRefItem(idx, e.target.value)} 
+                                    placeholder="Format APA Style, contoh: Duckett, J. (2023). HTML and CSS..."
+                                  />
+                                  <button 
+                                    type="button" 
+                                    className="btn btn-ghost btn-icon btn-sm" 
+                                    style={{ color: 'var(--danger)', height: 28, width: 28 }}
+                                    onClick={() => handleRemoveRefItem(idx)}
+                                    title="Hapus Referensi"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
                           <button className="btn btn-ghost btn-sm" onClick={() => setAiActiveStep(2)}>
