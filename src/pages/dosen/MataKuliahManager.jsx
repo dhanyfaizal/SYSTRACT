@@ -215,18 +215,24 @@ export default function DosenMataKuliah() {
 
   const selectedCourse = courses.find(c => c.id === selectedCourseId)
 
-  // Initialize temp states for AI Generator when selecting another course
+  // Initialize temp states for AI Generator when selecting another course or when it gets updated
   useEffect(() => {
     if (selectedCourse) {
       setTempDesc(selectedCourse.description || '')
       setTempCpl(selectedCourse.cpl || [])
       setTempCpmk(selectedCourse.cpmk || [])
-      setTempWeekly([])
+      setTempWeekly(selectedCourse.weekly_plan || [])
       setTempRefs(selectedCourse.referensi || [])
+    }
+  }, [selectedCourseId, courses])
+
+  // Reset tab and step only when the selected course ID changes
+  useEffect(() => {
+    if (selectedCourseId) {
       setActiveTab('overview')
       setAiActiveStep(1)
     }
-  }, [selectedCourseId, courses])
+  }, [selectedCourseId])
 
   // ── Database Fetch functions ─────────────────────────────────
   async function fetchCourses(selectId = null) {
@@ -672,11 +678,91 @@ export default function DosenMataKuliah() {
     }
   }
 
+  function handleUpdateWeeklyItem(index, key, value) {
+    setTempWeekly(prev => {
+      const updated = [...prev]
+      updated[index] = { ...updated[index], [key]: value }
+      return updated
+    })
+  }
+
+  function handleAddWeeklyItem() {
+    setTempWeekly(prev => {
+      const nextNo = prev.length + 1
+      const isUts = nextNo === 8
+      const isUas = nextNo === 16
+      let bahanKajian = ''
+      let kemampuanAkhir = ''
+      if (isUts) {
+        bahanKajian = 'Ujian Tengah Semester (UTS)'
+        kemampuanAkhir = 'Melakukan evaluasi tengah semester untuk mengukur pemahaman mahasiswa terhadap materi pertemuan 1-7'
+      } else if (isUas) {
+        bahanKajian = 'Ujian Akhir Semester (UAS)'
+        kemampuanAkhir = 'Melakukan evaluasi akhir semester untuk mengukur pemahaman mahasiswa terhadap materi pertemuan 9-15'
+      }
+      return [
+        ...prev,
+        {
+          no: nextNo,
+          bahan_kajian: bahanKajian,
+          kemampuan_akhir: kemampuanAkhir,
+          waktu: 170,
+          bobot: isUts || isUas ? 15 : 5,
+          is_uts: isUts,
+          is_uas: isUas
+        }
+      ]
+    })
+  }
+
+  function handleRemoveWeeklyItem(index) {
+    setTempWeekly(prev => {
+      const filtered = prev.filter((_, idx) => idx !== index)
+      return filtered.map((item, idx) => {
+        const newNo = idx + 1
+        const isUts = newNo === 8
+        const isUas = newNo === 16
+        return {
+          ...item,
+          no: newNo,
+          bahan_kajian: item.bahan_kajian,
+          kemampuan_akhir: item.kemampuan_akhir,
+          waktu: item.waktu,
+          bobot: item.bobot,
+          is_uts: isUts,
+          is_uas: isUas
+        }
+      })
+    })
+  }
+
+  async function handleSaveWeeklyDraft() {
+    if (!selectedCourse) return
+    const loader = toast.loading("Menyimpan draf silabus...")
+    try {
+      const { error } = await supabase
+        .from('courses')
+        .update({ weekly_plan: tempWeekly })
+        .eq('id', selectedCourse.id)
+
+      if (error) {
+        if (error.message?.includes('column')) {
+          throw new Error('Kolom database "weekly_plan" belum tersedia. Harap jalankan script migrasi supabase_migration_rps.sql di Supabase SQL Editor.')
+        }
+        throw error
+      }
+      toast.success("Draf silabus berhasil disimpan!", { id: loader })
+      fetchCourses(selectedCourse.id)
+    } catch (err) {
+      toast.error("Gagal menyimpan draf silabus: " + err.message, { id: loader })
+    }
+  }
+
   async function handleApplyWeekly() {
     if (tempWeekly.length === 0) return
     const ok = await showConfirm({
       title: 'Terapkan Rencana Pembelajaran?',
-      message: 'Ini akan menghapus semua materi/pertemuan yang ada saat ini untuk kelas ini dan menggantinya dengan 16 pertemuan baru dari AI. Lanjutkan?',
+      message: 'Ini akan menghapus semua materi/pertemuan yang ada saat ini untuk kelas ini dan menggantinya dengan pertemuan baru dari rancangan silabus Anda. Lanjutkan?',
       confirmLabel: 'Ya, Ganti',
       variant: 'danger'
     })
@@ -698,9 +784,12 @@ export default function DosenMataKuliah() {
       const { error: insErr } = await supabase.from('materials').insert(rows)
       if (insErr) throw insErr
 
-      toast.success("Silabus 16 pertemuan berhasil diterapkan! 🚀", { id: loader })
-      setTempWeekly([])
-      setActiveTab('syllabus')
+      // Auto-save the weekly plan draft to database as well
+      await supabase.from('courses').update({ weekly_plan: tempWeekly }).eq('id', selectedCourse.id)
+
+      toast.success("Silabus pertemuan berhasil diterapkan! 🚀", { id: loader })
+      fetchCourses(selectedCourse.id)
+      setActiveTab('curriculum')
       fetchMaterials(selectedCourse.id)
     } catch (err) {
       toast.error("Gagal menerapkan silabus: " + err.message, { id: loader })
@@ -1131,83 +1220,22 @@ export default function DosenMataKuliah() {
             flexDirection: 'column',
             gap: 16
           }}>
-             {selectedCourse ? (
-               <>
-                {/* Cisco Netacad Style Course Header Banner */}
-                <div style={{
-                  background: '#f8fafc',
-                  border: '1px solid var(--gray-200)',
-                  borderRadius: 12,
-                  display: 'flex',
-                  gap: 24,
-                  alignItems: 'center',
-                  padding: '24px 28px',
-                  color: 'var(--gray-800)',
-                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.02)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  flexWrap: 'wrap'
-                }}>
-                  {/* Left Column (Details) */}
-                  <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>
-                        Katalog &gt; Kursus Mandiri
-                      </span>
-                      <span className="badge-pill badge-green" style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', height: 'auto', background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' }}>
-                        Cisco Academy Style
-                      </span>
-                      <span className="badge-pill badge-indigo" style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', height: 'auto', background: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0' }}>
-                        KURSUS
-                      </span>
-                    </div>
+              {selectedCourse ? (
+                <>
+                 {/* Course Header Info */}
+                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 4px 12px 4px' }}>
+                   <div>
+                     <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                       PENGELOLAAN KURSUS
+                     </span>
+                     <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--gray-900)', margin: '2px 0 0 0' }}>
+                       {selectedCourse.name} ({selectedCourse.code})
+                     </h2>
+                   </div>
+                 </div>
 
-                    <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--gray-950)', margin: 0, fontFamily: 'Outfit, sans-serif' }}>
-                      {selectedCourse.name}
-                    </h2>
-                    
-                    <p style={{ fontSize: 13, color: 'var(--gray-500)', margin: 0, fontWeight: 500, lineHeight: 1.4 }}>
-                      {selectedCourse.description ? `${selectedCourse.description.substring(0, 150)}...` : 'Your on-ramp to global learning. Get familiar with the course outline and start building your skills.'}
-                    </p>
-
-                    <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#fff', border: '1px solid var(--gray-200)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
-                        💻 Self-Paced Online
-                      </div>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#fff', border: '1px solid var(--gray-200)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
-                        🎓 Dipandu Instruktur
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-                      <button className="btn btn-primary btn-sm" style={{ background: '#22c55e', borderColor: '#22c55e', color: '#fff', fontWeight: 700, padding: '8px 18px', fontSize: 13, gap: 6, boxShadow: '0 4px 10px rgba(34, 197, 94, 0.2)' }}>
-                        Mulai Belajar (Self-Paced)
-                      </button>
-                      <span style={{ fontSize: 11, color: 'var(--gray-400)', fontWeight: 600 }}>
-                        ⚡ 14.869.338 terdaftar
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Right Column (Banner Illustration) */}
-                  <div style={{ flex: '1 1 200px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <img 
-                      src={courseBanner} 
-                      alt="Student Learning" 
-                      style={{ 
-                        maxWidth: '100%', 
-                        maxHeight: 180, 
-                        objectFit: 'cover', 
-                        borderRadius: 10,
-                        border: '1px solid var(--gray-200)',
-                        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.05)'
-                      }} 
-                    />
-                  </div>
-                </div>
-
-                {/* SPA Tabs */}
-                <div style={{ display: 'flex', gap: 16, borderBottom: '1px solid var(--gray-200)', margin: '0 4px 8px 4px' }}>
+                 {/* SPA Tabs */}
+                 <div style={{ display: 'flex', gap: 16, borderBottom: '1px solid var(--gray-200)', margin: '0 4px 8px 4px' }}>
                   <button
                     onClick={() => setActiveTab('overview')}
                     style={{
@@ -1758,23 +1786,118 @@ export default function DosenMataKuliah() {
 
                         {tempWeekly.length === 0 && (
                           <div style={{ padding: '30px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
-                            <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Belum ada rancangan silabus 16 pertemuan. Klik "Generate 16 Pertemuan" untuk merumuskan draf silabus.</span>
+                            <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Belum ada rancangan silabus 16 pertemuan. Klik "Generate 16 Pertemuan" untuk merumuskan draf silabus atau klik tombol "+ Tambah Pertemuan" di bawah.</span>
+                            <div style={{ marginTop: 12 }}>
+                              <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddWeeklyItem} style={{ gap: 4 }}>
+                                <Plus size={13} /> Tambah Pertemuan Pertama
+                              </button>
+                            </div>
                           </div>
                         )}
 
                         {tempWeekly.length > 0 && (
-                          <div>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>Rancangan 16 Pertemuan Silabus:</span>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, maxHeight: 300, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 8 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>Rancangan Silabus Pertemuan (Bisa Diedit):</span>
+                              <button 
+                                type="button" 
+                                className="btn btn-secondary btn-sm" 
+                                onClick={handleAddWeeklyItem}
+                                style={{ fontSize: 11, padding: '4px 10px', gap: 4 }}
+                              >
+                                <Plus size={12} /> Tambah Pertemuan
+                              </button>
+                            </div>
+                            <div style={{ 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              gap: 12, 
+                              marginTop: 4, 
+                              maxHeight: 400, 
+                              overflowY: 'auto', 
+                              border: '1px solid var(--gray-200)', 
+                              borderRadius: 8, 
+                              padding: 12,
+                              background: 'var(--gray-50)'
+                            }}>
                               {tempWeekly.map((w, idx) => (
-                                <div key={idx} style={{ display: 'flex', gap: 10, background: w.is_uts || w.is_uas ? '#fef2f2' : '#f8fafc', padding: 8, borderRadius: 6, fontSize: 12 }}>
-                                  <span style={{ fontWeight: 700, color: 'var(--gray-500)', width: 20 }}>{w.no}</span>
-                                  <div style={{ flex: 1 }}>
-                                    <div style={{ fontWeight: 700 }}>{w.bahan_kajian}</div>
-                                    <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 2 }}>{w.kemampuan_akhir}</div>
-                                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                                      <span style={{ fontSize: 9, background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>🕒 {w.waktu} mnt</span>
-                                      <span style={{ fontSize: 9, background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>⚖️ Bobot {w.bobot}%</span>
+                                <div 
+                                  key={idx} 
+                                  style={{ 
+                                    display: 'flex', 
+                                    flexDirection: 'column',
+                                    gap: 8, 
+                                    background: w.is_uts || w.is_uas ? '#fff5f5' : '#ffffff', 
+                                    border: w.is_uts || w.is_uas ? '1px solid #feb2b2' : '1px solid var(--gray-200)',
+                                    padding: 12, 
+                                    borderRadius: 8, 
+                                    position: 'relative',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                                  }}
+                                >
+                                  {/* Row Header with Meeting No and Delete button */}
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontWeight: 800, color: 'var(--indigo-600)', fontSize: 12 }}>
+                                      Pertemuan {w.no} {w.is_uts ? '(UTS)' : w.is_uas ? '(UAS)' : ''}
+                                    </span>
+                                    <button 
+                                      type="button" 
+                                      className="btn btn-ghost btn-icon btn-sm" 
+                                      style={{ color: 'var(--danger)', height: 24, width: 24 }}
+                                      onClick={() => handleRemoveWeeklyItem(idx)}
+                                      title="Hapus Pertemuan"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+
+                                  {/* Inputs */}
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <div>
+                                      <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-500)', display: 'block', marginBottom: 2 }}>Bahan Kajian (Materi / Topik) *</label>
+                                      <input 
+                                        type="text" 
+                                        className="input" 
+                                        style={{ fontSize: 12, padding: '6px 8px' }}
+                                        value={w.bahan_kajian || ''} 
+                                        onChange={e => handleUpdateWeeklyItem(idx, 'bahan_kajian', e.target.value)}
+                                        placeholder="Contoh: Pengenalan dasar pemrograman Python"
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-500)', display: 'block', marginBottom: 2 }}>Kemampuan Akhir yang Diharapkan *</label>
+                                      <textarea 
+                                        className="input" 
+                                        rows={2}
+                                        style={{ fontSize: 11, padding: '6px 8px', lineHeight: 1.4, resize: 'vertical' }}
+                                        value={w.kemampuan_akhir || ''} 
+                                        onChange={e => handleUpdateWeeklyItem(idx, 'kemampuan_akhir', e.target.value)}
+                                        placeholder="Contoh: Mahasiswa mampu memahami sintaks dasar dan tipe data dalam Python"
+                                      />
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: 10 }}>
+                                      <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-500)', display: 'block', marginBottom: 2 }}>🕒 Waktu (Menit)</label>
+                                        <input 
+                                          type="number" 
+                                          className="input" 
+                                          style={{ fontSize: 12, padding: '6px 8px' }}
+                                          value={w.waktu || 170} 
+                                          onChange={e => handleUpdateWeeklyItem(idx, 'waktu', parseInt(e.target.value) || 0)}
+                                        />
+                                      </div>
+                                      <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-500)', display: 'block', marginBottom: 2 }}>⚖️ Bobot (%)</label>
+                                        <input 
+                                          type="number" 
+                                          className="input" 
+                                          style={{ fontSize: 12, padding: '6px 8px' }}
+                                          value={w.bobot || 0} 
+                                          onChange={e => handleUpdateWeeklyItem(idx, 'bobot', parseInt(e.target.value) || 0)}
+                                        />
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -1788,11 +1911,18 @@ export default function DosenMataKuliah() {
                             &larr; Kembali
                           </button>
                           
-                          {tempWeekly.length > 0 && (
-                            <button className="btn btn-primary btn-sm" onClick={handleApplyWeekly}>
-                              Terapkan ke Silabus / Materi Kelas
-                            </button>
-                          )}
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            {tempWeekly.length > 0 && (
+                              <>
+                                <button className="btn btn-secondary btn-sm" onClick={handleSaveWeeklyDraft}>
+                                  Simpan Draf Silabus
+                                </button>
+                                <button className="btn btn-primary btn-sm" onClick={handleApplyWeekly}>
+                                  Terapkan ke Silabus / Materi Kelas
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
