@@ -216,14 +216,16 @@ export async function generateCpmk(courseName, courseDesc, cplList, onProgress =
     Daftar CPL (Capaian Pembelajaran Lulusan) yang didukung: ${JSON.stringify(cplList || [])}
 
     Hasilkan daftar CPMK (Capaian Pembelajaran Mata Kuliah) yang terperinci, terukur, dan OBE-compliant.
-    Format output wajib berupa JSON ARRAY murni dari objek CPMK:
-    [
-      {
-        "kode": "CPMK-1",
-        "deskripsi": "Mahasiswa mampu menganalisis...",
-        "cpl_ref": ["CPL-4", "CPL-5"]
-      }
-    ]
+    Format output wajib berupa JSON OBJECT dengan properti 'cpmk' yang berisi array objek CPMK:
+    {
+      "cpmk": [
+        {
+          "kode": "CPMK-1",
+          "deskripsi": "Mahasiswa mampu menganalisis...",
+          "cpl_ref": ["CPL-4", "CPL-5"]
+        }
+      ]
+    }
     
     ATURAN PENTING:
     - Gunakan Bahasa Indonesia formal akademik dengan kata kerja operasional Taksonomi Bloom (C3-C6 seperti menganalisis, mendesain, membuat).
@@ -232,7 +234,9 @@ export async function generateCpmk(courseName, courseDesc, cplList, onProgress =
     - Hasilkan minimal 3 dan maksimal 6 CPMK yang komprehensif.
   `;
 
-  return callAi(prompt, true, onProgress);
+  const res = await callAi(prompt, true, onProgress);
+  if (Array.isArray(res)) return res;
+  return res?.cpmk || [];
 }
 
 // 2. Generate 16 Pertemuan mingguan berdasarkan CPMK dan deskripsi mata kuliah
@@ -251,22 +255,24 @@ export async function generateWeeklyPlan(courseName, courseDesc, cpmkList, sks =
     - Pertemuan 16 WAJIB berupa UAS (is_uas: true, kemampuan_akhir: "Ujian Akhir Semester (UAS)", bahan_kajian: "Evaluasi materi pertemuan 9-15", metode: "Ujian Tertulis / Project", waktu: ${targetWaktu}, pengalaman_belajar: "Mengerjakan soal ujian akhir atau presentasi project", kriteria_penilaian: "Ketepatan dan kualitas project", bobot: 0, is_uts: false, is_uas: true)
     - Pertemuan lainnya (1-7, dan 9-15) harus dirancang secara runut dan logis guna mencapai CPMK yang ada secara bertahap.
     
-    Format output harus berupa JSON ARRAY murni berisi tepat 16 objek dengan struktur:
-    [
-      {
-        "no": 1,
-        "kemampuan_akhir": "Deskripsi kemampuan akhir mahasiswa minggu ini...",
-        "bahan_kajian": "Materi atau topik bahasan...",
-        "metode": "Ceramah, Diskusi kelompok",
-        "waktu": ${targetWaktu},
-        "pengalaman_belajar": "Mahasiswa mendiskusikan studi kasus...",
-        "kriteria_penilaian": "Ketepatan penjelasan dan kedalaman argumen...",
-        "bobot": 5,
-        "is_uts": false,
-        "is_uas": false
-      },
-      ...
-    ]
+    Format output harus berupa JSON OBJECT dengan properti 'weekly_plan' yang berisi array tepat 16 objek dengan struktur:
+    {
+      "weekly_plan": [
+        {
+          "no": 1,
+          "kemampuan_akhir": "Deskripsi kemampuan akhir mahasiswa minggu ini...",
+          "bahan_kajian": "Materi atau topik bahasan...",
+          "metode": "Ceramah, Diskusi kelompok",
+          "waktu": ${targetWaktu},
+          "pengalaman_belajar": "Mahasiswa mendiskusikan studi kasus...",
+          "kriteria_penilaian": "Ketepatan penjelasan dan kedalaman argumen...",
+          "bobot": 5,
+          "is_uts": false,
+          "is_uas": false
+        },
+        ...
+      ]
+    }
     
     ATURAN FORMATTING & BOBOT:
     - Gunakan Bahasa Indonesia yang baik dan benar.
@@ -274,7 +280,9 @@ export async function generateWeeklyPlan(courseName, courseDesc, cpmkList, sks =
     - Hasilkan draf lengkap tanpa memotong respons.
   `;
 
-  return callAi(prompt, true, onProgress);
+  const res = await callAi(prompt, true, onProgress);
+  if (Array.isArray(res)) return res;
+  return res?.weekly_plan || [];
 }
 
 // 3. Review SPMI kelayakan RPS
@@ -337,19 +345,23 @@ export async function generateCplForCourse(courseName, curriculumCpls = [], onPr
     Daftar CPL Program Studi:
     ${JSON.stringify(listToUse)}
 
-    Hasilkan daftar CPL terpilih dalam bentuk JSON ARRAY murni yang berisi string format "KODE: DESKRIPSI" (misalnya ["CPL-1: Mampu...", "CPL-3: Mampu..."]):
-    [
-      "KODE: DESKRIPSI",
-      "KODE: DESKRIPSI"
-    ]
+    Hasilkan daftar CPL terpilih dalam bentuk JSON OBJECT dengan properti 'cpl' yang berisi array string format "KODE: DESKRIPSI" (misalnya ["CPL-1: Mampu...", "CPL-3: Mampu..."]):
+    {
+      "cpl": [
+        "KODE: DESKRIPSI",
+        "KODE: DESKRIPSI"
+      ]
+    }
 
     ATURAN PENTING:
     - Hanya pilih CPL dari daftar CPL Program Studi di atas yang benar-benar relevan dengan pembelajaran mata kuliah "${courseName}".
     - Kembalikan minimal 2 dan maksimal 4 CPL yang paling relevan.
-    - Hasilkan JSON ARRAY murni tanpa ada penjelasan tambahan di luar JSON.
+    - Hasilkan JSON OBJECT murni tanpa ada penjelasan tambahan di luar JSON.
   `;
 
-  return callAi(prompt, true, onProgress);
+  const res = await callAi(prompt, true, onProgress);
+  if (Array.isArray(res)) return res;
+  return res?.cpl || [];
 }
 
 // 5. Generate Deskripsi Mata Kuliah berdasarkan Nama Mata Kuliah
@@ -392,17 +404,21 @@ export async function generateReferences(courseName, cpmkList, onProgress = null
     - Ditulis dalam format sitasi akademik standar (APA Style).
     - Memiliki tahun terbit antara ${startYear} dan ${currentYear} (inklusif).
 
-    Format output harus berupa JSON ARRAY murni yang berisi string daftar referensi langsung:
-    [
-      "Nama Penulis. (Tahun). Judul Buku. Penerbit.",
-      "Nama Penulis. (Tahun). Judul Artikel. Nama Jurnal, Volume(Isi), Halaman."
-    ]
+    Format output harus berupa JSON OBJECT dengan properti 'referensi' yang berisi array string daftar referensi langsung:
+    {
+      "referensi": [
+        "Nama Penulis. (Tahun). Judul Buku. Penerbit.",
+        "Nama Penulis. (Tahun). Judul Artikel. Nama Jurnal, Volume(Isi), Halaman."
+      ]
+    }
     
     Hasilkan minimal 4 dan maksimal 6 referensi gabungan yang paling representatif dan berkualitas.
-    Hanya kembalikan JSON array murni tanpa ada penjelasan tambahan di luar JSON.
+    Hanya kembalikan JSON object murni tanpa ada penjelasan tambahan di luar JSON.
   `;
 
-  return callAi(prompt, true, onProgress);
+  const res = await callAi(prompt, true, onProgress);
+  if (Array.isArray(res)) return res;
+  return res?.referensi || [];
 }
 
 // 7. Generate Materi Slide untuk Pertemuan (Format Outline Sederhana)
