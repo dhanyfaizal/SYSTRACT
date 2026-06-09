@@ -57,15 +57,15 @@ export default function MahasiswaMataKuliah() {
     <div>
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h1 className="page-title">Mata Kuliah</h1>
-          <p className="page-subtitle">{courses.length} mata kuliah terdaftar</p>
+          <h1 className="page-title">Kursus Saya</h1>
+          <p className="page-subtitle">{courses.length} kursus terdaftar</p>
         </div>
       </div>
 
       {/* Search */}
       <div style={{ position: 'relative', maxWidth: 320, marginBottom: 20 }}>
         <Search size={14} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--gray-400)' }} />
-        <input className="input" style={{ paddingLeft: 34 }} placeholder="Cari mata kuliah…" value={search} onChange={e => setSearch(e.target.value)} />
+        <input className="input" style={{ paddingLeft: 34 }} placeholder="Cari kursus…" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
       {loading ? (
@@ -75,8 +75,8 @@ export default function MahasiswaMataKuliah() {
       ) : filtered.length === 0 ? (
         <div className="empty-state card" style={{ padding: 48 }}>
           <BookOpen size={36} color="var(--gray-300)" />
-          <p className="empty-state-text">{search ? 'Tidak ada hasil' : 'Belum ada mata kuliah'}</p>
-          <p className="empty-state-sub">Hubungi admin untuk enrollment</p>
+          <p className="empty-state-text">{search ? 'Tidak ada hasil' : 'Belum ada kursus'}</p>
+          <p className="empty-state-sub">Jelajahi katalog untuk mendaftar kursus baru</p>
         </div>
       ) : (
         <div className="course-grid">

@@ -48,7 +48,7 @@ export default function Nilai() {
         <h1 className="page-title" style={{ display:'flex', alignItems:'center', gap:8 }}>
           <BarChart2 size={20} color="var(--indigo-600)"/> Nilai Saya
         </h1>
-        <p className="page-subtitle">Rekap penilaian dan nilai akhir per mata kuliah</p>
+        <p className="page-subtitle">Rekap penilaian dan nilai akhir per kursus</p>
       </div>
 
       <div className="stats-grid" style={{ marginBottom:24 }}>
@@ -64,7 +64,7 @@ export default function Nilai() {
         </div>
         <div className="stat-card">
           <div className="stat-card-icon" style={{ background:'#fef3c7' }}><Award size={16} color="#d97706"/></div>
-          <div className="stat-card-label">MK Nilai Akhir</div>
+          <div className="stat-card-label">Kursus Selesai</div>
           <div className="stat-card-value">{loading ? '–' : finalGrades.length}</div>
         </div>
       </div>
@@ -73,7 +73,7 @@ export default function Nilai() {
       {finalGrades.length > 0 && (
         <div style={{ marginBottom:24 }}>
           <div style={{ fontWeight:700, fontSize:14, color:'var(--gray-700)', marginBottom:12, display:'flex', alignItems:'center', gap:6 }}>
-            <Award size={15} color="var(--indigo-600)"/> Nilai Akhir Per Mata Kuliah
+            <Award size={15} color="var(--indigo-600)"/> Nilai Akhir Per Kursus
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:14 }}>
             {finalGrades.map(fg => {
@@ -131,7 +131,7 @@ export default function Nilai() {
       {finalGrades.length === 0 && !loading && (
         <div style={{ marginBottom:20, padding:'14px 18px', background:'#f8fafc', border:'1px solid var(--gray-200)', borderRadius:10, display:'flex', gap:10, alignItems:'center' }}>
           <Lock size={14} color="var(--gray-400)"/>
-          <span style={{ fontSize:13, color:'var(--gray-500)' }}>Nilai akhir belum dipublikasikan oleh dosen.</span>
+          <span style={{ fontSize:13, color:'var(--gray-500)' }}>Nilai akhir belum dipublikasikan oleh instruktur.</span>
         </div>
       )}
 
@@ -150,7 +150,7 @@ export default function Nilai() {
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead>
               <tr style={{ background:'var(--gray-50)', borderBottom:'1px solid var(--gray-200)' }}>
-                {['Mata Kuliah','Tugas','Nilai','%','Feedback'].map(h=>(
+                {['Kursus','Tugas','Nilai','%','Feedback'].map(h=>(
                   <th key={h} style={{ padding:'10px 16px', textAlign:'left', fontSize:11, fontWeight:700, color:'var(--gray-500)', textTransform:'uppercase', letterSpacing:'.4px' }}>{h}</th>
                 ))}
               </tr>

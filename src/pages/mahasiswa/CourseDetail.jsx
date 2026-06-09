@@ -3,12 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, BookOpen, ClipboardList, MessageSquare, FileText,
   ExternalLink, Calendar, User, Star, CheckCircle2, Sparkles,
-  PlayCircle, FileDown, BookMarked, Eye, Send, Loader2, Award, Clock
+  PlayCircle, FileDown, BookMarked, Eye, Send, Loader2, Award, Clock,
+  Info, RefreshCw
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAI } from '@/contexts/AIContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
+import courseBanner from '@/assets/course_banner.png'
 
 const COUNTDOWN_SEC = 180 // 3 Menit untuk membaca/menonton materi
 
@@ -124,6 +126,10 @@ export default function CourseDetail() {
   const [subTab, setSubTab] = useState('belajar') // 'belajar' | 'diskusi'
   const [loading, setLoading] = useState(true)
 
+  const [isEnrolled, setIsEnrolled] = useState(false)
+  const [materials, setMaterials] = useState([])
+  const [enrolling, setEnrolling] = useState(false)
+
   // Countdown timer state untuk materi aktif
   const [elapsed, setElapsed] = useState(0)
   const [countdown, setCountdown] = useState(COUNTDOWN_SEC)
@@ -201,6 +207,17 @@ export default function CourseDetail() {
       if (courseErr) throw courseErr
       setCourse(courseData)
 
+      // Check enrollment
+      const { data: enrollDataCheck } = await supabase
+        .from('enrollments')
+        .select('id')
+        .eq('course_id', courseId)
+        .eq('student_id', user.id)
+        .maybeSingle()
+
+      const enrolled = !!enrollDataCheck
+      setIsEnrolled(enrolled)
+
       // 2. Fetch materials
       const { data: mats } = await supabase
         .from('materials')
@@ -208,6 +225,7 @@ export default function CourseDetail() {
         .eq('course_id', courseId)
         .order('week_number')
         .order('created_at')
+      setMaterials(mats || [])
 
       // 3. Fetch assignments
       const { data: assigns } = await supabase
@@ -363,6 +381,30 @@ export default function CourseDetail() {
       toast.error('Gagal memuat detail pembelajaran')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleEnroll() {
+    setEnrolling(true)
+    const toastId = toast.loading('Mendaftar ke kursus...')
+    try {
+      const { error } = await supabase
+        .from('enrollments')
+        .insert({
+          course_id: courseId,
+          student_id: user.id
+        })
+
+      if (error) throw error
+
+      toast.success(`Berhasil mendaftar di kursus: ${course?.name} 🎉`, { id: toastId })
+      setIsEnrolled(true)
+      fetchCourseAndSyllabus()
+    } catch (err) {
+      console.error('[SYSTRACT] Enroll error:', err)
+      toast.error('Gagal mendaftar kursus. Silakan coba lagi.', { id: toastId })
+    } finally {
+      setEnrolling(false)
     }
   }
 
@@ -545,6 +587,234 @@ export default function CourseDetail() {
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}><div className="spinner" /></div>
   if (!course) return <div className="empty-state"><p>Kursus tidak ditemukan.</p></div>
+
+  if (!isEnrolled) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', overflowY: 'auto', paddingRight: 4 }}>
+        {/* Top Header Row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 16, borderBottom: '1px solid var(--gray-200)', flexShrink: 0, gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => navigate('/katalog')} title="Kembali ke Katalog">
+              <ArrowLeft size={16} />
+            </button>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--indigo-600)', textTransform: 'uppercase', letterSpacing: '.4px' }}>
+                Pratinjau Kursus
+              </div>
+              <h1 style={{ fontSize: 16, fontWeight: 800, color: 'var(--gray-900)', marginTop: 2 }}>{course.name}</h1>
+            </div>
+          </div>
+        </div>
+
+        {/* Cisco Netacad Style Course Header Banner */}
+        <div style={{
+          background: '#f8fafc',
+          border: '1px solid var(--gray-200)',
+          borderRadius: 12,
+          display: 'flex',
+          gap: 24,
+          alignItems: 'center',
+          padding: '24px 28px',
+          color: 'var(--gray-800)',
+          boxShadow: '0 4px 15px rgba(0, 0, 0, 0.02)',
+          position: 'relative',
+          overflow: 'hidden',
+          flexWrap: 'wrap',
+          marginTop: 14
+        }}>
+          {/* Left Column (Details) */}
+          <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>
+                Katalog &gt; Kursus Mandiri
+              </span>
+              <span className="badge-pill badge-green" style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', height: 'auto', background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' }}>
+                Cisco Academy Style
+              </span>
+              <span className="badge-pill badge-indigo" style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', height: 'auto', background: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0' }}>
+                KURSUS
+              </span>
+            </div>
+
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--gray-950)', margin: 0, fontFamily: 'Outfit, sans-serif' }}>
+              {course.name}
+            </h2>
+            
+            <p style={{ fontSize: 13, color: 'var(--gray-500)', margin: 0, fontWeight: 500, lineHeight: 1.4 }}>
+              {course.description || 'Your on-ramp to global learning. Get familiar with the course outline and start building your skills.'}
+            </p>
+
+            <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#fff', border: '1px solid var(--gray-200)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
+                💻 Self-Paced Online
+              </div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#fff', border: '1px solid var(--gray-200)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
+                🎓 Dipandu Instruktur
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+              <button 
+                className="btn btn-primary btn-sm" 
+                onClick={handleEnroll} 
+                disabled={enrolling}
+                style={{ background: '#22c55e', borderColor: '#22c55e', color: '#fff', fontWeight: 700, padding: '8px 18px', fontSize: 13, gap: 6, boxShadow: '0 4px 10px rgba(34, 197, 94, 0.2)' }}
+              >
+                {enrolling ? (
+                  <>
+                    <Loader2 size={14} className="spinner" style={{ animation: 'spin .7s linear infinite', borderTopColor: '#fff', marginRight: 4 }} />
+                    Mendaftar...
+                  </>
+                ) : (
+                  <>
+                    Ikuti Kursus (Self-Paced)
+                  </>
+                )}
+              </button>
+              <span style={{ fontSize: 11, color: 'var(--gray-400)', fontWeight: 600 }}>
+                ⚡ 14.869.338 terdaftar
+              </span>
+            </div>
+          </div>
+
+          {/* Right Column (Banner Illustration) */}
+          <div style={{ flex: '1 1 200px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <img 
+              src={courseBanner} 
+              alt="Student Learning" 
+              style={{ 
+                maxWidth: '100%', 
+                maxHeight: 180, 
+                objectFit: 'cover', 
+                borderRadius: 10,
+                border: '1px solid var(--gray-200)',
+                boxShadow: '0 6px 20px rgba(0, 0, 0, 0.05)'
+              }} 
+            />
+          </div>
+        </div>
+
+        {/* Overview Layout */}
+        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 20, paddingBottom: 40 }}>
+          {/* Left Column (Main Content) */}
+          <div style={{ flex: '2 1 500px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            
+            {/* Deskripsi Kursus */}
+            <div className="card" style={{ padding: 20 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 12 }}>Deskripsi Kursus</h3>
+              <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--gray-600)', whiteSpace: 'pre-wrap', margin: 0 }}>
+                {course.description || 'Deskripsi belum dirumuskan untuk kursus ini.'}
+              </p>
+            </div>
+
+            {/* Here's what you will learn */}
+            <div className="card" style={{ padding: 20 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 16 }}>Here's what you will learn.</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {materials.length === 0 ? (
+                  <div style={{ padding: '20px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Rencana silabus modul belum tersedia.</span>
+                  </div>
+                ) : (
+                  materials.sort((a,b) => a.week_number - b.week_number).map((m, index) => (
+                    <div key={m.id || index} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid var(--gray-100)' }}>
+                      <div style={{ 
+                        width: 24, 
+                        height: 24, 
+                        borderRadius: '50%', 
+                        background: '#dcfce7', 
+                        color: '#15803d', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        flexShrink: 0,
+                        fontWeight: 700,
+                        fontSize: 12,
+                        border: '1px solid #bbf7d0'
+                      }}>
+                        ✓
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-800)' }}>
+                          Modul {m.week_number}: {m.title}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 2 }}>
+                          {m.description || 'Fokus penguasaan materi dan latihan mandiri.'}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Right Column (Sidebar Widgets) */}
+          <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            
+            {/* Ringkasan Metrik Kursus */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+              {[
+                { label: 'GRATIS', sub: 'Biaya Kursus', icon: <Award size={16} color="var(--indigo-600)"/> },
+                { label: `${course.credits * 16} JAM`, sub: 'Durasi Total', icon: <Clock size={16} color="var(--indigo-600)"/> },
+                { label: 'PEMULA', sub: 'Tingkat Materi', icon: <Info size={16} color="var(--indigo-600)"/> },
+                { label: 'MANDIRI', sub: 'Metode Belajar', icon: <RefreshCw size={16} color="var(--indigo-600)"/> }
+              ].map((item, idx) => (
+                <div key={idx} className="card" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', textAlign: 'center', background: '#f8fafc' }}>
+                  {item.icon}
+                  <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--gray-800)' }}>{item.label}</span>
+                  <span style={{ fontSize: 9, color: 'var(--gray-400)', fontWeight: 600 }}>{item.sub}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Achievements */}
+            <div className="card" style={{ padding: 15, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', textAlign: 'center', background: '#f8fafc' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Achievements</span>
+              <div style={{ 
+                width: 70, 
+                height: 70, 
+                borderRadius: '50%', 
+                background: 'linear-gradient(135deg, #22c55e 0%, #15803d 100%)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                border: '4px solid #bbf7d0',
+                boxShadow: '0 4px 10px rgba(34, 197, 94, 0.2)'
+              }}>
+                <Award size={32} color="#fff"/>
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-700)' }}>
+                Lencana Kelulusan {course.code}
+              </div>
+              <p style={{ fontSize: 9, color: 'var(--gray-400)', margin: 0 }}>
+                Dapatkan sertifikat resmi dari SYSTRACT Academy setelah menyelesaikan ujian akhir modul ini.
+              </p>
+            </div>
+
+            {/* Skills You Will Learn */}
+            <div className="card" style={{ padding: 15, background: '#f8fafc' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>Skills You Will Learn</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {course.cpmk && course.cpmk.length > 0 ? (
+                  course.cpmk.map((c, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', fontSize: 11, color: 'var(--gray-600)' }}>
+                      <CheckCircle2 size={12} color="#22c55e" style={{ flexShrink: 0, marginTop: 2 }}/>
+                      <span>{c.deskripsi}</span>
+                    </div>
+                  ))
+                ) : (
+                  <span style={{ fontSize: 11, color: 'var(--gray-400)' }}>Belum ada capaian keterampilan terdaftar.</span>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>

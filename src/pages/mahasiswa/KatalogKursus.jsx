@@ -162,20 +162,10 @@ export default function KatalogKursus() {
                   ) : (
                     <button 
                       className="btn btn-primary btn-sm" 
-                      disabled={isEnrolling}
-                      onClick={() => handleEnroll(c.id, c.name)}
+                      onClick={() => navigate(`/mata-kuliah/${c.id}`)}
                       style={{ width: '100%', justifyContent: 'center', fontWeight: 600 }}
                     >
-                      {isEnrolling ? (
-                        <>
-                          <Loader2 size={14} className="spinner" style={{ animation: 'spin .7s linear infinite', borderTopColor: '#fff', marginRight: 4 }} />
-                          Mendaftar...
-                        </>
-                      ) : (
-                        <>
-                          <Plus size={14} style={{ marginRight: 4 }} /> Ikuti Kursus
-                        </>
-                      )}
+                      <Sparkles size={14} style={{ marginRight: 4 }} /> Detail & Daftar
                     </button>
                   )}
                 </div>
