@@ -3,12 +3,21 @@ import { useSearchParams } from 'react-router-dom'
 import {
   Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy,
   CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown,
-  PlusCircle, Search
+  PlusCircle, Search, Sparkles, RefreshCw, FileText, Download,
+  Share2, ArrowLeft, PenTool, CheckCircle, ChevronUp, Info, HelpCircle
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+
+// AI & Template Imports
+import {
+  generateCourseDescription, generateCplForCourse, generateCpmk,
+  generateWeeklyPlan, generateReferences, generateSlideContent,
+  generateWebSlideData, generateEssayQuestions
+} from '@/lib/ai'
+import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 
 const COLORS   = ['#4f46e5','#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4']
 const SEMESTERS = ['Ganjil 2025/2026','Genap 2025/2026','Ganjil 2026/2027']
@@ -93,9 +102,11 @@ function AttachRow({ attach, idx, onChange, onRemove, canRemove }) {
 
 // ── Main SPA component ─────────────────────────────────────────
 export default function DosenMataKuliah() {
-  const { user, isAdmin } = useAuth()
+  const { user, profile, isAdmin } = useAuth()
   const { confirmDialog, showConfirm } = useConfirm()
   const [searchParams, setSearchParams] = useSearchParams()
+
+  const [activeTab, setActiveTab] = useState('syllabus') // 'syllabus' | 'ai_assistant'
 
   // ── Course states ──────────────────────────────────────────
   const [courses,    setCourses]    = useState([])
@@ -128,6 +139,31 @@ export default function DosenMataKuliah() {
   const [savingMaterial, setSavingMaterial] = useState(false)
   const [materialForm, setMaterialForm] = useState(BLANK_MATERIAL_FORM())
 
+  // ── AI Assistant states ─────────────────────────────────────
+  const [aiProgressText, setAiProgressText] = useState('')
+  const [aiGeneratingDesc, setAiGeneratingDesc] = useState(false)
+  const [aiGeneratingCplCpmk, setAiGeneratingCplCpmk] = useState(false)
+  const [aiGeneratingWeekly, setAiGeneratingWeekly] = useState(false)
+  const [aiGeneratingRefs, setAiGeneratingRefs] = useState(false)
+
+  // Temp local state for generated AI content before saving to course
+  const [tempDesc, setTempDesc] = useState('')
+  const [tempCpl, setTempCpl] = useState([])
+  const [tempCpmk, setTempCpmk] = useState([])
+  const [tempWeekly, setTempWeekly] = useState([])
+  const [tempRefs, setTempRefs] = useState([])
+
+  // ── AI Slide Generator states ───────────────────────────────
+  const [slideModal, setSlideModal] = useState(false)
+  const [activeMeeting, setActiveMeeting] = useState(null)
+  const [loadingSlide, setLoadingSlide] = useState(false)
+  const [generatingWebSlide, setGeneratingWebSlide] = useState(false)
+  const [savingSlide, setSavingSlide] = useState(false)
+  const [slideOutline, setSlideOutline] = useState(null)
+  const [webslideData, setWebslideData] = useState(null)
+  const [aiSlideProgressText, setAiSlideProgressText] = useState('')
+  const [essayData, setEssayData] = useState(null) // for UTS/UAS questions
+
   // Load initial courses and config
   useEffect(() => {
     if (user) {
@@ -155,6 +191,20 @@ export default function DosenMataKuliah() {
       }
     }
   }, [courseIdParam, courses])
+
+  const selectedCourse = courses.find(c => c.id === selectedCourseId)
+
+  // Initialize temp states for AI Generator when selecting another course
+  useEffect(() => {
+    if (selectedCourse) {
+      setTempDesc(selectedCourse.description || '')
+      setTempCpl(selectedCourse.cpl || [])
+      setTempCpmk(selectedCourse.cpmk || [])
+      setTempWeekly([])
+      setTempRefs(selectedCourse.referensi || [])
+      setActiveTab('syllabus')
+    }
+  }, [selectedCourseId, courses])
 
   // ── Database Fetch functions ─────────────────────────────────
   async function fetchCourses(selectId = null) {
@@ -507,13 +557,419 @@ export default function DosenMataKuliah() {
     }
   }
 
+  // ── AI Assistant Actions ─────────────────────────────────────
+  async function handleAiGenerateDesc() {
+    setAiGeneratingDesc(true)
+    setAiProgressText("Menganalisis Nama Mata Kuliah...")
+    try {
+      const res = await generateCourseDescription(selectedCourse.name, setAiProgressText)
+      if (res && res.deskripsi) {
+        setTempDesc(res.deskripsi)
+        toast.success("Deskripsi mata kuliah berhasil dirumuskan AI! 🤖")
+      } else {
+        throw new Error("Hasil deskripsi kosong.")
+      }
+    } catch (err) {
+      toast.error("Gagal generate deskripsi: " + err.message)
+    } finally {
+      setAiGeneratingDesc(false)
+      setAiProgressText('')
+    }
+  }
+
+  async function handleSaveDesc() {
+    const { error } = await supabase
+      .from('courses')
+      .update({ description: tempDesc })
+      .eq('id', selectedCourse.id)
+
+    if (error) {
+      toast.error("Gagal menyimpan deskripsi: " + error.message)
+    } else {
+      toast.success("Deskripsi berhasil disimpan!")
+      fetchCourses(selectedCourse.id)
+    }
+  }
+
+  async function handleAiGenerateCplCpmk() {
+    setAiGeneratingCplCpmk(true)
+    setAiProgressText("Mengambil data CPL prodi kurikulum...")
+    try {
+      const cpls = await generateCplForCourse(selectedCourse.name, [], setAiProgressText)
+      setTempCpl(cpls || [])
+
+      setAiProgressText("Menganalisis keterkaitan CPL dan merumuskan CPMK...")
+      const cpmks = await generateCpmk(selectedCourse.name, tempDesc || selectedCourse.description, cpls, setAiProgressText)
+      setTempCpmk(cpmks || [])
+
+      toast.success("CPL & CPMK berhasil disusun AI! 🎯")
+    } catch (err) {
+      toast.error("Gagal generate CPL/CPMK: " + err.message)
+    } finally {
+      setAiGeneratingCplCpmk(false)
+      setAiProgressText('')
+    }
+  }
+
+  async function handleSaveCplCpmk() {
+    const { error } = await supabase
+      .from('courses')
+      .update({ cpl: tempCpl, cpmk: tempCpmk })
+      .eq('id', selectedCourse.id)
+
+    if (error) {
+      if (error.message?.includes('column')) {
+        toast.error('⚠️ Kolom database belum tersedia. Harap jalankan script migrasi supabase_migration_rps.sql di Supabase SQL Editor.', { duration: 6000 })
+      } else {
+        toast.error("Gagal menyimpan CPL & CPMK: " + error.message)
+      }
+    } else {
+      toast.success("CPL & CPMK berhasil disimpan ke mata kuliah!")
+      fetchCourses(selectedCourse.id)
+    }
+  }
+
+  async function handleAiGenerateWeekly() {
+    setAiGeneratingWeekly(true)
+    setAiProgressText("Menganalisis CPMK & menyusun outline silabus 16 pertemuan...")
+    try {
+      const list = await generateWeeklyPlan(
+        selectedCourse.name,
+        tempDesc || selectedCourse.description,
+        tempCpmk.length > 0 ? tempCpmk : selectedCourse.cpmk || [],
+        selectedCourse.credits || 3,
+        setAiProgressText
+      )
+      setTempWeekly(list || [])
+      toast.success("Outline 16 pertemuan berhasil disusun AI! 📅")
+    } catch (err) {
+      toast.error("Gagal generate silabus: " + err.message)
+    } finally {
+      setAiGeneratingWeekly(false)
+      setAiProgressText('')
+    }
+  }
+
+  async function handleApplyWeekly() {
+    if (tempWeekly.length === 0) return
+    const ok = await showConfirm({
+      title: 'Terapkan Rencana Pembelajaran?',
+      message: 'Ini akan menghapus semua materi/pertemuan yang ada saat ini untuk kelas ini dan menggantinya dengan 16 pertemuan baru dari AI. Lanjutkan?',
+      confirmLabel: 'Ya, Ganti',
+      variant: 'danger'
+    })
+    if (!ok) return
+
+    const rows = tempWeekly.map(w => ({
+      course_id: selectedCourse.id,
+      title: w.bahan_kajian || `Materi Pertemuan ${w.no}`,
+      description: w.kemampuan_akhir || `Kemampuan akhir pertemuan ${w.no}`,
+      week_number: w.no,
+      uploaded_by: user.id
+    }))
+
+    const loader = toast.loading("Menerapkan rencana pembelajaran ke silabus...")
+    try {
+      const { error: delErr } = await supabase.from('materials').delete().eq('course_id', selectedCourse.id)
+      if (delErr) throw delErr
+
+      const { error: insErr } = await supabase.from('materials').insert(rows)
+      if (insErr) throw insErr
+
+      toast.success("Silabus 16 pertemuan berhasil diterapkan! 🚀", { id: loader })
+      setTempWeekly([])
+      setActiveTab('syllabus')
+      fetchMaterials(selectedCourse.id)
+    } catch (err) {
+      toast.error("Gagal menerapkan silabus: " + err.message, { id: loader })
+    }
+  }
+
+  async function handleAiGenerateRefs() {
+    setAiGeneratingRefs(true)
+    setAiProgressText("Mencari referensi buku teks & jurnal ilmiah mutakhir...")
+    try {
+      const refs = await generateReferences(
+        selectedCourse.name,
+        tempCpmk.length > 0 ? tempCpmk : selectedCourse.cpmk || [],
+        setAiProgressText
+      )
+      setTempRefs(refs || [])
+      toast.success("Rekomendasi pustaka berhasil dirumuskan AI! 📚")
+    } catch (err) {
+      toast.error("Gagal generate referensi: " + err.message)
+    } finally {
+      setAiGeneratingRefs(false)
+      setAiProgressText('')
+    }
+  }
+
+  async function handleSaveRefs() {
+    const { error } = await supabase
+      .from('courses')
+      .update({ referensi: tempRefs })
+      .eq('id', selectedCourse.id)
+
+    if (error) {
+      if (error.message?.includes('column')) {
+        toast.error('⚠️ Kolom database belum tersedia. Harap jalankan script migrasi supabase_migration_rps.sql di Supabase SQL Editor.', { duration: 6000 })
+      } else {
+        toast.error("Gagal menyimpan referensi: " + error.message)
+      }
+    } else {
+      toast.success("Referensi pustaka berhasil disimpan!")
+      fetchCourses(selectedCourse.id)
+    }
+  }
+
+  // ── AI Slide Generator Actions ──────────────────────────────
+  function openSlideGenerator(m) {
+    setActiveMeeting(m)
+    setSlideOutline(m.slide_content || null)
+    setWebslideData(m.webslide_content || null)
+    setEssayData(null)
+    setAiSlideProgressText('')
+    setSlideModal(true)
+  }
+
+  async function handleGenerateSlideOutline() {
+    setLoadingSlide(true)
+    setAiSlideProgressText("Menghubungi Gateway API Server...")
+
+    let subTimer = null
+    const steps = [
+      "Menganalisis Kemampuan Akhir & Bahan Kajian...",
+      "Mengintegrasikan Referensi Pustaka RPS...",
+      "Merancang Outline & Struktur Presentasi (Minimal 15 Slide)...",
+      "Mengembangkan Contoh Kasus & Penerapan Industri...",
+      "Menyusun Perbandingan Konsep & Penjelasan Detail...",
+      "Mempersiapkan Output Draft Slide..."
+    ]
+    let currentStep = 0
+
+    const handleProgress = (event) => {
+      if (typeof event === 'string') {
+        if (event === "AI sedang memikirkan materi & merumuskan konten (proses ini memakan waktu)...") {
+          setAiSlideProgressText(steps[0])
+          subTimer = setInterval(() => {
+            currentStep++
+            if (currentStep < steps.length) {
+              setAiSlideProgressText(steps[currentStep])
+            } else {
+              setAiSlideProgressText("AI sedang merampungkan konten... Mohon tunggu sebentar lagi...")
+            }
+          }, 2500)
+        } else {
+          if (subTimer) clearInterval(subTimer)
+          setAiSlideProgressText(event)
+        }
+      } else if (event && event.type === 'chunk') {
+        if (subTimer) clearInterval(subTimer)
+        const slideMatches = event.text.match(/"slide_no"\s*:\s*(\d+)/g)
+        let currentSlide = 1
+        if (slideMatches && slideMatches.length > 0) {
+          const lastMatch = slideMatches[slideMatches.length - 1]
+          const numMatch = lastMatch.match(/\d+/)
+          if (numMatch) currentSlide = parseInt(numMatch[0])
+        }
+        setAiSlideProgressText(`AI sedang menyusun Slide ${currentSlide}... (${event.text.length.toLocaleString('id-ID')} karakter)`)
+      }
+    }
+
+    try {
+      const result = await generateSlideContent(
+        selectedCourse.name,
+        activeMeeting.week_number,
+        activeMeeting.title,
+        activeMeeting.description,
+        selectedCourse.referensi || [],
+        handleProgress
+      )
+      setSlideOutline(result)
+      toast.success("Outline slide berhasil disusun AI! 🤖")
+    } catch (err) {
+      toast.error("Gagal generate outline slide: " + err.message)
+    } finally {
+      if (subTimer) clearInterval(subTimer)
+      setLoadingSlide(false)
+      setAiSlideProgressText('')
+    }
+  }
+
+  async function handleGenerateEssayQuestions() {
+    setLoadingSlide(true)
+    setAiSlideProgressText("Menghubungi Gateway API Server...")
+
+    let subTimer = null
+    const steps = [
+      "Menganalisis Kemampuan Akhir & Topik Evaluasi...",
+      "Merancang Soal Essay berbasis HOTS (Higher Order Thinking Skills)...",
+      "Menyusun Rubrik Penilaian & Kriteria Koreksi...",
+      "Menyeimbangkan Bobot Nilai Soal (Total 100%)...",
+      "Mempersiapkan Output Draft Soal..."
+    ]
+    let currentStep = 0
+
+    const handleProgress = (event) => {
+      if (typeof event === 'string') {
+        if (event === "AI sedang memikirkan materi & merumuskan konten (proses ini memakan waktu)...") {
+          setAiSlideProgressText(steps[0])
+          subTimer = setInterval(() => {
+            currentStep++
+            if (currentStep < steps.length) {
+              setAiSlideProgressText(steps[currentStep])
+            } else {
+              setAiSlideProgressText("AI sedang merumuskan soal...")
+            }
+          }, 2500)
+        } else {
+          if (subTimer) clearInterval(subTimer)
+          setAiSlideProgressText(event)
+        }
+      } else if (event && event.type === 'chunk') {
+        if (subTimer) clearInterval(subTimer)
+        const matches = event.text.match(/"no"\s*:\s*(\d+)/g)
+        let currentQuestion = 1
+        if (matches && matches.length > 0) {
+          const lastMatch = matches[matches.length - 1]
+          const numMatch = lastMatch.match(/\d+/)
+          if (numMatch) currentQuestion = parseInt(numMatch[0])
+        }
+        setAiSlideProgressText(`AI sedang merumuskan Soal Essay ${currentQuestion}... (${event.text.length.toLocaleString('id-ID')} karakter)`)
+      }
+    }
+
+    try {
+      const examType = activeMeeting.week_number === 8 ? 'UTS' : 'UAS'
+      const result = await generateEssayQuestions(
+        selectedCourse.name,
+        examType,
+        activeMeeting.title,
+        activeMeeting.description,
+        handleProgress
+      )
+      setEssayData(result)
+      toast.success("Soal Ujian Essay berhasil disusun AI! 📝")
+    } catch (err) {
+      toast.error("Gagal generate soal: " + err.message)
+    } finally {
+      if (subTimer) clearInterval(subTimer)
+      setLoadingSlide(false)
+      setAiSlideProgressText('')
+    }
+  }
+
+  async function handleGenerateWebSlide() {
+    if (!slideOutline) return
+    setGeneratingWebSlide(true)
+    setAiSlideProgressText("Menganalisis materi slide & merancang tata letak (layout) interaktif...")
+    try {
+      const prodiName = profile?.program_studi || 'Teknik Informatika'
+      const result = await generateWebSlideData(
+        selectedCourse.name,
+        prodiName,
+        activeMeeting.week_number,
+        slideOutline,
+        setAiSlideProgressText
+      )
+      setWebslideData(result)
+      toast.success("Tampilan WebSlide berhasil digenerate! 🎬")
+    } catch (err) {
+      toast.error("Gagal generate WebSlide: " + err.message)
+    } finally {
+      setGeneratingWebSlide(false)
+      setAiSlideProgressText('')
+    }
+  }
+
+  async function handleSaveAiSlideContent() {
+    setSavingSlide(true)
+    const { error } = await supabase
+      .from('materials')
+      .update({
+        slide_content: slideOutline,
+        webslide_content: webslideData
+      })
+      .eq('id', activeMeeting.id)
+
+    if (error) {
+      if (error.message?.includes('column')) {
+        toast.error('⚠️ Kolom database belum tersedia. Harap jalankan script migrasi supabase_migration_rps.sql di Supabase SQL Editor.', { duration: 6000 })
+      } else {
+        toast.error('Gagal menyimpan ke database: ' + error.message)
+      }
+    } else {
+      toast.success('Rancangan Slide berhasil disimpan ke Silabus!')
+      setSlideModal(false)
+      fetchMaterials(selectedCourseId)
+    }
+    setSavingSlide(false)
+  }
+
+  function handlePreviewWebSlide() {
+    if (!webslideData) return
+    const prodiName = profile?.program_studi || 'Teknik Informatika'
+    const htmlContent = generateWebSlideHtml(selectedCourse.name, prodiName, activeMeeting.week_number, webslideData)
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
+    const blobUrl = URL.createObjectURL(blob)
+    window.open(blobUrl, '_blank')
+  }
+
+  function handleDownloadWebSlide() {
+    if (!webslideData) return
+    const prodiName = profile?.program_studi || 'Teknik Informatika'
+    const htmlContent = generateWebSlideHtml(selectedCourse.name, prodiName, activeMeeting.week_number, webslideData)
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
+    const blobUrl = URL.createObjectURL(blob)
+    
+    const cleanCourseName = selectedCourse.name.replace(/[^a-zA-Z0-9]/g, '_')
+    const fileName = `WebSlide_Pertemuan_${activeMeeting.week_number}_${cleanCourseName}.html`
+    
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    
+    setTimeout(() => {
+      document.body.removeChild(a)
+      URL.revokeObjectURL(blobUrl)
+    }, 100)
+    
+    toast.success('WebSlide HTML berhasil diunduh!')
+  }
+
+  function handleCopySlideOutline() {
+    if (!slideOutline) return
+    let text = `=== ${slideOutline.title} ===\n\n`
+    slideOutline.slides?.forEach(slide => {
+      text += `Slide ${slide.slide_no}: ${slide.title}\n`
+      slide.content?.forEach(poin => {
+        text += `- ${poin}\n`
+      })
+      text += `\n`
+    })
+    navigator.clipboard.writeText(text)
+    toast.success('Outline slide berhasil disalin ke clipboard!')
+  }
+
+  function handleCopyEssayQuestions() {
+    if (!essayData) return
+    let text = `=== ${essayData.title} ===\n\n`
+    essayData.questions?.forEach(q => {
+      text += `Soal ${q.no} (Bobot: ${q.max_score}%)\n`
+      text += `Pertanyaan:\n${q.question}\n`
+      text += `Rubrik/Kriteria Penilaian:\n${q.rubric}\n\n`
+    })
+    navigator.clipboard.writeText(text)
+    toast.success('Soal essay & rubrik berhasil disalin ke clipboard!')
+  }
+
   // ── Logic Data Grouping ──────────────────────────────────────
   const filteredCourses = courses.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.code.toLowerCase().includes(searchTerm.toLowerCase())
   )
-
-  const selectedCourse = courses.find(c => c.id === selectedCourseId)
 
   // Group materials by week
   const materialsByWeek = materials.reduce((acc, m) => {
@@ -533,7 +989,7 @@ export default function DosenMataKuliah() {
       {/* Page Header */}
       <div>
         <h1 className="page-title">{pageTitle}</h1>
-        <p className="page-subtitle">Kelola mata kuliah, rancangan pembelajaran silabus, dan file materi secara interaktif dalam satu layar.</p>
+        <p className="page-subtitle">Kelola kelas kuliah, rancangan pembelajaran silabus, dan material ajar secara interaktif dalam satu layar terpadu.</p>
       </div>
 
       {loadingCourses ? (
@@ -629,7 +1085,6 @@ export default function DosenMataKuliah() {
                             <Users size={11}/> {c.enrollments?.[0]?.count || 0} mhs
                           </span>
                           
-                          {/* Course Quick Actions */}
                           <div style={{ display: 'flex', gap: 2 }} onClick={e => e.stopPropagation()}>
                             <button className="btn btn-ghost btn-icon btn-xs" style={{ padding: 4 }} onClick={() => openEditCourse(c)} title="Edit"><Edit2 size={12}/></button>
                             {isAdmin && (
@@ -694,103 +1149,365 @@ export default function DosenMataKuliah() {
                   )}
                 </div>
 
-                {/* Syllabus Area Header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid var(--gray-100)', paddingBottom: 10, marginTop: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <BookMarked size={16} color="var(--indigo-600)"/>
-                    <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)', margin: 0 }}>Silabus & Dokumen Materi</h3>
-                  </div>
-                  <button className="btn btn-primary btn-sm" onClick={openNewMaterial} style={{ gap: 6, fontSize: 12 }}>
-                    <Plus size={13}/> Tambah Materi
+                {/* SPA Tabs */}
+                <div style={{ display: 'flex', gap: 16, borderBottom: '1px solid var(--gray-200)', margin: '0 4px 8px 4px' }}>
+                  <button
+                    onClick={() => setActiveTab('syllabus')}
+                    style={{
+                      padding: '10px 16px',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: activeTab === 'syllabus' ? '3px solid var(--indigo-600)' : '3px solid transparent',
+                      color: activeTab === 'syllabus' ? 'var(--indigo-700)' : 'var(--gray-500)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    📂 Silabus & Materi
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('ai_assistant')}
+                    style={{
+                      padding: '10px 16px',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: activeTab === 'ai_assistant' ? '3px solid var(--indigo-600)' : '3px solid transparent',
+                      color: activeTab === 'ai_assistant' ? 'var(--indigo-700)' : 'var(--gray-500)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}
+                  >
+                    <Sparkles size={14} color="var(--indigo-600)"/> AI RPS & Slide Generator
                   </button>
                 </div>
 
-                {/* Materials List */}
-                {loadingMaterials ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: 8 }}>
-                    <Loader2 size={24} className="spinner" style={{ animation: 'spin 1s linear infinite', color: 'var(--indigo-600)' }} />
-                    <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Memuat materi silabus...</span>
-                  </div>
-                ) : Object.keys(materialsByWeek).length === 0 ? (
-                  <div className="empty-state card" style={{ padding: 48, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'var(--surface)', border: '2px dashed var(--gray-200)' }}>
-                    <BookMarked size={40} color="var(--gray-300)" style={{ marginBottom: 12 }} />
-                    <p className="empty-state-text" style={{ fontWeight: 600, fontSize: 14, color: 'var(--gray-600)', margin: 0 }}>Belum Ada Materi</p>
-                    <p className="empty-state-sub" style={{ fontSize: 12, color: 'var(--gray-400)', marginTop: 4, marginBottom: 16 }}>Tambahkan file atau artikel pertemuan perdana untuk kelas ini.</p>
-                    <button className="btn btn-primary btn-sm" onClick={openNewMaterial}><Plus size={13}/> Tambah Materi</button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', maxHeight: 'calc(100vh - 360px)', paddingRight: 4 }}>
-                    {Object.entries(materialsByWeek).sort(([a],[b]) => +a - +b).map(([week, items]) => (
-                      <div key={week} className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--gray-200)', borderRadius: 10 }}>
-                        {/* Week Header */}
-                        <div style={{ background: 'var(--gray-50)', padding: '10px 16px', borderBottom: '1px solid var(--gray-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {+week === 0 ? '📢 Umum / Pengantar' : `📅 Pertemuan ${week}`}
-                          </span>
-                          <span className="badge-pill badge-slate" style={{ fontSize: 10, padding: '2px 8px' }}>{items.length} Materi</span>
-                        </div>
-                        
-                        {/* Week Items */}
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          {items.map((m, idx) => {
-                            const links = (m.attachments && m.attachments.length)
-                              ? m.attachments
-                              : m.webview_link ? [{ mime: m.mime_type, url: m.webview_link, label: '' }]
-                              : []
-                              
-                            return (
-                              <div key={m.id} style={{
-                                padding: '14px 18px',
-                                borderTop: idx > 0 ? '1px solid var(--gray-100)' : 'none',
-                                transition: 'background 0.2s',
-                              }}>
-                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--gray-900)' }}>{m.title}</div>
-                                    {m.description && (
-                                      <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4, lineHeight: 1.4 }}>
-                                        {m.description}
-                                      </div>
-                                    )}
-                                    
-                                    {/* Attachment chips */}
-                                    {links.length > 0 && (
-                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                                        {links.map((a, ai) => {
-                                          const t = typeOf(a.mime)
-                                          return (
-                                            <a key={ai} href={a.url} target="_blank" rel="noopener noreferrer"
-                                              style={{
-                                                display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px',
-                                                borderRadius: 20, fontSize: 11, fontWeight: 600, textDecoration: 'none',
-                                                color: t.color, background: t.bg, border: `1px solid ${t.color}25`,
-                                                cursor: 'pointer', transition: 'all 0.15s',
-                                              }}
-                                              onMouseEnter={e => e.currentTarget.style.opacity = 0.8}
-                                              onMouseLeave={e => e.currentTarget.style.opacity = 1}
-                                            >
-                                              <span style={{ fontSize: 12 }}>{t.icon}</span>
-                                              {a.label || t.label}
-                                              <ExternalLink size={10} style={{ opacity: 0.7 }}/>
-                                            </a>
-                                          )
-                                        })}
+                {/* ── TAB 1: SYLLABUS & MATERIALS ── */}
+                {activeTab === 'syllabus' && (
+                  <>
+                    {/* CPL & CPMK OBE criteria display panel */}
+                    {selectedCourse.cpmk && selectedCourse.cpmk.length > 0 && (
+                      <details className="card" style={{ padding: '10px 14px', borderRadius: 8, background: '#f8fafc', border: '1px solid var(--gray-200)' }}>
+                        <summary style={{ fontWeight: 700, fontSize: 12, color: 'var(--gray-700)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, userSelect: 'none' }}>
+                          🎯 Capaian Pembelajaran Kurikulum (OBE)
+                        </summary>
+                        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {selectedCourse.cpl && selectedCourse.cpl.length > 0 && (
+                            <div>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase' }}>CPL Prodi yang Didukung</span>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                                {selectedCourse.cpl.map((c, idx) => (
+                                  <div key={idx} style={{ fontSize: 11, color: 'var(--gray-600)', background: 'var(--surface)', padding: '5px 8px', borderRadius: 6, border: '1px solid var(--gray-200)' }}>
+                                    {c}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {selectedCourse.cpmk && selectedCourse.cpmk.length > 0 && (
+                            <div style={{ marginTop: 4 }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase' }}>CPMK Mata Kuliah</span>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                                {selectedCourse.cpmk.map((c, idx) => (
+                                  <div key={idx} style={{ fontSize: 11, color: 'var(--gray-600)', background: 'var(--surface)', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--gray-200)' }}>
+                                    <strong>{c.kode || `CPMK-${idx+1}`}</strong>: {c.deskripsi}
+                                    {c.cpl_ref && c.cpl_ref.length > 0 && (
+                                      <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                                        {c.cpl_ref.map(r => (
+                                          <span key={r} style={{ background: '#eef2ff', color: 'var(--indigo-600)', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4 }}>{r}</span>
+                                        ))}
                                       </div>
                                     )}
                                   </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </details>
+                    )}
+
+                    {/* Syllabus Area Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid var(--gray-100)', paddingBottom: 10, marginTop: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <BookMarked size={16} color="var(--indigo-600)"/>
+                        <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)', margin: 0 }}>Silabus & Dokumen Materi</h3>
+                      </div>
+                      <button className="btn btn-primary btn-sm" onClick={openNewMaterial} style={{ gap: 6, fontSize: 12 }}>
+                        <Plus size={13}/> Tambah Materi
+                      </button>
+                    </div>
+
+                    {/* Materials List */}
+                    {loadingMaterials ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: 8 }}>
+                        <Loader2 size={24} className="spinner" style={{ animation: 'spin 1s linear infinite', color: 'var(--indigo-600)' }} />
+                        <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Memuat materi silabus...</span>
+                      </div>
+                    ) : Object.keys(materialsByWeek).length === 0 ? (
+                      <div className="empty-state card" style={{ padding: 48, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'var(--surface)', border: '2px dashed var(--gray-200)' }}>
+                        <BookMarked size={40} color="var(--gray-300)" style={{ marginBottom: 12 }} />
+                        <p className="empty-state-text" style={{ fontWeight: 600, fontSize: 14, color: 'var(--gray-600)', margin: 0 }}>Belum Ada Materi</p>
+                        <p className="empty-state-sub" style={{ fontSize: 12, color: 'var(--gray-400)', marginTop: 4, marginBottom: 16 }}>Gunakan fitur AI RPS Assistant atau klik tombol di bawah untuk menambah materi silabus.</p>
+                        <button className="btn btn-primary btn-sm" onClick={openNewMaterial}><Plus size={13}/> Tambah Materi</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', maxHeight: 'calc(100vh - 360px)', paddingRight: 4 }}>
+                        {Object.entries(materialsByWeek).sort(([a],[b]) => +a - +b).map(([week, items]) => (
+                          <div key={week} className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--gray-200)', borderRadius: 10 }}>
+                            
+                            {/* Week Header */}
+                            <div style={{ background: 'var(--gray-50)', padding: '10px 16px', borderBottom: '1px solid var(--gray-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {+week === 0 ? '📢 Umum / Pengantar' : `📅 Pertemuan ${week}`}
+                              </span>
+                              <span className="badge-pill badge-slate" style={{ fontSize: 10, padding: '2px 8px' }}>{items.length} Materi</span>
+                            </div>
+                            
+                            {/* Week Items */}
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              {items.map((m, idx) => {
+                                const links = (m.attachments && m.attachments.length)
+                                  ? m.attachments
+                                  : m.webview_link ? [{ mime: m.mime_type, url: m.webview_link, label: '' }]
+                                  : []
                                   
-                                  {/* Quick edit / delete for material */}
-                                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                                    <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditMaterial(m)} title="Edit"><Edit2 size={13}/></button>
-                                    <button className="btn btn-ghost btn-icon btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteMaterial(m.id)} title="Hapus"><Trash2 size={13}/></button>
+                                const isExam = +week === 8 || +week === 16
+
+                                return (
+                                  <div key={m.id} style={{
+                                    padding: '14px 18px',
+                                    borderTop: idx > 0 ? '1px solid var(--gray-100)' : 'none',
+                                    transition: 'background 0.2s',
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--gray-900)' }}>{m.title}</div>
+                                        {m.description && (
+                                          <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4, lineHeight: 1.4 }}>
+                                            {m.description}
+                                          </div>
+                                        )}
+                                        
+                                        {/* AI outline slide / WebSlide indicator banner if exists */}
+                                        {(m.slide_content || m.webslide_content) && (
+                                          <div style={{ marginTop: 8, background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 8, padding: '8px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--indigo-700)', fontWeight: 600 }}>
+                                            <Sparkles size={11} color="var(--indigo-600)" /> 
+                                            Slide AI Tersedia!
+                                            {m.webslide_content && <span style={{ color: '#10b981' }}>(WebSlide Aktif)</span>}
+                                          </div>
+                                        )}
+
+                                        {/* Attachment chips */}
+                                        {links.length > 0 && (
+                                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                                            {links.map((a, ai) => {
+                                              const t = typeOf(a.mime)
+                                              return (
+                                                <a key={ai} href={a.url} target="_blank" rel="noopener noreferrer"
+                                                  style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px',
+                                                    borderRadius: 20, fontSize: 11, fontWeight: 600, textDecoration: 'none',
+                                                    color: t.color, background: t.bg, border: `1px solid ${t.color}25`,
+                                                    cursor: 'pointer', transition: 'all 0.15s',
+                                                  }}
+                                                  onMouseEnter={e => e.currentTarget.style.opacity = 0.8}
+                                                  onMouseLeave={e => e.currentTarget.style.opacity = 1}
+                                                >
+                                                  <span style={{ fontSize: 12 }}>{t.icon}</span>
+                                                  {a.label || t.label}
+                                                  <ExternalLink size={10} style={{ opacity: 0.7 }}/>
+                                                </a>
+                                              )
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Slide Generator Trigger */}
+                                      <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
+                                        <button
+                                          className="btn btn-secondary btn-sm"
+                                          onClick={() => openSlideGenerator(m)}
+                                          style={{
+                                            gap: 4,
+                                            fontSize: 11,
+                                            padding: '4px 8px',
+                                            borderColor: 'var(--indigo-300)',
+                                            background: '#f8f8ff',
+                                            color: 'var(--indigo-700)'
+                                          }}
+                                        >
+                                          <Sparkles size={12} color="var(--indigo-600)" />
+                                          {isExam ? 'Soal AI' : 'Slide AI'}
+                                        </button>
+                                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditMaterial(m)} title="Edit"><Edit2 size={13}/></button>
+                                        <button className="btn btn-ghost btn-icon btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteMaterial(m.id)} title="Hapus"><Trash2 size={13}/></button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* ── TAB 2: AI RPS & SLIDE ASSISTANT ── */}
+                {activeTab === 'ai_assistant' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    {aiProgressText && (
+                      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#eef2ff', borderColor: '#c7d2fe', color: 'var(--indigo-700)', padding: 14 }}>
+                        <Loader2 size={16} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>{aiProgressText}</span>
+                      </div>
+                    )}
+
+                    {/* Step 1: Deskripsi Mata Kuliah */}
+                    <div className="card" style={{ padding: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 1: Deskripsi Mata Kuliah</span>
+                        <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateDesc} disabled={aiGeneratingDesc}>
+                          <Sparkles size={13} color="var(--indigo-600)"/> Generate AI
+                        </button>
+                      </div>
+                      <textarea
+                        className="input"
+                        rows={4}
+                        style={{ fontSize: 13, lineHeight: 1.5 }}
+                        placeholder="Deskripsi mata kuliah akan dihasilkan di sini..."
+                        value={tempDesc}
+                        onChange={e => setTempDesc(e.target.value)}
+                      />
+                      {tempDesc !== selectedCourse.description && (
+                        <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} onClick={handleSaveDesc}>
+                          Simpan Deskripsi
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Step 2: CPL & CPMK */}
+                    <div className="card" style={{ padding: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 2: Capaian Pembelajaran (CPL & CPMK)</span>
+                        <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateCplCpmk} disabled={aiGeneratingCplCpmk || !tempDesc}>
+                          <Sparkles size={13} color="var(--indigo-600)"/> Generate CPL & CPMK
+                        </button>
+                      </div>
+
+                      {tempCpl.length > 0 && (
+                        <div style={{ marginBottom: 14 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>CPL yang Didukung:</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                            {tempCpl.map((c, idx) => (
+                              <div key={idx} style={{ display: 'flex', gap: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '6px 10px', borderRadius: 6, fontSize: 12 }}>
+                                <span className="badge-pill badge-green" style={{ height: 20 }}>CPL-{idx+1}</span>
+                                <span style={{ color: '#166534' }}>{c}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {tempCpmk.length > 0 && (
+                        <div style={{ marginBottom: 14 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>Rancangan CPMK:</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                            {tempCpmk.map((c, idx) => (
+                              <div key={idx} style={{ background: '#f8fafc', border: '1px solid var(--gray-200)', padding: '8px 12px', borderRadius: 6, fontSize: 12 }}>
+                                <div style={{ fontWeight: 700, color: 'var(--gray-800)' }}>{c.kode || `CPMK-${idx+1}`}</div>
+                                <div style={{ color: 'var(--gray-600)', marginTop: 2 }}>{c.deskripsi}</div>
+                                {c.cpl_ref && c.cpl_ref.length > 0 && (
+                                  <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                                    {c.cpl_ref.map(r => (
+                                      <span key={r} style={{ background: '#eef2ff', color: 'var(--indigo-600)', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4 }}>{r}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {(tempCpl.length > 0 || tempCpmk.length > 0) && (
+                        <button className="btn btn-primary btn-sm" onClick={handleSaveCplCpmk}>
+                          Simpan CPL & CPMK ke Kelas
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Step 3: Referensi Pustaka */}
+                    <div className="card" style={{ padding: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 3: Referensi Pustaka</span>
+                        <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateRefs} disabled={aiGeneratingRefs || tempCpmk.length === 0}>
+                          <Sparkles size={13} color="var(--indigo-600)"/> Generate Pustaka
+                        </button>
+                      </div>
+
+                      {tempRefs.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                          {tempRefs.map((r, idx) => (
+                            <div key={idx} style={{ padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, fontSize: 12, color: '#92400e' }}>
+                              📚 {r}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {tempRefs.length > 0 && (
+                        <button className="btn btn-primary btn-sm" onClick={handleSaveRefs}>
+                          Simpan Referensi Pustaka
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Step 4: 16 Pertemuan Silabus */}
+                    <div className="card" style={{ padding: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 4: Struktur Silabus (16 Pertemuan)</span>
+                        <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateWeekly} disabled={aiGeneratingWeekly || tempCpmk.length === 0}>
+                          <Sparkles size={13} color="var(--indigo-600)"/> Generate 16 Pertemuan
+                        </button>
+                      </div>
+
+                      {tempWeekly.length > 0 && (
+                        <div style={{ marginBottom: 14 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>Rancangan 16 Pertemuan Silabus:</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, maxHeight: 300, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 8 }}>
+                            {tempWeekly.map((w, idx) => (
+                              <div key={idx} style={{ display: 'flex', gap: 10, background: w.is_uts || w.is_uas ? '#fef2f2' : '#f8fafc', padding: 8, borderRadius: 6, fontSize: 12 }}>
+                                <span style={{ fontWeight: 700, color: 'var(--gray-500)', width: 20 }}>{w.no}</span>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: 700 }}>{w.bahan_kajian}</div>
+                                  <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 2 }}>{w.kemampuan_akhir}</div>
+                                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                                    <span style={{ fontSize: 9, background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>🕒 {w.waktu} mnt</span>
+                                    <span style={{ fontSize: 9, background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>⚖️ Bobot {w.bobot}%</span>
                                   </div>
                                 </div>
                               </div>
-                            )
-                          })}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )}
+
+                      {tempWeekly.length > 0 && (
+                        <button className="btn btn-primary btn-sm" onClick={handleApplyWeekly}>
+                          Terapkan ke Silabus / Materi Kelas
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </>
@@ -810,7 +1527,7 @@ export default function DosenMataKuliah() {
                 <BookOpen size={48} color="var(--indigo-300)" style={{ marginBottom: 16 }} />
                 <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-700)', margin: 0 }}>Pilih Mata Kuliah</h3>
                 <p style={{ fontSize: 12, color: 'var(--gray-400)', maxWidth: 360, marginTop: 6, lineHeight: 1.4 }}>
-                  Silakan pilih salah satu kelas di panel sebelah kiri untuk mulai mengelola silabus pertemuan, mengunggah materi, dan menyisipkan lampiran berkas.
+                  Silakan pilih salah satu kelas di panel sebelah kiri untuk mulai mengelola silabus pertemuan, mengunggah materi, dan menyusun RPS OBE interaktif.
                 </p>
               </div>
             )}
@@ -836,11 +1553,6 @@ export default function DosenMataKuliah() {
                       <option key={d.id} value={d.id}>{d.full_name} ({d.email})</option>
                     ))}
                   </select>
-                  {dosenList.length === 0 && (
-                    <span className="input-hint" style={{ color:'var(--warning)' }}>
-                      Belum ada akun dengan role Dosen. Tambahkan dulu di Manajemen Pengguna.
-                    </span>
-                  )}
                 </div>
               )}
 
@@ -1010,9 +1722,8 @@ export default function DosenMataKuliah() {
                 <span className="input-hint">Isi 0 untuk materi umum / pendahuluan kelas</span>
               </div>
 
-              {/* Lampiran files list */}
               <div>
-                <div style={{ display:'flex', alignItems:'center', justifyBetween:'space-between', justifyContent: 'space-between', marginBottom:10 }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent: 'space-between', marginBottom:10 }}>
                   <label className="input-label" style={{ margin:0 }}>
                     Lampiran Berkas ({materialForm.attachments.length})
                   </label>
@@ -1039,6 +1750,168 @@ export default function DosenMataKuliah() {
                 {savingMaterial ? <Loader2 size={13} style={{ animation:'spin .7s linear infinite' }}/> : editingMaterialId ? <Edit2 size={13}/> : <Plus size={13}/>}
                 {editingMaterialId ? 'Simpan Materi' : 'Tambahkan'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: AI Slide / WebSlide / Essay Generator ── */}
+      {slideModal && activeMeeting && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: 650, maxHeight: '85vh', overflow: 'auto' }}>
+            <div className="modal-header" style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 2 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Sparkles size={16} color="var(--indigo-600)" />
+                <span className="modal-title">
+                  {+activeMeeting.week_number === 8 || +activeMeeting.week_number === 16 ? 'AI Essay Questions Generator' : 'AI Slide & WebSlide Generator'}
+                </span>
+              </div>
+              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setSlideModal(false)}><X size={14}/></button>
+            </div>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Meeting Info */}
+              <div style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--gray-200)' }}>
+                <div style={{ fontSize: 10, color: 'var(--gray-400)', fontWeight: 700, textTransform: 'uppercase' }}>Pertemuan {activeMeeting.week_number}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)', marginTop: 2 }}>{activeMeeting.title}</div>
+                {activeMeeting.description && <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4 }}>{activeMeeting.description}</div>}
+              </div>
+
+              {/* Progress feedback */}
+              {aiSlideProgressText && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#eef2ff', border: '1px solid #c7d2fe', padding: 12, borderRadius: 8, color: 'var(--indigo-700)', fontSize: 12, fontWeight: 600 }}>
+                  <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
+                  <span>{aiSlideProgressText}</span>
+                </div>
+              )}
+
+              {/* ── FLOW FOR UTS/UAS: Essay Questions ── */}
+              {(+activeMeeting.week_number === 8 || +activeMeeting.week_number === 16) ? (
+                <div>
+                  {!essayData && !loadingSlide && (
+                    <div style={{ textAlign: 'center', padding: '30px 10px' }}>
+                      <HelpCircle size={40} color="var(--indigo-300)" style={{ marginBottom: 12 }} />
+                      <p style={{ fontSize: 13, color: 'var(--gray-500)' }}>Belum ada soal ujian essay yang dirumuskan AI untuk evaluasi ini.</p>
+                      <button className="btn btn-primary btn-sm" style={{ marginTop: 12, gap: 6 }} onClick={handleGenerateEssayQuestions}>
+                        <Sparkles size={13} /> Susun Soal Ujian (HOTS)
+                      </button>
+                    </div>
+                  )}
+
+                  {essayData && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Draf Soal Essay AI:</span>
+                        <button className="btn btn-secondary btn-sm" style={{ padding: '2px 8px', fontSize: 11, gap: 4 }} onClick={handleCopyEssayQuestions}>
+                          <Copy size={12}/> Salin Soal
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: '#fafafa', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 12, maxHeight: 300, overflowY: 'auto' }}>
+                        <h4 style={{ fontSize: 13, fontWeight: 800, margin: '0 0 8px 0', color: 'var(--gray-800)' }}>{essayData.title}</h4>
+                        {essayData.questions?.map((q, idx) => (
+                          <div key={idx} style={{ borderBottom: idx < essayData.questions.length - 1 ? '1px solid var(--gray-200)' : 'none', paddingBottom: idx < essayData.questions.length - 1 ? 10 : 0, paddingTop: idx > 0 ? 8 : 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--indigo-700)' }}>Soal {q.no} ({q.max_score} Poin)</div>
+                            <div style={{ fontSize: 12, color: 'var(--gray-800)', marginTop: 4, fontWeight: 600 }}>{q.question}</div>
+                            <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 4, background: '#f1f5f9', padding: 6, borderRadius: 4 }}>
+                              <strong>Rubrik:</strong> {q.rubric}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <button className="btn btn-secondary btn-sm" style={{ gap: 4, alignSelf: 'flex-start' }} onClick={handleGenerateEssayQuestions} disabled={loadingSlide}>
+                        <RefreshCw size={12}/> Generate Ulang Soal
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* ── FLOW FOR LECTURES: Slides & WebSlide ── */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  
+                  {/* Step A: Outline Slide */}
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>1. Outline Materi Slide</span>
+                    {!slideOutline && !loadingSlide && (
+                      <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={handleGenerateSlideOutline}>
+                        <Sparkles size={13} /> Generate Outline Slide AI (Min 15 Slide)
+                      </button>
+                    )}
+
+                    {slideOutline && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-600)' }}>{slideOutline.title}</span>
+                          <button className="btn btn-ghost btn-xs" style={{ gap: 4, color: 'var(--indigo-600)' }} onClick={handleCopySlideOutline}>
+                            <Copy size={11}/> Salin Outline
+                          </button>
+                        </div>
+                        <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 8, fontSize: 12, background: '#fafafa' }}>
+                          {slideOutline.slides?.map(s => (
+                            <div key={s.slide_no} style={{ marginBottom: 8 }}>
+                              <strong>Slide {s.slide_no}: {s.title}</strong>
+                              <ul style={{ paddingLeft: 16, margin: '2px 0 0 0', color: 'var(--gray-500)' }}>
+                                {s.content?.map((c, ci) => <li key={ci}>{c}</li>)}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button className="btn btn-ghost btn-xs" style={{ gap: 4 }} onClick={handleGenerateSlideOutline}>
+                            <RefreshCw size={11}/> Outline Ulang
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Step B: WebSlide Presentation layouts */}
+                  {slideOutline && (
+                    <div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>2. Tampilan Presentasi WebSlide</span>
+                      {!webslideData && !generatingWebSlide && (
+                        <button className="btn btn-primary btn-sm" style={{ gap: 6 }} onClick={handleGenerateWebSlide}>
+                          <Sparkles size={13} /> Rancang WebSlide (Layout Dinamis AI)
+                        </button>
+                      )}
+
+                      {webslideData && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={handlePreviewWebSlide}>
+                              <ExternalLink size={13}/> Buka Preview Presentasi
+                            </button>
+                            <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={handleDownloadWebSlide}>
+                              <Download size={13}/> Unduh File HTML
+                            </button>
+                          </div>
+                          
+                          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                            <button className="btn btn-ghost btn-xs" style={{ gap: 4 }} onClick={handleGenerateWebSlide} disabled={generatingWebSlide}>
+                              <RefreshCw size={11}/> Rancang Ulang WebSlide
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Save to materials button */}
+                  {(slideOutline || webslideData) && (
+                    <div style={{ borderTop: '1px solid var(--gray-200)', paddingTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+                      <button className="btn btn-primary btn-sm" onClick={handleSaveAiSlideContent} disabled={savingSlide}>
+                        {savingSlide ? <Loader2 size={13} className="spinner" style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={13}/>}
+                        Simpan Rancangan Slide ke Silabus
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer" style={{ position: 'sticky', bottom: 0, background: 'var(--surface)', zIndex: 2 }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setSlideModal(false)}>Tutup</button>
             </div>
           </div>
         </div>
