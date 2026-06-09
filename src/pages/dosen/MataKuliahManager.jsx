@@ -4,12 +4,14 @@ import {
   Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy,
   CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown,
   PlusCircle, Search, Sparkles, RefreshCw, FileText, Download,
-  Share2, ArrowLeft, PenTool, CheckCircle, ChevronUp, Info, HelpCircle
+  Share2, ArrowLeft, PenTool, CheckCircle, ChevronUp, Info, HelpCircle,
+  Award, Clock
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import courseBanner from '@/assets/course_banner.png'
 
 // AI & Template Imports
 import {
@@ -106,7 +108,7 @@ export default function DosenMataKuliah() {
   const { confirmDialog, showConfirm } = useConfirm()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const [activeTab, setActiveTab] = useState('syllabus') // 'syllabus' | 'ai_assistant'
+  const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'curriculum' | 'ai_assistant'
 
   // ── Course states ──────────────────────────────────────────
   const [courses,    setCourses]    = useState([])
@@ -145,6 +147,7 @@ export default function DosenMataKuliah() {
   const [aiGeneratingCplCpmk, setAiGeneratingCplCpmk] = useState(false)
   const [aiGeneratingWeekly, setAiGeneratingWeekly] = useState(false)
   const [aiGeneratingRefs, setAiGeneratingRefs] = useState(false)
+  const [aiActiveStep, setAiActiveStep] = useState(1)
 
   // Temp local state for generated AI content before saving to course
   const [tempDesc, setTempDesc] = useState('')
@@ -220,7 +223,8 @@ export default function DosenMataKuliah() {
       setTempCpmk(selectedCourse.cpmk || [])
       setTempWeekly([])
       setTempRefs(selectedCourse.referensi || [])
-      setActiveTab('syllabus')
+      setActiveTab('overview')
+      setAiActiveStep(1)
     }
   }, [selectedCourseId, courses])
 
@@ -338,7 +342,7 @@ export default function DosenMataKuliah() {
       console.error('[EduSYS] save course:', error)
       toast.error(`Gagal menyimpan: ${error.message}`)
     } else {
-      toast.success(editingCourseId ? 'Mata kuliah diperbarui' : 'Mata kuliah ditambahkan')
+      toast.success(editingCourseId ? 'Kursus diperbarui' : 'Kursus ditambahkan')
       setCourseModal(false)
       const targetId = editingCourseId || returnedData?.id || null
       fetchCourses(targetId)
@@ -348,7 +352,7 @@ export default function DosenMataKuliah() {
 
   async function handleDeleteCourse(id) {
     const ok = await showConfirm({
-      title: 'Hapus Mata Kuliah?',
+      title: 'Hapus Kursus?',
       message: 'Semua data terkait (tugas, ujian, materi, forum) akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.',
       confirmLabel: 'Ya, Hapus',
       variant: 'danger',
@@ -366,7 +370,7 @@ export default function DosenMataKuliah() {
     } else if (count === 0) {
       toast.error('Tidak dapat menghapus. Pastikan kebijakan database mengizinkan operasi ini.')
     } else {
-      toast.success('Mata kuliah dihapus')
+      toast.success('Kursus dihapus')
       const remaining = courses.filter(c => c.id !== id)
       const nextSelectId = remaining[0]?.id || null
       setCourses(remaining)
@@ -394,7 +398,7 @@ export default function DosenMataKuliah() {
     if (!copyForm.dosen_id) { toast.error('Pilih dosen pengampu'); return }
     setCopying(true)
     try {
-      setCopyStep('Membuat mata kuliah baru...')
+      setCopyStep('Membuat kursus baru...')
       const { data: newCourse, error: cErr } = await supabase.from('courses').insert({
         code: copyForm.code.trim(), name: copyForm.name.trim(),
         description: copySource.description || '',
@@ -402,7 +406,7 @@ export default function DosenMataKuliah() {
         cover_color: copySource.cover_color || '#4f46e5',
         dosen_id: copyForm.dosen_id, is_active: true,
       }).select().single()
-      if (cErr) throw new Error('Gagal membuat mata kuliah: ' + cErr.message)
+      if (cErr) throw new Error('Gagal membuat kursus: ' + cErr.message)
 
       const sid = copySource.id, nid = newCourse.id
 
@@ -414,11 +418,11 @@ export default function DosenMataKuliah() {
         copyOpts.forums      && copyForums(sid, nid),
       ].filter(Boolean))
 
-      toast.success(`Mata kuliah "${newCourse.name}" berhasil disalin!`)
+      toast.success(`Kursus "${newCourse.name}" berhasil disalin!`)
       setCopyModal(false)
       fetchCourses(nid)
     } catch (err) {
-      toast.error(err.message || 'Gagal menyalin mata kuliah')
+      toast.error(err.message || 'Gagal menyalin kursus')
     } finally {
       setCopying(false)
       setCopyStep('')
@@ -578,12 +582,12 @@ export default function DosenMataKuliah() {
   // ── AI Assistant Actions ─────────────────────────────────────
   async function handleAiGenerateDesc() {
     setAiGeneratingDesc(true)
-    setAiProgressText("Menganalisis Nama Mata Kuliah...")
+    setAiProgressText("Menganalisis Nama Kursus...")
     try {
       const res = await generateCourseDescription(selectedCourse.name, handleAiProgress)
       if (res && res.deskripsi) {
         setTempDesc(res.deskripsi)
-        toast.success("Deskripsi mata kuliah berhasil dirumuskan AI! 🤖")
+        toast.success("Deskripsi kursus berhasil dirumuskan AI! 🤖")
       } else {
         throw new Error("Hasil deskripsi kosong.")
       }
@@ -642,7 +646,7 @@ export default function DosenMataKuliah() {
         toast.error("Gagal menyimpan CPL & CPMK: " + error.message)
       }
     } else {
-      toast.success("CPL & CPMK berhasil disimpan ke mata kuliah!")
+      toast.success("CPL & CPMK berhasil disimpan ke kursus!")
       fetchCourses(selectedCourse.id)
     }
   }
@@ -1007,7 +1011,7 @@ export default function DosenMataKuliah() {
       {/* Page Header */}
       <div>
         <h1 className="page-title">{pageTitle}</h1>
-        <p className="page-subtitle">Kelola kelas kuliah, rancangan pembelajaran silabus, dan material ajar secara interaktif dalam satu layar terpadu.</p>
+        <p className="page-subtitle">Kelola kelas kursus, rancangan silabus modul, dan material ajar secara interaktif dalam satu layar terpadu.</p>
       </div>
 
       {loadingCourses ? (
@@ -1035,10 +1039,10 @@ export default function DosenMataKuliah() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Mata Kuliah ({filteredCourses.length})
+                Kursus Saya ({filteredCourses.length})
               </span>
               <button className="btn btn-primary btn-sm" onClick={openNewCourse} style={{ padding: '4px 10px', fontSize: 11, gap: 4 }}>
-                <Plus size={12}/> Tambah MK
+                <Plus size={12}/> Tambah Kursus
               </button>
             </div>
 
@@ -1065,7 +1069,7 @@ export default function DosenMataKuliah() {
             }}>
               {filteredCourses.length === 0 ? (
                 <div className="card" style={{ padding: '24px 12px', textAlign: 'center', border: '1px dashed var(--gray-200)' }}>
-                  <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Mata kuliah tidak ditemukan</span>
+                  <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Kursus tidak ditemukan</span>
                 </div>
               ) : (
                 filteredCourses.map((c, i) => {
@@ -1127,63 +1131,114 @@ export default function DosenMataKuliah() {
             flexDirection: 'column',
             gap: 16
           }}>
-            {selectedCourse ? (
-              <>
-                {/* Course Header Banner Card */}
+             {selectedCourse ? (
+               <>
+                {/* Cisco Netacad Style Course Header Banner */}
                 <div style={{
-                  background: `linear-gradient(135deg, ${selectedCourse.cover_color || '#4f46e5'} 0%, ${selectedCourse.cover_color || '#4f46e5'}cc 100%)`,
+                  background: '#f8fafc',
+                  border: '1px solid var(--gray-200)',
                   borderRadius: 12,
+                  display: 'flex',
+                  gap: 24,
+                  alignItems: 'center',
                   padding: '24px 28px',
-                  color: '#ffffff',
-                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
+                  color: 'var(--gray-800)',
+                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.02)',
                   position: 'relative',
-                  overflow: 'hidden'
+                  overflow: 'hidden',
+                  flexWrap: 'wrap'
                 }}>
-                  <div style={{ position: 'absolute', right: -20, top: -20, width: 140, height: 140, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
-                  <div style={{ position: 'absolute', right: 50, bottom: -30, width: 90, height: 90, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
-                  
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', background: 'rgba(255,255,255,0.22)', padding: '2px 8px', borderRadius: 4 }}>
-                      {selectedCourse.code}
-                    </span>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: '#ffffff', background: 'rgba(255,255,255,0.16)', padding: '2px 8px', borderRadius: 4 }}>
-                      {selectedCourse.semester}
-                    </span>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: '#ffffff', background: 'rgba(255,255,255,0.16)', padding: '2px 8px', borderRadius: 4 }}>
-                      {selectedCourse.credits} SKS
-                    </span>
-                    {isAdmin && selectedCourse.dosen && (
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#ffffff', background: 'rgba(255,255,255,0.16)', padding: '2px 8px', borderRadius: 4 }}>
-                        👤 Dosen: {selectedCourse.dosen.full_name}
+                  {/* Left Column (Details) */}
+                  <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>
+                        Katalog &gt; Kursus Mandiri
                       </span>
-                    )}
-                  </div>
-                  
-                  <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, lineHeight: 1.2 }}>{selectedCourse.name}</h2>
-                  {selectedCourse.description && (
-                    <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.9)', margin: '8px 0 0 0', fontWeight: 400, lineHeight: 1.4 }}>
-                      {selectedCourse.description}
+                      <span className="badge-pill badge-green" style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', height: 'auto', background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' }}>
+                        Cisco Academy Style
+                      </span>
+                      <span className="badge-pill badge-indigo" style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', height: 'auto', background: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0' }}>
+                        KURSUS
+                      </span>
+                    </div>
+
+                    <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--gray-950)', margin: 0, fontFamily: 'Outfit, sans-serif' }}>
+                      {selectedCourse.name}
+                    </h2>
+                    
+                    <p style={{ fontSize: 13, color: 'var(--gray-500)', margin: 0, fontWeight: 500, lineHeight: 1.4 }}>
+                      {selectedCourse.description ? `${selectedCourse.description.substring(0, 150)}...` : 'Your on-ramp to global learning. Get familiar with the course outline and start building your skills.'}
                     </p>
-                  )}
+
+                    <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#fff', border: '1px solid var(--gray-200)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
+                        💻 Self-Paced Online
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#fff', border: '1px solid var(--gray-200)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
+                        🎓 Dipandu Instruktur
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                      <button className="btn btn-primary btn-sm" style={{ background: '#22c55e', borderColor: '#22c55e', color: '#fff', fontWeight: 700, padding: '8px 18px', fontSize: 13, gap: 6, boxShadow: '0 4px 10px rgba(34, 197, 94, 0.2)' }}>
+                        Mulai Belajar (Self-Paced)
+                      </button>
+                      <span style={{ fontSize: 11, color: 'var(--gray-400)', fontWeight: 600 }}>
+                        ⚡ 14.869.338 terdaftar
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Right Column (Banner Illustration) */}
+                  <div style={{ flex: '1 1 200px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <img 
+                      src={courseBanner} 
+                      alt="Student Learning" 
+                      style={{ 
+                        maxWidth: '100%', 
+                        maxHeight: 180, 
+                        objectFit: 'cover', 
+                        borderRadius: 10,
+                        border: '1px solid var(--gray-200)',
+                        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.05)'
+                      }} 
+                    />
+                  </div>
                 </div>
 
                 {/* SPA Tabs */}
                 <div style={{ display: 'flex', gap: 16, borderBottom: '1px solid var(--gray-200)', margin: '0 4px 8px 4px' }}>
                   <button
-                    onClick={() => setActiveTab('syllabus')}
+                    onClick={() => setActiveTab('overview')}
                     style={{
                       padding: '10px 16px',
                       fontSize: 13,
                       fontWeight: 700,
                       background: 'transparent',
                       border: 'none',
-                      borderBottom: activeTab === 'syllabus' ? '3px solid var(--indigo-600)' : '3px solid transparent',
-                      color: activeTab === 'syllabus' ? 'var(--indigo-700)' : 'var(--gray-500)',
+                      borderBottom: activeTab === 'overview' ? '3px solid var(--indigo-600)' : '3px solid transparent',
+                      color: activeTab === 'overview' ? 'var(--indigo-700)' : 'var(--gray-500)',
                       cursor: 'pointer',
                       transition: 'all 0.15s'
                     }}
                   >
-                    📂 Silabus & Materi
+                    📂 Overview
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('curriculum')}
+                    style={{
+                      padding: '10px 16px',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: activeTab === 'curriculum' ? '3px solid var(--indigo-600)' : '3px solid transparent',
+                      color: activeTab === 'curriculum' ? 'var(--indigo-700)' : 'var(--gray-500)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    📖 Curriculum
                   </button>
                   <button
                     onClick={() => setActiveTab('ai_assistant')}
@@ -1206,50 +1261,131 @@ export default function DosenMataKuliah() {
                   </button>
                 </div>
 
-                {/* ── TAB 1: SYLLABUS & MATERIALS ── */}
-                {activeTab === 'syllabus' && (
-                  <>
-                    {/* CPL & CPMK OBE criteria display panel */}
-                    {selectedCourse.cpmk && selectedCourse.cpmk.length > 0 && (
-                      <details className="card" style={{ padding: '10px 14px', borderRadius: 8, background: '#f8fafc', border: '1px solid var(--gray-200)' }}>
-                        <summary style={{ fontWeight: 700, fontSize: 12, color: 'var(--gray-700)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, userSelect: 'none' }}>
-                          🎯 Capaian Pembelajaran Kurikulum (OBE)
-                        </summary>
-                        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {selectedCourse.cpl && selectedCourse.cpl.length > 0 && (
-                            <div>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase' }}>CPL Prodi yang Didukung</span>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
-                                {selectedCourse.cpl.map((c, idx) => (
-                                  <div key={idx} style={{ fontSize: 11, color: 'var(--gray-600)', background: 'var(--surface)', padding: '5px 8px', borderRadius: 6, border: '1px solid var(--gray-200)' }}>
-                                    {c}
-                                  </div>
-                                ))}
-                              </div>
+
+                {/* ── TAB 0: OVERVIEW ── */}
+                {activeTab === 'overview' && (
+                  <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                    {/* Left Column (Main Content) */}
+                    <div style={{ flex: '2 1 500px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                      
+                      {/* Deskripsi Kursus */}
+                      <div className="card" style={{ padding: 20 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 12 }}>Deskripsi Kursus</h3>
+                        <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--gray-600)', whiteSpace: 'pre-wrap', margin: 0 }}>
+                          {selectedCourse.description || 'Deskripsi belum dirumuskan untuk kursus ini. Silakan gunakan tab "AI RPS & Slide Generator" untuk merancang konten dengan asisten AI.'}
+                        </p>
+                      </div>
+
+                      {/* Here's what you will learn */}
+                      <div className="card" style={{ padding: 20 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 16 }}>Here's what you will learn.</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {materials.length === 0 ? (
+                            <div style={{ padding: '20px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
+                              <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Rencana silabus modul belum diterapkan. Gunakan generator AI di tab sebelah untuk membuat rencana 16 pertemuan secara instan.</span>
                             </div>
-                          )}
-                          {selectedCourse.cpmk && selectedCourse.cpmk.length > 0 && (
-                            <div style={{ marginTop: 4 }}>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase' }}>CPMK Mata Kuliah</span>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
-                                {selectedCourse.cpmk.map((c, idx) => (
-                                  <div key={idx} style={{ fontSize: 11, color: 'var(--gray-600)', background: 'var(--surface)', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--gray-200)' }}>
-                                    <strong>{c.kode || `CPMK-${idx+1}`}</strong>: {c.deskripsi}
-                                    {c.cpl_ref && c.cpl_ref.length > 0 && (
-                                      <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                                        {c.cpl_ref.map(r => (
-                                          <span key={r} style={{ background: '#eef2ff', color: 'var(--indigo-600)', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4 }}>{r}</span>
-                                        ))}
-                                      </div>
-                                    )}
+                          ) : (
+                            materials.sort((a,b) => a.week_number - b.week_number).map((m, index) => (
+                              <div key={m.id || index} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid var(--gray-100)' }}>
+                                <div style={{ 
+                                  width: 24, 
+                                  height: 24, 
+                                  borderRadius: '50%', 
+                                  background: '#dcfce7', 
+                                  color: '#15803d', 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'center', 
+                                  flexShrink: 0,
+                                  fontWeight: 700,
+                                  fontSize: 12,
+                                  border: '1px solid #bbf7d0'
+                                }}>
+                                  ✓
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-800)' }}>
+                                    Modul {m.week_number}: {m.title}
                                   </div>
-                                ))}
+                                  <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 2 }}>
+                                    {m.description || 'Fokus penguasaan materi dan latihan mandiri.'}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
+                            ))
                           )}
                         </div>
-                      </details>
-                    )}
+                      </div>
+
+                    </div>
+
+                    {/* Right Column (Sidebar Widgets) */}
+                    <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                      
+                      {/* Ringkasan Metrik Kursus */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                        {[
+                          { label: 'GRATIS', sub: 'Biaya Kursus', icon: <Award size={16} color="var(--indigo-600)"/> },
+                          { label: `${selectedCourse.credits * 16} JAM`, sub: 'Durasi Total', icon: <Clock size={16} color="var(--indigo-600)"/> },
+                          { label: 'PEMULA', sub: 'Tingkat Materi', icon: <Info size={16} color="var(--indigo-600)"/> },
+                          { label: 'MANDIRI', sub: 'Metode Belajar', icon: <RefreshCw size={16} color="var(--indigo-600)"/> }
+                        ].map((item, idx) => (
+                          <div key={idx} className="card" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', textAlign: 'center', background: '#f8fafc' }}>
+                            {item.icon}
+                            <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--gray-800)' }}>{item.label}</span>
+                            <span style={{ fontSize: 9, color: 'var(--gray-400)', fontWeight: 600 }}>{item.sub}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Achievements */}
+                      <div className="card" style={{ padding: 15, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', textAlign: 'center', background: '#f8fafc' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Achievements</span>
+                        <div style={{ 
+                          width: 70, 
+                          height: 70, 
+                          borderRadius: '50%', 
+                          background: 'linear-gradient(135deg, #22c55e 0%, #15803d 100%)', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          border: '4px solid #bbf7d0',
+                          boxShadow: '0 4px 10px rgba(34, 197, 94, 0.2)'
+                        }}>
+                          <Award size={32} color="#fff"/>
+                        </div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-700)' }}>
+                          Lencana Kelulusan {selectedCourse.code}
+                        </div>
+                        <p style={{ fontSize: 9, color: 'var(--gray-400)', margin: 0 }}>
+                          Dapatkan sertifikat resmi dari SYSTRACT Academy setelah menyelesaikan ujian akhir modul ini.
+                        </p>
+                      </div>
+
+                      {/* Skills You Will Learn (Maps CPMK & CPL) */}
+                      <div className="card" style={{ padding: 15, background: '#f8fafc' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>Skills You Will Learn</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {selectedCourse.cpmk && selectedCourse.cpmk.length > 0 ? (
+                            selectedCourse.cpmk.map((c, idx) => (
+                              <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', fontSize: 11, color: 'var(--gray-600)' }}>
+                                <CheckCircle2 size={12} color="#22c55e" style={{ flexShrink: 0, marginTop: 2 }}/>
+                                <span>{c.deskripsi}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <span style={{ fontSize: 11, color: 'var(--gray-400)' }}>Belum ada capaian keterampilan terdaftar.</span>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+                {/* ── TAB 1: CURRICULUM (SILABUS & MATERI) ── */}
+                {activeTab === 'curriculum' && (
+                  <>
 
                     {/* Syllabus Area Header */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid var(--gray-100)', paddingBottom: 10, marginTop: 4 }}>
@@ -1390,142 +1526,276 @@ export default function DosenMataKuliah() {
                       </div>
                     )}
 
-                    {/* Step 1: Deskripsi Mata Kuliah */}
-                    <div className="card" style={{ padding: 20 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 1: Deskripsi Mata Kuliah</span>
-                        <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateDesc} disabled={aiGeneratingDesc}>
-                          <Sparkles size={13} color="var(--indigo-600)"/> Generate AI
-                        </button>
-                      </div>
-                      <textarea
-                        className="input"
-                        rows={4}
-                        style={{ fontSize: 13, lineHeight: 1.5 }}
-                        placeholder="Deskripsi mata kuliah akan dihasilkan di sini..."
-                        value={tempDesc}
-                        onChange={e => setTempDesc(e.target.value)}
-                      />
-                      {tempDesc !== selectedCourse.description && (
-                        <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} onClick={handleSaveDesc}>
-                          Simpan Deskripsi
-                        </button>
-                      )}
+                    {/* Stepper Header Navigation */}
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      marginBottom: 10, 
+                      background: '#f8fafc', 
+                      border: '1px solid var(--gray-200)', 
+                      borderRadius: 12, 
+                      padding: '16px 20px',
+                      flexWrap: 'wrap',
+                      gap: 12
+                    }}>
+                      {[
+                        { step: 1, title: 'Deskripsi', desc: 'Detail Pengantar', isDone: !!tempDesc },
+                        { step: 2, title: 'CPMK & CPL', desc: 'Target Kompetensi', isDone: tempCpmk.length > 0 },
+                        { step: 3, title: 'Referensi', desc: 'Daftar Pustaka', isDone: tempRefs.length > 0 },
+                        { step: 4, title: 'Silabus Ajar', desc: '16 Modul Pertemuan', isDone: tempWeekly.length > 0 }
+                      ].map((s) => {
+                        const isActive = aiActiveStep === s.step;
+                        const isDone = s.isDone;
+                        return (
+                          <div 
+                            key={s.step} 
+                            onClick={() => setAiActiveStep(s.step)}
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 10, 
+                              cursor: 'pointer',
+                              flex: '1 1 140px',
+                              justifyContent: 'center',
+                              position: 'relative'
+                            }}
+                          >
+                            <div style={{ 
+                              width: 28, 
+                              height: 28, 
+                              borderRadius: '50%', 
+                              background: isActive ? 'var(--indigo-600)' : isDone ? '#dcfce7' : 'var(--gray-200)',
+                              color: isActive ? '#fff' : isDone ? '#15803d' : 'var(--gray-500)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 700,
+                              fontSize: 12,
+                              border: isActive ? '3px solid #c7d2fe' : 'none',
+                              flexShrink: 0
+                            }}>
+                              {isDone && !isActive ? '✓' : s.step}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: isActive ? 'var(--indigo-900)' : 'var(--gray-600)' }}>{s.title}</span>
+                              <span style={{ fontSize: 9, color: 'var(--gray-400)', fontWeight: 500 }}>{s.desc}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
+
+                    {/* Step 1: Deskripsi Kursus */}
+                    {aiActiveStep === 1 && (
+                      <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 1: Deskripsi Kursus</span>
+                          <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateDesc} disabled={aiGeneratingDesc}>
+                            <Sparkles size={13} color="var(--indigo-600)"/> Generate AI
+                          </button>
+                        </div>
+                        <textarea
+                          className="input"
+                          rows={6}
+                          style={{ fontSize: 13, lineHeight: 1.5 }}
+                          placeholder="Deskripsi kursus akan dihasilkan di sini oleh AI..."
+                          value={tempDesc}
+                          onChange={e => setTempDesc(e.target.value)}
+                        />
+                        
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+                          <div>
+                            {tempDesc !== selectedCourse.description && tempDesc.trim() !== '' && (
+                              <button className="btn btn-primary btn-sm" onClick={handleSaveDesc}>
+                                Simpan Deskripsi
+                              </button>
+                            )}
+                          </div>
+                          <button 
+                            className="btn btn-secondary btn-sm" 
+                            onClick={() => setAiActiveStep(2)}
+                            disabled={!tempDesc}
+                          >
+                            Lanjut ke CPMK & CPL &rarr;
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Step 2: CPL & CPMK */}
-                    <div className="card" style={{ padding: 20 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 2: Capaian Pembelajaran (CPL & CPMK)</span>
-                        <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateCplCpmk} disabled={aiGeneratingCplCpmk || !tempDesc}>
-                          <Sparkles size={13} color="var(--indigo-600)"/> Generate CPL & CPMK
-                        </button>
+                    {aiActiveStep === 2 && (
+                      <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 2: Keterampilan & Capaian (CPL & CPMK)</span>
+                          <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateCplCpmk} disabled={aiGeneratingCplCpmk || !tempDesc}>
+                            <Sparkles size={13} color="var(--indigo-600)"/> Generate CPL & CPMK
+                          </button>
+                        </div>
+
+                        {tempCpl.length === 0 && tempCpmk.length === 0 && (
+                          <div style={{ padding: '30px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
+                            <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Belum ada data CPL/CPMK. Klik "Generate CPL & CPMK" untuk membuat pemetaan kompetensi berbasis OBE.</span>
+                          </div>
+                        )}
+
+                        {tempCpl.length > 0 && (
+                          <div>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>CPL yang Didukung:</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                              {tempCpl.map((c, idx) => (
+                                <div key={idx} style={{ display: 'flex', gap: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '6px 10px', borderRadius: 6, fontSize: 12 }}>
+                                  <span className="badge-pill badge-green" style={{ height: 20 }}>CPL-{idx+1}</span>
+                                  <span style={{ color: '#166534' }}>{c}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {tempCpmk.length > 0 && (
+                          <div>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>Rancangan CPMK:</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                              {tempCpmk.map((c, idx) => (
+                                <div key={idx} style={{ background: '#f8fafc', border: '1px solid var(--gray-200)', padding: '8px 12px', borderRadius: 6, fontSize: 12 }}>
+                                  <div style={{ fontWeight: 700, color: 'var(--gray-800)' }}>{c.kode || `CPMK-${idx+1}`}</div>
+                                  <div style={{ color: 'var(--gray-600)', marginTop: 2 }}>{c.deskripsi}</div>
+                                  {c.cpl_ref && c.cpl_ref.length > 0 && (
+                                    <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                                      {c.cpl_ref.map(r => (
+                                        <span key={r} style={{ background: '#eef2ff', color: 'var(--indigo-600)', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4 }}>{r}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setAiActiveStep(1)}>
+                            &larr; Kembali
+                          </button>
+                          
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            {(tempCpl.length > 0 || tempCpmk.length > 0) && (
+                              <button className="btn btn-primary btn-sm" onClick={handleSaveCplCpmk}>
+                                Simpan ke Kursus
+                              </button>
+                            )}
+                            <button 
+                              className="btn btn-secondary btn-sm" 
+                              onClick={() => setAiActiveStep(3)}
+                              disabled={tempCpmk.length === 0}
+                            >
+                              Lanjut ke Referensi &rarr;
+                            </button>
+                          </div>
+                        </div>
                       </div>
-
-                      {tempCpl.length > 0 && (
-                        <div style={{ marginBottom: 14 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>CPL yang Didukung:</span>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
-                            {tempCpl.map((c, idx) => (
-                              <div key={idx} style={{ display: 'flex', gap: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '6px 10px', borderRadius: 6, fontSize: 12 }}>
-                                <span className="badge-pill badge-green" style={{ height: 20 }}>CPL-{idx+1}</span>
-                                <span style={{ color: '#166534' }}>{c}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {tempCpmk.length > 0 && (
-                        <div style={{ marginBottom: 14 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>Rancangan CPMK:</span>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
-                            {tempCpmk.map((c, idx) => (
-                              <div key={idx} style={{ background: '#f8fafc', border: '1px solid var(--gray-200)', padding: '8px 12px', borderRadius: 6, fontSize: 12 }}>
-                                <div style={{ fontWeight: 700, color: 'var(--gray-800)' }}>{c.kode || `CPMK-${idx+1}`}</div>
-                                <div style={{ color: 'var(--gray-600)', marginTop: 2 }}>{c.deskripsi}</div>
-                                {c.cpl_ref && c.cpl_ref.length > 0 && (
-                                  <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                                    {c.cpl_ref.map(r => (
-                                      <span key={r} style={{ background: '#eef2ff', color: 'var(--indigo-600)', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4 }}>{r}</span>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {(tempCpl.length > 0 || tempCpmk.length > 0) && (
-                        <button className="btn btn-primary btn-sm" onClick={handleSaveCplCpmk}>
-                          Simpan CPL & CPMK ke Kelas
-                        </button>
-                      )}
-                    </div>
+                    )}
 
                     {/* Step 3: Referensi Pustaka */}
-                    <div className="card" style={{ padding: 20 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 3: Referensi Pustaka</span>
-                        <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateRefs} disabled={aiGeneratingRefs || tempCpmk.length === 0}>
-                          <Sparkles size={13} color="var(--indigo-600)"/> Generate Pustaka
-                        </button>
-                      </div>
-
-                      {tempRefs.length > 0 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
-                          {tempRefs.map((r, idx) => (
-                            <div key={idx} style={{ padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, fontSize: 12, color: '#92400e' }}>
-                              📚 {r}
-                            </div>
-                          ))}
+                    {aiActiveStep === 3 && (
+                      <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 3: Referensi Pustaka</span>
+                          <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateRefs} disabled={aiGeneratingRefs || tempCpmk.length === 0}>
+                            <Sparkles size={13} color="var(--indigo-600)"/> Generate Pustaka
+                          </button>
                         </div>
-                      )}
 
-                      {tempRefs.length > 0 && (
-                        <button className="btn btn-primary btn-sm" onClick={handleSaveRefs}>
-                          Simpan Referensi Pustaka
-                        </button>
-                      )}
-                    </div>
+                        {tempRefs.length === 0 && (
+                          <div style={{ padding: '30px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
+                            <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Belum ada data referensi pustaka. Klik "Generate Pustaka" untuk merumuskan buku & jurnal.</span>
+                          </div>
+                        )}
 
-                    {/* Step 4: 16 Pertemuan Silabus */}
-                    <div className="card" style={{ padding: 20 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 4: Struktur Silabus (16 Pertemuan)</span>
-                        <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateWeekly} disabled={aiGeneratingWeekly || tempCpmk.length === 0}>
-                          <Sparkles size={13} color="var(--indigo-600)"/> Generate 16 Pertemuan
-                        </button>
-                      </div>
-
-                      {tempWeekly.length > 0 && (
-                        <div style={{ marginBottom: 14 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>Rancangan 16 Pertemuan Silabus:</span>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, maxHeight: 300, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 8 }}>
-                            {tempWeekly.map((w, idx) => (
-                              <div key={idx} style={{ display: 'flex', gap: 10, background: w.is_uts || w.is_uas ? '#fef2f2' : '#f8fafc', padding: 8, borderRadius: 6, fontSize: 12 }}>
-                                <span style={{ fontWeight: 700, color: 'var(--gray-500)', width: 20 }}>{w.no}</span>
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ fontWeight: 700 }}>{w.bahan_kajian}</div>
-                                  <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 2 }}>{w.kemampuan_akhir}</div>
-                                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                                    <span style={{ fontSize: 9, background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>🕒 {w.waktu} mnt</span>
-                                    <span style={{ fontSize: 9, background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>⚖️ Bobot {w.bobot}%</span>
-                                  </div>
-                                </div>
+                        {tempRefs.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {tempRefs.map((r, idx) => (
+                              <div key={idx} style={{ padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, fontSize: 12, color: '#92400e' }}>
+                                📚 {r}
                               </div>
                             ))}
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {tempWeekly.length > 0 && (
-                        <button className="btn btn-primary btn-sm" onClick={handleApplyWeekly}>
-                          Terapkan ke Silabus / Materi Kelas
-                        </button>
-                      )}
-                    </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setAiActiveStep(2)}>
+                            &larr; Kembali
+                          </button>
+                          
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            {tempRefs.length > 0 && (
+                              <button className="btn btn-primary btn-sm" onClick={handleSaveRefs}>
+                                Simpan Referensi
+                              </button>
+                            )}
+                            <button 
+                              className="btn btn-secondary btn-sm" 
+                              onClick={() => setAiActiveStep(4)}
+                              disabled={tempRefs.length === 0}
+                            >
+                              Lanjut ke Silabus &rarr;
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 4: 16 Pertemuan Silabus */}
+                    {aiActiveStep === 4 && (
+                      <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 4: Struktur Silabus (16 Pertemuan)</span>
+                          <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateWeekly} disabled={aiGeneratingWeekly || tempCpmk.length === 0}>
+                            <Sparkles size={13} color="var(--indigo-600)"/> Generate 16 Pertemuan
+                          </button>
+                        </div>
+
+                        {tempWeekly.length === 0 && (
+                          <div style={{ padding: '30px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
+                            <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Belum ada rancangan silabus 16 pertemuan. Klik "Generate 16 Pertemuan" untuk merumuskan draf silabus.</span>
+                          </div>
+                        )}
+
+                        {tempWeekly.length > 0 && (
+                          <div>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>Rancangan 16 Pertemuan Silabus:</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, maxHeight: 300, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 8 }}>
+                              {tempWeekly.map((w, idx) => (
+                                <div key={idx} style={{ display: 'flex', gap: 10, background: w.is_uts || w.is_uas ? '#fef2f2' : '#f8fafc', padding: 8, borderRadius: 6, fontSize: 12 }}>
+                                  <span style={{ fontWeight: 700, color: 'var(--gray-500)', width: 20 }}>{w.no}</span>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: 700 }}>{w.bahan_kajian}</div>
+                                    <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 2 }}>{w.kemampuan_akhir}</div>
+                                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                                      <span style={{ fontSize: 9, background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>🕒 {w.waktu} mnt</span>
+                                      <span style={{ fontSize: 9, background: '#e2e8f0', padding: '1px 6px', borderRadius: 4 }}>⚖️ Bobot {w.bobot}%</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setAiActiveStep(3)}>
+                            &larr; Kembali
+                          </button>
+                          
+                          {tempWeekly.length > 0 && (
+                            <button className="btn btn-primary btn-sm" onClick={handleApplyWeekly}>
+                              Terapkan ke Silabus / Materi Kelas
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -1543,9 +1813,9 @@ export default function DosenMataKuliah() {
                 borderRadius: 12
               }}>
                 <BookOpen size={48} color="var(--indigo-300)" style={{ marginBottom: 16 }} />
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-700)', margin: 0 }}>Pilih Mata Kuliah</h3>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-700)', margin: 0 }}>Pilih Kursus</h3>
                 <p style={{ fontSize: 12, color: 'var(--gray-400)', maxWidth: 360, marginTop: 6, lineHeight: 1.4 }}>
-                  Silakan pilih salah satu kelas di panel sebelah kiri untuk mulai mengelola silabus pertemuan, mengunggah materi, dan menyusun RPS OBE interaktif.
+                  Silakan pilih salah satu kelas di panel sebelah kiri untuk mulai mengelola silabus pertemuan, mengunggah materi, dan menyusun kurikulum Kursus interaktif.
                 </p>
               </div>
             )}
@@ -1564,9 +1834,9 @@ export default function DosenMataKuliah() {
             <div className="modal-body">
               {isAdmin && (
                 <div className="input-group">
-                  <label className="input-label">Dosen Pengampu *</label>
+                  <label className="input-label">Instruktur Pengampu *</label>
                   <select className="input" value={courseForm.dosen_id} onChange={e => setCourseForm(f => ({...f, dosen_id: e.target.value}))}>
-                    <option value="">— Pilih Dosen —</option>
+                    <option value="">— Pilih Instruktur —</option>
                     {dosenList.map(d => (
                       <option key={d.id} value={d.id}>{d.full_name} ({d.email})</option>
                     ))}
@@ -1576,7 +1846,7 @@ export default function DosenMataKuliah() {
 
               <div className="form-grid form-grid-2">
                 <div className="input-group">
-                  <label className="input-label">Kode MK *</label>
+                  <label className="input-label">Kode Kursus *</label>
                   <input className="input" placeholder="MIF123" value={courseForm.code} onChange={e => setCourseForm(f=>({...f, code:e.target.value}))}/>
                 </div>
                 <div className="input-group">
@@ -1585,7 +1855,7 @@ export default function DosenMataKuliah() {
                 </div>
               </div>
               <div className="input-group">
-                <label className="input-label">Nama Mata Kuliah *</label>
+                <label className="input-label">Nama Kursus *</label>
                 <input className="input" placeholder="Pemrograman Web" value={courseForm.name} onChange={e => setCourseForm(f=>({...f, name:e.target.value}))}/>
               </div>
               <div className="input-group">
@@ -1621,35 +1891,35 @@ export default function DosenMataKuliah() {
         </div>
       )}
 
-      {/* ── MODAL: Salin Mata Kuliah (Admin Only) ── */}
+      {/* ── MODAL: Salin Kursus (Admin Only) ── */}
       {copyModal && (
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth:520 }}>
             <div className="modal-header">
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                 <Copy size={15} color="var(--indigo-600)"/>
-                <span className="modal-title">Salin Mata Kuliah</span>
+                <span className="modal-title">Salin Kursus</span>
               </div>
               <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setCopyModal(false)} disabled={copying}><X size={14}/></button>
             </div>
             <div className="modal-body">
               <div style={{ background:'var(--gray-50)', borderRadius:10, padding:'10px 14px', marginBottom:16, border:'1px solid var(--gray-200)' }}>
-                <div style={{ fontSize:11, color:'var(--gray-400)', fontWeight:600, marginBottom:3 }}>SUMBER MATA KULIAH</div>
+                <div style={{ fontSize:11, color:'var(--gray-400)', fontWeight:600, marginBottom:3 }}>SUMBER KURSUS</div>
                 <div style={{ fontWeight:700, fontSize:14 }}>{copySource?.name}</div>
                 <div style={{ fontSize:12, color:'var(--gray-400)' }}>{copySource?.code} · {copySource?.semester} · {copySource?.credits} SKS</div>
               </div>
 
               <div className="input-group">
-                <label className="input-label">Dosen Pengampu Baru *</label>
+                <label className="input-label">Instruktur Pengampu Baru *</label>
                 <select className="input" value={copyForm.dosen_id} onChange={e => setCopyForm(f => ({...f, dosen_id: e.target.value}))}>
-                  <option value="">— Pilih Dosen —</option>
+                  <option value="">— Pilih Instruktur —</option>
                   {dosenList.map(d => <option key={d.id} value={d.id}>{d.full_name} ({d.email})</option>)}
                 </select>
               </div>
 
               <div className="form-grid form-grid-2">
                 <div className="input-group">
-                  <label className="input-label">Kode MK Baru *</label>
+                  <label className="input-label">Kode Kursus Baru *</label>
                   <input className="input" placeholder="MIF123-COPY" value={copyForm.code} onChange={e => setCopyForm(f => ({...f, code: e.target.value}))}/>
                 </div>
                 <div className="input-group">
@@ -1660,7 +1930,7 @@ export default function DosenMataKuliah() {
                 </div>
               </div>
               <div className="input-group">
-                <label className="input-label">Nama Mata Kuliah Baru *</label>
+                <label className="input-label">Nama Kursus Baru *</label>
                 <input className="input" value={copyForm.name} onChange={e => setCopyForm(f => ({...f, name: e.target.value}))}/>
               </div>
 
