@@ -23,7 +23,6 @@ import KatalogKursus       from '@/pages/mahasiswa/KatalogKursus'
 // ── Dosen ────────────────────────────────────────────────────
 import DosenDashboard   from '@/pages/dosen/Dashboard'
 import DosenMataKuliah from '@/pages/dosen/MataKuliahManager'
-import MateriManager   from '@/pages/dosen/MateriManager'
 import TugasManager    from '@/pages/dosen/TugasManager'
 import UjianManager    from '@/pages/dosen/UjianManager'
 import BankSoal        from '@/pages/dosen/BankSoal'
@@ -95,7 +94,7 @@ function SmartMataKuliah() {
 // ── Smart Materi ─────────────────────────────────────────────
 function SmartMateri() {
   const { role } = useAuth()
-  if (role === 'dosen' || role === 'admin') return <MateriManager />
+  if (role === 'dosen' || role === 'admin') return <DosenMataKuliah />
   // Mahasiswa melihat materi melalui CourseDetail, redirect ke mata kuliah
   return <Navigate to="/mata-kuliah" replace />
 }
