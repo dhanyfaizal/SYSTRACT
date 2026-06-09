@@ -24,6 +24,37 @@ import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 const COLORS   = ['#4f46e5','#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4']
 const SEMESTERS = ['Ganjil 2025/2026','Genap 2025/2026','Ganjil 2026/2027']
 
+const MODULES = [
+  { id: 1, name: 'Module 1: Fondasi & Konsep Dasar (Pertemuan 1 - 4)', weeks: [1, 2, 3, 4] },
+  { id: 2, name: 'Module 2: Penerapan & Analisis Praktis (Pertemuan 5 - 7)', weeks: [5, 6, 7] },
+  { id: 3, name: 'Module 3: Evaluasi Tengah Semester (UTS - Pertemuan 8)', weeks: [8] },
+  { id: 4, name: 'Module 4: Pengembangan Sistem & Desain Lanjut (Pertemuan 9 - 12)', weeks: [9, 10, 11, 12] },
+  { id: 5, name: 'Module 5: Integrasi & Pengujian Akhir (Pertemuan 13 - 15)', weeks: [13, 14, 15] },
+  { id: 6, name: 'Module 6: Evaluasi Akhir Semester (UAS - Pertemuan 16)', weeks: [16] }
+]
+
+export function groupMaterialsIntoModules(materials) {
+  const bins = MODULES.map(m => ({ ...m, items: [] }))
+  const generalBin = { id: 0, name: '📢 Umum / Pengantar', weeks: [0], items: [] }
+  const extraBin = { id: 99, name: '➕ Materi Tambahan', weeks: [], items: [] }
+
+  materials.forEach(m => {
+    const w = m.week_number || 0
+    if (w === 0) {
+      generalBin.items.push(m)
+    } else {
+      const target = bins.find(b => b.weeks.includes(w))
+      if (target) {
+        target.items.push(m)
+      } else {
+        extraBin.items.push(m)
+      }
+    }
+  })
+
+  return [generalBin, ...bins, extraBin].filter(b => b.items.length > 0)
+}
+
 const BLANK_COURSE_FORM = { code:'', name:'', description:'', credits:3, semester: SEMESTERS[0], cover_color:'#4f46e5', dosen_id:'' }
 
 // ── Attachment type definitions ────────────────────────────────
@@ -140,6 +171,13 @@ export default function DosenMataKuliah() {
   const [editingMaterialId, setEditingMaterialId] = useState(null)
   const [savingMaterial, setSavingMaterial] = useState(false)
   const [materialForm, setMaterialForm] = useState(BLANK_MATERIAL_FORM())
+  const [expandedModules, setExpandedModules] = useState({
+    0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 99: true
+  })
+
+  // ── Enrollments states ──────────────────────────────────────
+  const [enrollments, setEnrollments] = useState([])
+  const [loadingEnrollments, setLoadingEnrollments] = useState(false)
 
   // ── AI Assistant states ─────────────────────────────────────
   const [aiProgressText, setAiProgressText] = useState('')
@@ -233,6 +271,73 @@ export default function DosenMataKuliah() {
       setAiActiveStep(1)
     }
   }, [selectedCourseId])
+
+  // Fetch enrollments when courseId or activeTab is active
+  useEffect(() => {
+    if (selectedCourseId && activeTab === 'enrollments') {
+      fetchEnrollments(selectedCourseId)
+    }
+  }, [selectedCourseId, activeTab])
+
+  async function fetchEnrollments(courseId) {
+    setLoadingEnrollments(true)
+    try {
+      const { data, error } = await supabase
+        .from('enrollments')
+        .select('*, student:profiles(id, full_name, nim, email, avatar_url)')
+        .eq('course_id', courseId)
+        .order('enrolled_at', { ascending: false })
+      if (error) throw error
+      setEnrollments(data || [])
+    } catch (e) {
+      console.error('[SYSTRACT] Error fetching enrollments:', e)
+      toast.error('Gagal memuat daftar pendaftaran mahasiswa')
+    } finally {
+      setLoadingEnrollments(false)
+    }
+  }
+
+  async function handleApproveEnrollment(enrollId) {
+    const toastId = toast.loading('Menyetujui pendaftaran...')
+    try {
+      const { error } = await supabase
+        .from('enrollments')
+        .update({ status: 'approved' })
+        .eq('id', enrollId)
+      if (error) throw error
+      toast.success('Pendaftaran disetujui! 🎉', { id: toastId })
+      if (selectedCourseId) fetchEnrollments(selectedCourseId)
+      fetchCourses(selectedCourseId) // refresh course count in left sidebar
+    } catch (e) {
+      console.error('[SYSTRACT] Error approving enrollment:', e)
+      toast.error('Gagal menyetujui pendaftaran', { id: toastId })
+    }
+  }
+
+  async function handleRejectEnrollment(enrollId, studentName) {
+    const ok = await showConfirm({
+      title: 'Tolak / Batalkan Pendaftaran?',
+      message: `Apakah Anda yakin ingin menolak/membatalkan pendaftaran untuk mahasiswa ${studentName}?`,
+      confirmLabel: 'Ya, Batalkan/Tolak',
+      variant: 'danger',
+    })
+    if (!ok) return
+
+    const toastId = toast.loading('Memproses penolakan...')
+    try {
+      const { error } = await supabase
+        .from('enrollments')
+        .delete()
+        .eq('id', enrollId)
+      if (error) throw error
+      toast.success('Pendaftaran ditolak/dihapus.', { id: toastId })
+      if (selectedCourseId) fetchEnrollments(selectedCourseId)
+      fetchCourses(selectedCourseId) // refresh course count in left sidebar
+    } catch (e) {
+      console.error('[SYSTRACT] Error rejecting enrollment:', e)
+      toast.error('Gagal menolak pendaftaran', { id: toastId })
+    }
+  }
 
   // ── Database Fetch functions ─────────────────────────────────
   async function fetchCourses(selectId = null) {
@@ -1353,6 +1458,25 @@ export default function DosenMataKuliah() {
                   >
                     <Sparkles size={14} color="var(--indigo-600)"/> AI RPS & Slide Generator
                   </button>
+                  <button
+                    onClick={() => setActiveTab('enrollments')}
+                    style={{
+                      padding: '10px 16px',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: activeTab === 'enrollments' ? '3px solid var(--indigo-600)' : '3px solid transparent',
+                      color: activeTab === 'enrollments' ? 'var(--indigo-700)' : 'var(--gray-500)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}
+                  >
+                    👥 Persetujuan
+                  </button>
                 </div>
 
 
@@ -1498,7 +1622,7 @@ export default function DosenMataKuliah() {
                         <Loader2 size={24} className="spinner" style={{ animation: 'spin 1s linear infinite', color: 'var(--indigo-600)' }} />
                         <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Memuat materi silabus...</span>
                       </div>
-                    ) : Object.keys(materialsByWeek).length === 0 ? (
+                    ) : materials.length === 0 ? (
                       <div className="empty-state card" style={{ padding: 48, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'var(--surface)', border: '2px dashed var(--gray-200)' }}>
                         <BookMarked size={40} color="var(--gray-300)" style={{ marginBottom: 12 }} />
                         <p className="empty-state-text" style={{ fontWeight: 600, fontSize: 14, color: 'var(--gray-600)', margin: 0 }}>Belum Ada Materi</p>
@@ -1507,104 +1631,152 @@ export default function DosenMataKuliah() {
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', maxHeight: 'calc(100vh - 360px)', paddingRight: 4 }}>
-                        {Object.entries(materialsByWeek).sort(([a],[b]) => +a - +b).map(([week, items]) => (
-                          <div key={week} className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--gray-200)', borderRadius: 10 }}>
-                            
-                            {/* Week Header */}
-                            <div style={{ background: 'var(--gray-50)', padding: '10px 16px', borderBottom: '1px solid var(--gray-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                {+week === 0 ? '📢 Umum / Pengantar' : `📅 Pertemuan ${week}`}
-                              </span>
-                              <span className="badge-pill badge-slate" style={{ fontSize: 10, padding: '2px 8px' }}>{items.length} Materi</span>
-                            </div>
-                            
-                            {/* Week Items */}
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              {items.map((m, idx) => {
-                                const links = (m.attachments && m.attachments.length)
-                                  ? m.attachments
-                                  : m.webview_link ? [{ mime: m.mime_type, url: m.webview_link, label: '' }]
-                                  : []
-                                  
-                                const isExam = +week === 8 || +week === 16
-
-                                return (
-                                  <div key={m.id} style={{
-                                    padding: '14px 18px',
-                                    borderTop: idx > 0 ? '1px solid var(--gray-100)' : 'none',
-                                    transition: 'background 0.2s',
+                        {groupMaterialsIntoModules(materials).map((mod) => {
+                          const isExpanded = !!expandedModules[mod.id]
+                          return (
+                            <div key={mod.id} className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--gray-200)', borderRadius: 10 }}>
+                              
+                              {/* Module Header Toggle */}
+                              <div 
+                                onClick={() => setExpandedModules(prev => ({ ...prev, [mod.id]: !prev[mod.id] }))}
+                                style={{ 
+                                  background: 'var(--gray-50)', 
+                                  padding: '12px 18px', 
+                                  borderBottom: isExpanded ? '1px solid var(--gray-200)' : 'none', 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'center',
+                                  cursor: 'pointer',
+                                  userSelect: 'none'
+                                }}
+                              >
+                                <span style={{ fontWeight: 750, fontSize: 13, color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                  <div style={{
+                                    width: 20, 
+                                    height: 20, 
+                                    borderRadius: '50%', 
+                                    background: '#dcfce7', 
+                                    color: '#15803d', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    border: '1px solid #bbf7d0',
+                                    fontSize: 10,
+                                    fontWeight: 800
                                   }}>
-                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                                      <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--gray-900)' }}>{m.title}</div>
-                                        {m.description && (
-                                          <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4, lineHeight: 1.4 }}>
-                                            {m.description}
-                                          </div>
-                                        )}
-                                        
-                                        {/* AI outline slide / WebSlide indicator banner if exists */}
-                                        {(m.slide_content || m.webslide_content) && (
-                                          <div style={{ marginTop: 8, background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 8, padding: '8px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--indigo-700)', fontWeight: 600 }}>
-                                            <Sparkles size={11} color="var(--indigo-600)" /> 
-                                            Slide AI Tersedia!
-                                            {m.webslide_content && <span style={{ color: '#10b981' }}>(WebSlide Aktif)</span>}
-                                          </div>
-                                        )}
-
-                                        {/* Attachment chips */}
-                                        {links.length > 0 && (
-                                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                                            {links.map((a, ai) => {
-                                              const t = typeOf(a.mime)
-                                              return (
-                                                <a key={ai} href={a.url} target="_blank" rel="noopener noreferrer"
-                                                  style={{
-                                                    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px',
-                                                    borderRadius: 20, fontSize: 11, fontWeight: 600, textDecoration: 'none',
-                                                    color: t.color, background: t.bg, border: `1px solid ${t.color}25`,
-                                                    cursor: 'pointer', transition: 'all 0.15s',
-                                                  }}
-                                                  onMouseEnter={e => e.currentTarget.style.opacity = 0.8}
-                                                  onMouseLeave={e => e.currentTarget.style.opacity = 1}
-                                                >
-                                                  <span style={{ fontSize: 12 }}>{t.icon}</span>
-                                                  {a.label || t.label}
-                                                  <ExternalLink size={10} style={{ opacity: 0.7 }}/>
-                                                </a>
-                                              )
-                                            })}
-                                          </div>
-                                        )}
-                                      </div>
-                                      
-                                      {/* Slide Generator Trigger */}
-                                      <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
-                                        <button
-                                          className="btn btn-secondary btn-sm"
-                                          onClick={() => openSlideGenerator(m)}
-                                          style={{
-                                            gap: 4,
-                                            fontSize: 11,
-                                            padding: '4px 8px',
-                                            borderColor: 'var(--indigo-300)',
-                                            background: '#f8f8ff',
-                                            color: 'var(--indigo-700)'
-                                          }}
-                                        >
-                                          <Sparkles size={12} color="var(--indigo-600)" />
-                                          {isExam ? 'Soal AI' : 'Slide AI'}
-                                        </button>
-                                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditMaterial(m)} title="Edit"><Edit2 size={13}/></button>
-                                        <button className="btn btn-ghost btn-icon btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteMaterial(m.id)} title="Hapus"><Trash2 size={13}/></button>
-                                      </div>
-                                    </div>
+                                    ✓
                                   </div>
-                                )
-                              })}
+                                  {mod.name}
+                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                  <span className="badge-pill badge-slate" style={{ fontSize: 10, padding: '2px 8px' }}>
+                                    {mod.items.length} Materi
+                                  </span>
+                                  {isExpanded ? <ChevronUp size={16} color="var(--gray-400)"/> : <ChevronDown size={16} color="var(--gray-400)"/>}
+                                </div>
+                              </div>
+                              
+                              {/* Module Items (Collapsable) */}
+                              {isExpanded && (
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  {mod.items.sort((a,b) => (a.week_number || 0) - (b.week_number || 0)).map((m, idx) => {
+                                    const links = (m.attachments && m.attachments.length)
+                                      ? m.attachments
+                                      : m.webview_link ? [{ mime: m.mime_type, url: m.webview_link, label: '' }]
+                                      : []
+                                      
+                                    const isExam = m.week_number === 8 || m.week_number === 16
+
+                                    return (
+                                      <div key={m.id} style={{
+                                        padding: '14px 18px',
+                                        borderTop: idx > 0 ? '1px solid var(--gray-100)' : 'none',
+                                        transition: 'background 0.2s',
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        gap: 16
+                                      }}>
+                                        <div style={{
+                                          fontSize: 11, 
+                                          fontWeight: 800, 
+                                          color: 'var(--gray-400)', 
+                                          marginTop: 2, 
+                                          width: 32, 
+                                          textAlign: 'right', 
+                                          flexShrink: 0 
+                                        }}>
+                                          {m.week_number === 0 ? 'P' : `${m.week_number}.0`}
+                                        </div>
+                                        
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-900)' }}>{m.title}</div>
+                                          {m.description && (
+                                            <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4, lineHeight: 1.4 }}>
+                                              {m.description}
+                                            </div>
+                                          )}
+                                          
+                                          {/* AI slide availability */}
+                                          {(m.slide_content || m.webslide_content) && (
+                                            <div style={{ marginTop: 8, background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 8, padding: '8px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--indigo-700)', fontWeight: 600 }}>
+                                              <Sparkles size={11} color="var(--indigo-600)" /> 
+                                              Slide AI Tersedia!
+                                              {m.webslide_content && <span style={{ color: '#10b981' }}>(WebSlide Aktif)</span>}
+                                            </div>
+                                          )}
+
+                                          {/* Attachment chips */}
+                                          {links.length > 0 && (
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                                              {links.map((a, ai) => {
+                                                const t = typeOf(a.mime)
+                                                return (
+                                                  <a key={ai} href={a.url} target="_blank" rel="noopener noreferrer"
+                                                    style={{
+                                                      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px',
+                                                      borderRadius: 20, fontSize: 11, fontWeight: 600, textDecoration: 'none',
+                                                      color: t.color, background: t.bg, border: `1px solid ${t.color}25`,
+                                                      cursor: 'pointer', transition: 'all 0.15s',
+                                                    }}
+                                                  >
+                                                    <span style={{ fontSize: 12 }}>{t.icon}</span>
+                                                    {a.label || t.label}
+                                                    <ExternalLink size={10} style={{ opacity: 0.7 }}/>
+                                                  </a>
+                                                )
+                                              })}
+                                            </div>
+                                          )}
+                                        </div>
+                                        
+                                        {/* Slide Generator Actions */}
+                                        <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
+                                          <button
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => openSlideGenerator(m)}
+                                            style={{
+                                              gap: 4,
+                                              fontSize: 11,
+                                              padding: '4px 8px',
+                                              borderColor: 'var(--indigo-300)',
+                                              background: '#f8f8ff',
+                                              color: 'var(--indigo-700)'
+                                            }}
+                                          >
+                                            <Sparkles size={12} color="var(--indigo-600)" />
+                                            {isExam ? 'Soal AI' : 'Slide AI'}
+                                          </button>
+                                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditMaterial(m)} title="Edit"><Edit2 size={13}/></button>
+                                          <button className="btn btn-ghost btn-icon btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteMaterial(m.id)} title="Hapus"><Trash2 size={13}/></button>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                   </>
@@ -2109,6 +2281,93 @@ export default function DosenMataKuliah() {
                             )}
                           </div>
                         </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── TAB 3: ENROLLMENTS (PERSERTA / PENDAFTARAN) ── */}
+                {activeTab === 'enrollments' && (
+                  <div className="card" style={{ padding: 20 }}>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 4 }}>Persetujuan Mahasiswa</h3>
+                    <p style={{ fontSize: 12, color: 'var(--gray-400)', marginBottom: 20 }}>Kelola dan konfirmasi pendaftaran mahasiswa ke dalam kursus ini.</p>
+
+                    {loadingEnrollments ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: 8 }}>
+                        <Loader2 size={24} className="spinner" style={{ animation: 'spin 1s linear infinite', color: 'var(--indigo-600)' }} />
+                        <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Memuat pendaftaran...</span>
+                      </div>
+                    ) : enrollments.length === 0 ? (
+                      <div className="empty-state" style={{ padding: 48, textAlign: 'center', border: '1px dashed var(--gray-200)', borderRadius: 10 }}>
+                        <Users size={32} color="var(--gray-300)" style={{ marginBottom: 8 }} />
+                        <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--gray-600)', margin: 0 }}>Belum Ada Mahasiswa</p>
+                        <p style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 4, marginBottom: 0 }}>Belum ada mahasiswa yang terdaftar atau mengajukan pendaftaran di kursus ini.</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', maxHeight: 'calc(100vh - 360px)' }}>
+                        {enrollments.map((e, idx) => {
+                          const isPending = e.status === 'pending'
+                          return (
+                            <div 
+                              key={e.id} 
+                              style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 14, 
+                                padding: '12px 18px', 
+                                background: isPending ? '#fffbeb' : '#fff', 
+                                border: isPending ? '1px solid #fde68a' : '1px solid var(--gray-200)',
+                                borderRadius: 10,
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              <div className="avatar" style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--indigo-50)', color: 'var(--indigo-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
+                                {e.student?.full_name?.[0] || 'M'}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-900)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  {e.student?.full_name}
+                                  {isPending && (
+                                    <span style={{ fontSize: 9, background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: 12, fontWeight: 700, border: '1px solid #fde68a' }}>
+                                      Menunggu Konfirmasi
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 2 }}>
+                                  NIM: {e.student?.nim || '-'} · Email: {e.student?.email || '-'}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                                {isPending ? (
+                                  <>
+                                    <button 
+                                      className="btn btn-primary btn-sm" 
+                                      style={{ background: 'var(--success)', borderColor: 'var(--success)', fontSize: 11, padding: '5px 12px', fontWeight: 700 }}
+                                      onClick={() => handleApproveEnrollment(e.id)}
+                                    >
+                                      Setujui
+                                    </button>
+                                    <button 
+                                      className="btn btn-secondary btn-sm" 
+                                      style={{ fontSize: 11, padding: '5px 12px' }}
+                                      onClick={() => handleRejectEnrollment(e.id, e.student?.full_name)}
+                                    >
+                                      Tolak
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button 
+                                    className="btn btn-ghost btn-sm" 
+                                    style={{ color: 'var(--danger)', fontSize: 11, padding: '5px 12px' }}
+                                    onClick={() => handleRejectEnrollment(e.id, e.student?.full_name)}
+                                  >
+                                    Hapus Akses
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
                     )}
                   </div>

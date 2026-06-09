@@ -4,7 +4,7 @@ import {
   ArrowLeft, BookOpen, ClipboardList, MessageSquare, FileText,
   ExternalLink, Calendar, User, Star, CheckCircle2, Sparkles,
   PlayCircle, FileDown, BookMarked, Eye, Send, Loader2, Award, Clock,
-  Info, RefreshCw
+  Info, RefreshCw, ChevronUp, ChevronDown, ChevronRight
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAI } from '@/contexts/AIContext'
@@ -13,6 +13,37 @@ import toast from 'react-hot-toast'
 import courseBanner from '@/assets/course_banner.png'
 
 const COUNTDOWN_SEC = 180 // 3 Menit untuk membaca/menonton materi
+
+const MODULES = [
+  { id: 1, name: 'Module 1: Fondasi & Konsep Dasar (Pertemuan 1 - 4)', weeks: [1, 2, 3, 4] },
+  { id: 2, name: 'Module 2: Penerapan & Analisis Praktis (Pertemuan 5 - 7)', weeks: [5, 6, 7] },
+  { id: 3, name: 'Module 3: Evaluasi Tengah Semester (UTS - Pertemuan 8)', weeks: [8] },
+  { id: 4, name: 'Module 4: Pengembangan Sistem & Desain Lanjut (Pertemuan 9 - 12)', weeks: [9, 10, 11, 12] },
+  { id: 5, name: 'Module 5: Integrasi & Pengujian Akhir (Pertemuan 13 - 15)', weeks: [13, 14, 15] },
+  { id: 6, name: 'Module 6: Evaluasi Akhir Semester (UAS - Pertemuan 16)', weeks: [16] }
+]
+
+export function groupMaterialsIntoModules(items, weekKey = 'week_number') {
+  const bins = MODULES.map(m => ({ ...m, items: [] }))
+  const generalBin = { id: 0, name: '📢 Umum / Pengantar', weeks: [0], items: [] }
+  const extraBin = { id: 99, name: '➕ Materi Tambahan', weeks: [], items: [] }
+
+  items.forEach(m => {
+    const w = m[weekKey] || 0
+    if (w === 0) {
+      generalBin.items.push(m)
+    } else {
+      const target = bins.find(b => b.weeks.includes(w))
+      if (target) {
+        target.items.push(m)
+      } else {
+        extraBin.items.push(m)
+      }
+    }
+  })
+
+  return [generalBin, ...bins, extraBin].filter(b => b.items.length > 0)
+}
 
 // Helper mapping untuk tipe materi
 const MATTYPE = {
@@ -127,6 +158,13 @@ export default function CourseDetail() {
   const [loading, setLoading] = useState(true)
 
   const [isEnrolled, setIsEnrolled] = useState(false)
+  const [enrollStatus, setEnrollStatus] = useState(null)
+  const [expandedPreviewModules, setExpandedPreviewModules] = useState({
+    0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 99: true
+  })
+  const [expandedSidebarModules, setExpandedSidebarModules] = useState({
+    0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 99: true
+  })
   const [materials, setMaterials] = useState([])
   const [enrolling, setEnrolling] = useState(false)
 
@@ -210,13 +248,14 @@ export default function CourseDetail() {
       // Check enrollment
       const { data: enrollDataCheck } = await supabase
         .from('enrollments')
-        .select('id')
+        .select('id, status')
         .eq('course_id', courseId)
         .eq('student_id', user.id)
         .maybeSingle()
 
-      const enrolled = !!enrollDataCheck
+      const enrolled = !!enrollDataCheck && enrollDataCheck.status === 'approved'
       setIsEnrolled(enrolled)
+      setEnrollStatus(enrollDataCheck ? enrollDataCheck.status : null)
 
       // 2. Fetch materials
       const { data: mats } = await supabase
@@ -386,20 +425,21 @@ export default function CourseDetail() {
 
   async function handleEnroll() {
     setEnrolling(true)
-    const toastId = toast.loading('Mendaftar ke kursus...')
+    const toastId = toast.loading('Mengirim pendaftaran...')
     try {
       const { error } = await supabase
         .from('enrollments')
         .insert({
           course_id: courseId,
-          student_id: user.id
+          student_id: user.id,
+          status: 'pending'
         })
 
       if (error) throw error
 
-      toast.success(`Berhasil mendaftar di kursus: ${course?.name} 🎉`, { id: toastId })
-      setIsEnrolled(true)
-      fetchCourseAndSyllabus()
+      toast.success('Pendaftaran dikirim! Menunggu konfirmasi instruktur. ⏳', { id: toastId })
+      setEnrollStatus('pending')
+      setIsEnrolled(false)
     } catch (err) {
       console.error('[SYSTRACT] Enroll error:', err)
       toast.error('Gagal mendaftar kursus. Silakan coba lagi.', { id: toastId })
@@ -652,23 +692,33 @@ export default function CourseDetail() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-              <button 
-                className="btn btn-primary btn-sm" 
-                onClick={handleEnroll} 
-                disabled={enrolling}
-                style={{ background: '#22c55e', borderColor: '#22c55e', color: '#fff', fontWeight: 700, padding: '8px 18px', fontSize: 13, gap: 6, boxShadow: '0 4px 10px rgba(34, 197, 94, 0.2)' }}
-              >
-                {enrolling ? (
-                  <>
-                    <Loader2 size={14} className="spinner" style={{ animation: 'spin .7s linear infinite', borderTopColor: '#fff', marginRight: 4 }} />
-                    Mendaftar...
-                  </>
-                ) : (
-                  <>
-                    Ikuti Kursus (Self-Paced)
-                  </>
-                )}
-              </button>
+              {enrollStatus === 'pending' ? (
+                <button 
+                  className="btn btn-secondary btn-sm" 
+                  disabled
+                  style={{ background: '#f59e0b', borderColor: '#d97706', color: '#fff', fontWeight: 700, padding: '8px 18px', fontSize: 13, gap: 6, cursor: 'not-allowed' }}
+                >
+                  Pendaftaran Menunggu Konfirmasi ⏳
+                </button>
+              ) : (
+                <button 
+                  className="btn btn-primary btn-sm" 
+                  onClick={handleEnroll} 
+                  disabled={enrolling}
+                  style={{ background: '#22c55e', borderColor: '#22c55e', color: '#fff', fontWeight: 700, padding: '8px 18px', fontSize: 13, gap: 6, boxShadow: '0 4px 10px rgba(34, 197, 94, 0.2)' }}
+                >
+                  {enrolling ? (
+                    <>
+                      <Loader2 size={14} className="spinner" style={{ animation: 'spin .7s linear infinite', borderTopColor: '#fff', marginRight: 4 }} />
+                      Mendaftar...
+                    </>
+                  ) : (
+                    <>
+                      Ikuti Kursus (Self-Paced)
+                    </>
+                  )}
+                </button>
+              )}
               <span style={{ fontSize: 11, color: 'var(--gray-400)', fontWeight: 600 }}>
                 ⚡ 14.869.338 terdaftar
               </span>
@@ -722,34 +772,94 @@ export default function CourseDetail() {
                     )
                   }
 
-                  return displayModules.sort((a, b) => a.week_number - b.week_number).map((m, index) => (
-                    <div key={index} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid var(--gray-100)' }}>
-                      <div style={{ 
-                        width: 24, 
-                        height: 24, 
-                        borderRadius: '50%', 
-                        background: '#dcfce7', 
-                        color: '#15803d', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center', 
-                        flexShrink: 0,
-                        fontWeight: 700,
-                        fontSize: 12,
-                        border: '1px solid #bbf7d0'
-                      }}>
-                        ✓
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-800)' }}>
-                          Modul {m.week_number}: {m.title}
+                  const grouped = groupMaterialsIntoModules(displayModules, 'week_number')
+
+                  return grouped.map((mod) => {
+                    const isExpanded = !!expandedPreviewModules[mod.id]
+                    return (
+                      <div key={mod.id} className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--gray-200)', borderRadius: 10, background: '#fff' }}>
+                        {/* Module Header Toggle */}
+                        <div 
+                          onClick={() => setExpandedPreviewModules(prev => ({ ...prev, [mod.id]: !prev[mod.id] }))}
+                          style={{ 
+                            background: 'var(--gray-50)', 
+                            padding: '12px 18px', 
+                            borderBottom: isExpanded ? '1px solid var(--gray-200)' : 'none', 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            cursor: 'pointer',
+                            userSelect: 'none'
+                          }}
+                        >
+                          <span style={{ fontWeight: 750, fontSize: 13, color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{
+                              width: 20, 
+                              height: 20, 
+                              borderRadius: '50%', 
+                              background: '#dcfce7', 
+                              color: '#15803d', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              border: '1px solid #bbf7d0',
+                              fontSize: 10,
+                              fontWeight: 800
+                            }}>
+                              ✓
+                            </div>
+                            {mod.name}
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span className="badge-pill badge-slate" style={{ fontSize: 10, padding: '2px 8px' }}>
+                              {mod.items.length} Pertemuan
+                            </span>
+                            {isExpanded ? <ChevronUp size={16} color="var(--gray-400)"/> : <ChevronDown size={16} color="var(--gray-400)"/>}
+                          </div>
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 2 }}>
-                          {m.description || 'Fokus penguasaan materi dan latihan mandiri.'}
-                        </div>
+                        
+                        {/* Module Items */}
+                        {isExpanded && (
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            {mod.items.sort((a,b) => (a.week_number || 0) - (b.week_number || 0)).map((m, idx) => {
+                              const prefix = mod.id === 0 ? '0' : mod.id === 99 ? '+' : `${mod.id}.${idx}`
+                              return (
+                                <div key={idx} style={{
+                                  padding: '12px 18px',
+                                  borderTop: idx > 0 ? '1px solid var(--gray-100)' : 'none',
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: 16
+                                }}>
+                                  <div style={{
+                                    fontSize: 11, 
+                                    fontWeight: 800, 
+                                    color: 'var(--gray-400)', 
+                                    marginTop: 2, 
+                                    width: 32, 
+                                    textAlign: 'right', 
+                                    flexShrink: 0 
+                                  }}>
+                                    {prefix}
+                                  </div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-800)' }}>
+                                      {m.title}
+                                    </div>
+                                    {m.description && (
+                                      <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4, lineHeight: 1.4 }}>
+                                        {m.description}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))
+                    )
+                  })
                 })()}
               </div>
             </div>
@@ -885,37 +995,97 @@ export default function CourseDetail() {
             </div>
 
             {/* List items */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {syllabusItems.map((item, idx) => {
-                const isActive = activeItem?.id === item.id
-                let isDone = false
-                if (item.type === 'materi') isDone = completedRefs.has(`mat_${item.data.id}_${item.subIdx}`)
-                if (item.type === 'tugas') isDone = !!submissionsMap[item.data.id]
-                if (item.type === 'ujian') isDone = (examAnswersMap[item.data.id] || 0) >= 70
-
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {groupMaterialsIntoModules(syllabusItems, 'week').map((mod) => {
+                const isExpanded = !!expandedSidebarModules[mod.id]
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveItem(item)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', border: 'none', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
-                      background: isActive ? 'var(--indigo-50)' : 'transparent',
-                      color: isActive ? 'var(--indigo-700)' : 'var(--gray-600)',
-                      fontWeight: isActive ? 700 : 500,
-                      fontSize: 12, transition: 'all .15s'
-                    }}
-                  >
-                    {isDone ? (
-                      <CheckCircle2 size={14} color="var(--success)" fill="#d1fae5" style={{ flexShrink: 0 }} />
-                    ) : (
-                      <span style={{ fontSize: 14, flexShrink: 0 }}>{item.icon}</span>
+                  <div key={mod.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {/* Module Header Toggle */}
+                    <div 
+                      onClick={() => setExpandedSidebarModules(prev => ({ ...prev, [mod.id]: !prev[mod.id] }))}
+                      style={{ 
+                        background: 'var(--gray-50)', 
+                        padding: '8px 12px', 
+                        borderRadius: 8,
+                        border: '1px solid var(--gray-200)',
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        marginBottom: 4
+                      }}
+                    >
+                      <span style={{ fontWeight: 750, fontSize: 11, color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          width: 16, 
+                          height: 16, 
+                          borderRadius: '50%', 
+                          background: '#dcfce7', 
+                          color: '#15803d', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          border: '1px solid #bbf7d0',
+                          fontSize: 9,
+                          fontWeight: 800,
+                          flexShrink: 0
+                        }}>
+                          ✓
+                        </div>
+                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {mod.name}
+                        </span>
+                      </span>
+                      {isExpanded ? <ChevronUp size={14} color="var(--gray-400)"/> : <ChevronDown size={14} color="var(--gray-400)"/>}
+                    </div>
+
+                    {/* Module Items (Collapsable) */}
+                    {isExpanded && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 8 }}>
+                        {mod.items.map((item, idx) => {
+                          const isActive = activeItem?.id === item.id
+                          let isDone = false
+                          if (item.type === 'materi') isDone = completedRefs.has(`mat_${item.data.id}_${item.subIdx}`)
+                          if (item.type === 'tugas') isDone = !!submissionsMap[item.data.id]
+                          if (item.type === 'ujian') isDone = (examAnswersMap[item.data.id] || 0) >= 70
+
+                          const prefix = mod.id === 0 ? '0' : mod.id === 99 ? '+' : `${mod.id}.${idx}`
+
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => setActiveItem(item)}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
+                                background: isActive ? 'var(--indigo-50)' : 'transparent',
+                                color: isActive ? 'var(--indigo-700)' : 'var(--gray-600)',
+                                fontWeight: isActive ? 700 : 500,
+                                fontSize: 11, transition: 'all .15s'
+                              }}
+                            >
+                              {isDone ? (
+                                <CheckCircle2 size={13} color="var(--success)" fill="#d1fae5" style={{ flexShrink: 0 }} />
+                              ) : (
+                                <span style={{ fontSize: 13, flexShrink: 0, width: 14, height: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: 'var(--gray-400)' }}>
+                                  •
+                                </span>
+                              )}
+                              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', flexShrink: 0 }}>
+                                {prefix}
+                              </span>
+                              <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {item.label}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
                     )}
-                    <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {item.label}
-                    </span>
-                  </button>
+                  </div>
                 )
               })}
+            </div>
 
               {/* Certificate option (only visible or enabled when ready) */}
               <button
@@ -940,7 +1110,6 @@ export default function CourseDetail() {
                 {!isAllDone && <span style={{ fontSize: 9, background: 'var(--gray-100)', padding: '1px 6px', borderRadius: 10 }}>Locked</span>}
               </button>
             </div>
-          </div>
 
           {/* RIGHT: Content Pane */}
           <div style={{ flex: 1, paddingLeft: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>

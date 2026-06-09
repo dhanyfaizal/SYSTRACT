@@ -62,6 +62,7 @@ export default function MahasiswaDashboard() {
         .from('enrollments')
         .select('course:courses(id,code,name,credits,semester,cover_color,dosen:profiles!courses_dosen_id_fkey(full_name))')
         .eq('student_id', user.id)
+        .eq('status', 'approved')
         .limit(6)
 
       const userCourses = (enrollData || []).map(e => e.course).filter(Boolean)

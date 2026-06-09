@@ -21,6 +21,7 @@ export default function MahasiswaMataKuliah() {
       .from('enrollments')
       .select('course_id')
       .eq('student_id', user.id)
+      .eq('status', 'approved')
 
     if (enrollErr) {
       console.error('[EduSYS] enrollments query error:', enrollErr)
