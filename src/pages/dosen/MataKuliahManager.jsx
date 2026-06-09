@@ -164,6 +164,24 @@ export default function DosenMataKuliah() {
   const [aiSlideProgressText, setAiSlideProgressText] = useState('')
   const [essayData, setEssayData] = useState(null) // for UTS/UAS questions
 
+  const handleAiProgress = (event) => {
+    if (typeof event === 'string') {
+      setAiProgressText(event)
+    } else if (event && event.type === 'chunk') {
+      const chars = event.text.length
+      setAiProgressText(`AI sedang merumuskan konten... (${chars.toLocaleString('id-ID')} karakter)`)
+    }
+  }
+
+  const handleAiSlideProgress = (event) => {
+    if (typeof event === 'string') {
+      setAiSlideProgressText(event)
+    } else if (event && event.type === 'chunk') {
+      const chars = event.text.length
+      setAiSlideProgressText(`AI sedang merancang WebSlide... (${chars.toLocaleString('id-ID')} karakter)`)
+    }
+  }
+
   // Load initial courses and config
   useEffect(() => {
     if (user) {
@@ -562,7 +580,7 @@ export default function DosenMataKuliah() {
     setAiGeneratingDesc(true)
     setAiProgressText("Menganalisis Nama Mata Kuliah...")
     try {
-      const res = await generateCourseDescription(selectedCourse.name, setAiProgressText)
+      const res = await generateCourseDescription(selectedCourse.name, handleAiProgress)
       if (res && res.deskripsi) {
         setTempDesc(res.deskripsi)
         toast.success("Deskripsi mata kuliah berhasil dirumuskan AI! 🤖")
@@ -595,11 +613,11 @@ export default function DosenMataKuliah() {
     setAiGeneratingCplCpmk(true)
     setAiProgressText("Mengambil data CPL prodi kurikulum...")
     try {
-      const cpls = await generateCplForCourse(selectedCourse.name, [], setAiProgressText)
+      const cpls = await generateCplForCourse(selectedCourse.name, [], handleAiProgress)
       setTempCpl(cpls || [])
 
       setAiProgressText("Menganalisis keterkaitan CPL dan merumuskan CPMK...")
-      const cpmks = await generateCpmk(selectedCourse.name, tempDesc || selectedCourse.description, cpls, setAiProgressText)
+      const cpmks = await generateCpmk(selectedCourse.name, tempDesc || selectedCourse.description, cpls, handleAiProgress)
       setTempCpmk(cpmks || [])
 
       toast.success("CPL & CPMK berhasil disusun AI! 🎯")
@@ -638,7 +656,7 @@ export default function DosenMataKuliah() {
         tempDesc || selectedCourse.description,
         tempCpmk.length > 0 ? tempCpmk : selectedCourse.cpmk || [],
         selectedCourse.credits || 3,
-        setAiProgressText
+        handleAiProgress
       )
       setTempWeekly(list || [])
       toast.success("Outline 16 pertemuan berhasil disusun AI! 📅")
@@ -692,7 +710,7 @@ export default function DosenMataKuliah() {
       const refs = await generateReferences(
         selectedCourse.name,
         tempCpmk.length > 0 ? tempCpmk : selectedCourse.cpmk || [],
-        setAiProgressText
+        handleAiProgress
       )
       setTempRefs(refs || [])
       toast.success("Rekomendasi pustaka berhasil dirumuskan AI! 📚")
@@ -870,7 +888,7 @@ export default function DosenMataKuliah() {
         prodiName,
         activeMeeting.week_number,
         slideOutline,
-        setAiSlideProgressText
+        handleAiSlideProgress
       )
       setWebslideData(result)
       toast.success("Tampilan WebSlide berhasil digenerate! 🎬")
