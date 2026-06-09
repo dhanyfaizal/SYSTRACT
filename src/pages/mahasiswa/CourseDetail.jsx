@@ -590,7 +590,7 @@ export default function CourseDetail() {
 
   if (!isEnrolled) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', overflowY: 'auto', paddingRight: 4 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* Top Header Row */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 16, borderBottom: '1px solid var(--gray-200)', flexShrink: 0, gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -640,9 +640,7 @@ export default function CourseDetail() {
               {course.name}
             </h2>
             
-            <p style={{ fontSize: 13, color: 'var(--gray-500)', margin: 0, fontWeight: 500, lineHeight: 1.4 }}>
-              {course.description || 'Your on-ramp to global learning. Get familiar with the course outline and start building your skills.'}
-            </p>
+
 
             <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#fff', border: '1px solid var(--gray-200)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
@@ -711,13 +709,21 @@ export default function CourseDetail() {
             <div className="card" style={{ padding: 20 }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 16 }}>Here's what you will learn.</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {materials.length === 0 ? (
-                  <div style={{ padding: '20px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
-                    <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Rencana silabus modul belum tersedia.</span>
-                  </div>
-                ) : (
-                  materials.sort((a,b) => a.week_number - b.week_number).map((m, index) => (
-                    <div key={m.id || index} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid var(--gray-100)' }}>
+                {(() => {
+                  const displayModules = materials.length > 0 
+                    ? materials.map(m => ({ week_number: m.week_number, title: m.title, description: m.description }))
+                    : (course?.weekly_plan || []).map(w => ({ week_number: w.no, title: w.bahan_kajian, description: w.kemampuan_akhir }))
+
+                  if (displayModules.length === 0) {
+                    return (
+                      <div style={{ padding: '20px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
+                        <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Rencana silabus modul belum tersedia.</span>
+                      </div>
+                    )
+                  }
+
+                  return displayModules.sort((a, b) => a.week_number - b.week_number).map((m, index) => (
+                    <div key={index} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid var(--gray-100)' }}>
                       <div style={{ 
                         width: 24, 
                         height: 24, 
@@ -744,7 +750,7 @@ export default function CourseDetail() {
                       </div>
                     </div>
                   ))
-                )}
+                })()}
               </div>
             </div>
 
