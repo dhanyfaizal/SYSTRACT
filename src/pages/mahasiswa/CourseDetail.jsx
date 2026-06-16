@@ -11,6 +11,7 @@ import { useAI } from '@/contexts/AIContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import courseBanner from '@/assets/course_banner.png'
+import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 
 const COUNTDOWN_SEC = 180 // 3 Menit untuk membaca/menonton materi
 
@@ -362,7 +363,14 @@ export default function CourseDetail() {
         const weekExams = w === 1 ? (exams || []) : []
 
         weekMaterials.forEach(m => {
-          const attachments = m.attachments?.length > 0 ? m.attachments : (m.webview_link ? [{ mime: m.mime_type, url: m.webview_link, label: 'Materi Utama' }] : [])
+          let attachments = m.attachments?.length > 0 
+            ? [...m.attachments] 
+            : (m.webview_link ? [{ mime: m.mime_type, url: m.webview_link, label: 'Materi Utama' }] : [])
+          
+          if (attachments.length === 0 && m.webslide_content) {
+            attachments.push({ mime: 'text/html', url: '#', label: 'WebSlide Presentasi' })
+          }
+
           attachments.forEach((a, idx) => {
             syllabus.push({
               id: `mat_${m.id}_${idx}`,
@@ -1115,31 +1123,128 @@ export default function CourseDetail() {
           <div style={{ flex: 1, paddingLeft: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             {activeItem?.type === 'materi' && (
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                {/* WebSlide Integration */}
+                {activeItem.data.webslide_content && (
+                  <div className="card" style={{ 
+                    padding: '16px 20px', 
+                    background: 'linear-gradient(135deg, #f5f3ff 0%, #e0e7ff 100%)', 
+                    border: '1px solid #c7d2fe', 
+                    borderRadius: 12, 
+                    marginBottom: 16,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12,
+                    boxShadow: 'var(--shadow-sm)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        background: 'var(--indigo-600)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 2px 8px rgba(79, 70, 229, 0.2)'
+                      }}>
+                        <Sparkles size={16} color="#fff" />
+                      </div>
+                      <div>
+                        <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--indigo-950)', margin: 0 }}>Presentasi Interaktif WebSlide Tersedia!</h4>
+                        <p style={{ fontSize: 11, color: 'var(--gray-500)', margin: '2px 0 0 0', fontWeight: 500 }}>
+                          Materi ini memiliki slide presentasi interaktif yang dirancang khusus oleh AI untuk membantu pemahaman Anda.
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      <button
+                        onClick={() => {
+                          const htmlContent = generateWebSlideHtml(
+                            course.name,
+                            profile?.program_studi || 'Teknik Informatika',
+                            activeItem.data.week_number || 1,
+                            activeItem.data.webslide_content
+                          );
+                          const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+                          const blobUrl = URL.createObjectURL(blob);
+                          window.open(blobUrl, '_blank');
+                        }}
+                        className="btn btn-primary btn-sm"
+                        style={{ 
+                          background: 'var(--indigo-600)', 
+                          borderColor: 'var(--indigo-700)', 
+                          color: '#fff', 
+                          fontWeight: 700,
+                          gap: 4
+                        }}
+                      >
+                        <PlayCircle size={14} /> Buka WebSlide
+                      </button>
+                      <button
+                        onClick={() => {
+                          const htmlContent = generateWebSlideHtml(
+                            course.name,
+                            profile?.program_studi || 'Teknik Informatika',
+                            activeItem.data.week_number || 1,
+                            activeItem.data.webslide_content
+                          );
+                          const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+                          const blobUrl = URL.createObjectURL(blob);
+                          const cleanCourseName = course.name.replace(/[^a-zA-Z0-9]/g, '_');
+                          const fileName = `WebSlide_Pertemuan_${activeItem.data.week_number || 1}_${cleanCourseName}.html`;
+                          const a = document.createElement('a');
+                          a.href = blobUrl;
+                          a.download = fileName;
+                          document.body.appendChild(a);
+                          a.click();
+                          setTimeout(() => {
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(blobUrl);
+                          }, 100);
+                          toast.success('File WebSlide berhasil diunduh!');
+                        }}
+                        className="btn btn-secondary btn-sm"
+                        style={{ 
+                          borderColor: 'var(--gray-200)', 
+                          color: 'var(--gray-700)', 
+                          background: '#fff', 
+                          fontWeight: 600,
+                          gap: 4
+                        }}
+                      >
+                        <FileDown size={14} /> Unduh Slide HTML
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Embedded preview if supported */}
-                {getEmbedUrl(activeItem.attach.mime, activeItem.attach.url) ? (
-                  <div style={{ position: 'relative', width: '100%', aspectRatio: activeItem.attach.mime === 'video/youtube' ? '16/9' : '4/3', borderRadius: 12, overflow: 'hidden', background: '#000', border: '1px solid var(--gray-200)' }}>
-                    <iframe
-                      src={getEmbedUrl(activeItem.attach.mime, activeItem.attach.url)}
-                      title={activeItem.label}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                      style={{ width: '100%', height: '100%', border: 'none' }}
-                    />
-                  </div>
-                ) : (
-                  <div className="card" style={{ padding: 24, textAlign: 'center', background: 'var(--gray-50)', marginBottom: 16 }}>
-                    <div style={{ fontSize: 32, marginBottom: 8 }}>{getMatType(activeItem.attach.mime).icon}</div>
-                    <strong style={{ fontSize: 14, display: 'block', marginBottom: 4 }}>{activeItem.label}</strong>
-                    <p style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 16 }}>Materi eksternal harus dibuka di tab baru.</p>
-                    <a
-                      href={activeItem.attach.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-primary btn-sm"
-                      style={{ display: 'inline-flex', margin: '0 auto' }}
-                    >
-                      Buka Materi <ExternalLink size={12} style={{ marginLeft: 4 }} />
-                    </a>
-                  </div>
+                {activeItem.attach.url !== '#' && (
+                  getEmbedUrl(activeItem.attach.mime, activeItem.attach.url) ? (
+                    <div style={{ position: 'relative', width: '100%', aspectRatio: activeItem.attach.mime === 'video/youtube' ? '16/9' : '4/3', borderRadius: 12, overflow: 'hidden', background: '#000', border: '1px solid var(--gray-200)' }}>
+                      <iframe
+                        src={getEmbedUrl(activeItem.attach.mime, activeItem.attach.url)}
+                        title={activeItem.label}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                        style={{ width: '100%', height: '100%', border: 'none' }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="card" style={{ padding: 24, textAlign: 'center', background: 'var(--gray-50)', marginBottom: 16 }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>{getMatType(activeItem.attach.mime).icon}</div>
+                      <strong style={{ fontSize: 14, display: 'block', marginBottom: 4 }}>{activeItem.label}</strong>
+                      <p style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 16 }}>Materi eksternal harus dibuka di tab baru.</p>
+                      <a
+                        href={activeItem.attach.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-primary btn-sm"
+                        style={{ display: 'inline-flex', margin: '0 auto' }}
+                      >
+                        Buka Materi <ExternalLink size={12} style={{ marginLeft: 4 }} />
+                      </a>
+                    </div>
+                  )
                 )}
 
                 {/* Description & AI summary shortcut */}
