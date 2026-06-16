@@ -6,13 +6,7 @@
 
 // Model fallback list untuk mengatasi quota exhaustion atau rate limit (HTTP 429)
 const MODELS = [
-  "deepseek-v4-pro",
-  "qwen3.6-plus",
-  "glm-5.1",
-  "glm-5",
-  "deepseek-v4-flash",
-  "qwen3.6-flash",
-  "glm-5-turbo"
+  "deepseek-v4-flash"
 ];
 
 // Mendapatkan konfigurasi API (dari localStorage jika ada, fallback ke env, atau default WebSlide)
