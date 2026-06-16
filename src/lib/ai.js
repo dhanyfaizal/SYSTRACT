@@ -20,7 +20,7 @@ export function getAiConfig() {
   const localKey = localStorage.getItem('sirasys_ai_key');
   const localUrl = localStorage.getItem('sirasys_ai_url');
 
-  const apiKey = localKey || import.meta.env.VITE_SUMOPOD_API_KEY || 'sk-4eU68ckHgBeC5OoZwiK1ng';
+  const apiKey = localKey || import.meta.env.VITE_SUMOPOD_API_KEY || 'sk-Ib5Rb4Y0zmh46OZgUVvN5g';
   const apiUrl = localUrl || import.meta.env.VITE_SUMOPOD_API_URL || 'https://ai.sumopod.com/v1';
 
   return {
