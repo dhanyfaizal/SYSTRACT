@@ -1347,7 +1347,8 @@ export default function DosenMataKuliah() {
                         cursor: 'pointer',
                         overflow: 'hidden',
                         transition: 'all 0.15s ease',
-                        position: 'relative'
+                        position: 'relative',
+                        flexShrink: 0
                       }}
                       onMouseEnter={e => { if(!isSelected) e.currentTarget.style.borderColor = 'var(--gray-300)' }}
                       onMouseLeave={e => { if(!isSelected) e.currentTarget.style.borderColor = 'var(--gray-200)' }}
@@ -1634,7 +1635,7 @@ export default function DosenMataKuliah() {
                         {groupMaterialsIntoModules(materials).map((mod) => {
                           const isExpanded = !!expandedModules[mod.id]
                           return (
-                            <div key={mod.id} className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--gray-200)', borderRadius: 10 }}>
+                            <div key={mod.id} className="card" style={{ flexShrink: 0, padding: 0, overflow: 'hidden', border: '1px solid var(--gray-200)', borderRadius: 10 }}>
                               
                               {/* Module Header Toggle */}
                               <div 
