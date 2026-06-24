@@ -397,25 +397,45 @@ export async function generateReferences(courseName, cpmkList, onProgress = null
     Nama Mata Kuliah: "${courseName}"
     CPMK (Capaian Pembelajaran Mata Kuliah): ${JSON.stringify(cpmkList || [])}
 
-    Hasilkan rekomendasi referensi pustaka yang sangat relevan dan mutakhir dalam rentang waktu 3 tahun terakhir (${startYear}-${currentYear}).
-    Rekomendasi harus terdiri dari 2 kategori utama:
-    1. Buku Teks (Textbook) 3 Tahun Terakhir (${startYear}-${currentYear})
-    2. Artikel Ilmiah / Jurnal Ilmiah 3 Tahun Terakhir (${startYear}-${currentYear})
+    Hasilkan rekomendasi referensi pustaka yang sangat relevan dan mutakhir yang terdiri dari:
+    1. 3 Buku Teks (Textbook) terbit dalam 3 tahun terakhir (${startYear}-${currentYear}).
+    2. 3 Artikel Jurnal Ilmiah Open Access (Akses Terbuka) terbit dalam 3 tahun terakhir (${startYear}-${currentYear}).
 
-    Pastikan referensi yang diberikan:
-    - Sangat relevan dengan materi pembelajaran untuk mencapai CPMK di atas.
-    - Ditulis dalam format sitasi akademik standar (APA Style).
-    - Memiliki tahun terbit antara ${startYear} dan ${currentYear} (inklusif).
+    Setiap referensi harus memiliki:
+    - Sitasi akademik standar (APA Style).
+    - Tautan/URL nyata dan valid ke dokumen referensi tersebut (misal URL direct open-access journal link, DOI URL, Google Books URL, ResearchGate, atau situs penerbit resmi terpercaya).
 
-    Format output harus berupa JSON OBJECT dengan properti 'referensi' yang berisi array string daftar referensi langsung:
+    Format output harus berupa JSON OBJECT murni dengan struktur:
     {
       "referensi": [
-        "Nama Penulis. (Tahun). Judul Buku. Penerbit.",
-        "Nama Penulis. (Tahun). Judul Artikel. Nama Jurnal, Volume(Isi), Halaman."
+        {
+          "teks": "APA Style citation for Textbook 1...",
+          "url": "https://..."
+        },
+        {
+          "teks": "APA Style citation for Textbook 2...",
+          "url": "https://..."
+        },
+        {
+          "teks": "APA Style citation for Textbook 3...",
+          "url": "https://..."
+        },
+        {
+          "teks": "APA Style citation for Open Access Journal Article 1...",
+          "url": "https://..."
+        },
+        {
+          "teks": "APA Style citation for Open Access Journal Article 2...",
+          "url": "https://..."
+        },
+        {
+          "teks": "APA Style citation for Open Access Journal Article 3...",
+          "url": "https://..."
+        }
       ]
     }
-    
-    Hasilkan minimal 4 dan maksimal 6 referensi gabungan yang paling representatif dan berkualitas.
+
+    Hasilkan tepat 6 referensi (3 buku teks 3 tahun terakhir dan 3 jurnal open access).
     Hanya kembalikan JSON object murni tanpa ada penjelasan tambahan di luar JSON.
   `;
 
@@ -426,13 +446,20 @@ export async function generateReferences(courseName, cpmkList, onProgress = null
 
 // 7. Generate Materi Slide untuk Pertemuan (Format Outline Sederhana)
 export async function generateSlideContent(courseName, meetingNo, topic, capability, references = [], onProgress = null) {
+  const formattedRefs = (references || []).map(r => {
+    if (typeof r === 'object' && r !== null) {
+      return `${r.teks || ''} [Link: ${r.url || ''}]`;
+    }
+    return r;
+  });
+
   const prompt = `
     Anda adalah pakar akademis dan desainer instruksional senior. Tugas Anda adalah menyusun rancangan materi ajar dalam bentuk outline slide presentasi terstruktur untuk perkuliahan berikut:
     Mata Kuliah: "${courseName}"
     Pertemuan Ke: ${meetingNo}
     Topik / Bahan Kajian: "${topic || '—'}"
     Kemampuan Akhir Mahasiswa: "${capability || '—'}"
-    Referensi Pustaka Utama RPS: ${JSON.stringify(references)}
+    Referensi Pustaka Utama RPS: ${JSON.stringify(formattedRefs)}
 
     Hasilkan outline slide presentasi yang sangat komprehensif, mendalam, dan kaya materi dengan ketentuan berikut:
     1. Jumlah Slide: MINIMAL 15 SLIDE (slide 1 s.d. slide 15+).

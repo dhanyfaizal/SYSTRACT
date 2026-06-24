@@ -836,16 +836,34 @@ export default function DosenMataKuliah() {
     })
   }
 
-  function handleUpdateRefItem(index, value) {
+  function handleUpdateRefItemText(index, value) {
     setTempRefs(prev => {
       const updated = [...prev]
-      updated[index] = value
+      const current = updated[index]
+      if (typeof current === 'object' && current !== null) {
+        updated[index] = { ...current, teks: value }
+      } else {
+        updated[index] = { teks: value, url: '' }
+      }
+      return updated
+    })
+  }
+
+  function handleUpdateRefItemUrl(index, value) {
+    setTempRefs(prev => {
+      const updated = [...prev]
+      const current = updated[index]
+      if (typeof current === 'object' && current !== null) {
+        updated[index] = { ...current, url: value }
+      } else {
+        updated[index] = { teks: current || '', url: value }
+      }
       return updated
     })
   }
 
   function handleAddRefItem() {
-    setTempRefs(prev => [...prev, 'Nama Penulis. (Tahun). Judul Buku. Penerbit.'])
+    setTempRefs(prev => [...prev, { teks: 'Nama Penulis. (Tahun). Judul Buku. Penerbit.', url: '' }])
   }
 
   function handleRemoveRefItem(index) {
@@ -979,7 +997,10 @@ export default function DosenMataKuliah() {
         tempCpmk.length > 0 ? tempCpmk : selectedCourse.cpmk || [],
         handleAiProgress
       )
-      setTempRefs(refs || [])
+      setTempRefs(prev => {
+        const existing = Array.isArray(prev) ? prev : [];
+        return [...existing, ...(refs || [])];
+      })
       toast.success("Rekomendasi pustaka berhasil dirumuskan AI! 📚")
     } catch (err) {
       toast.error("Gagal generate referensi: " + err.message)
@@ -2093,29 +2114,63 @@ export default function DosenMataKuliah() {
                               <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Belum ada data referensi. Klik "Generate Pustaka" atau "+ Tambah Referensi".</span>
                             </div>
                           ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 250, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 8, background: '#f8fafc' }}>
-                              {tempRefs.map((r, idx) => (
-                                <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', background: '#fffbeb', border: '1px solid #fde68a', padding: 8, borderRadius: 6 }}>
-                                  <span style={{ fontSize: 14, marginTop: 4 }}>📚</span>
-                                  <textarea 
-                                    className="input" 
-                                    rows={2}
-                                    style={{ fontSize: 11, padding: '6px 8px', lineHeight: 1.4, resize: 'vertical', flex: 1, background: '#ffffff' }}
-                                    value={r} 
-                                    onChange={e => handleUpdateRefItem(idx, e.target.value)} 
-                                    placeholder="Format APA Style, contoh: Duckett, J. (2023). HTML and CSS..."
-                                  />
-                                  <button 
-                                    type="button" 
-                                    className="btn btn-ghost btn-icon btn-sm" 
-                                    style={{ color: 'var(--danger)', height: 28, width: 28 }}
-                                    onClick={() => handleRemoveRefItem(idx)}
-                                    title="Hapus Referensi"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                </div>
-                              ))}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 350, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 8, background: '#f8fafc' }}>
+                              {tempRefs.map((r, idx) => {
+                                const isObj = typeof r === 'object' && r !== null;
+                                const itemText = isObj ? (r.teks || '') : r;
+                                const itemUrl = isObj ? (r.url || '') : '';
+
+                                return (
+                                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#fffbeb', border: '1px solid #fde68a', padding: 10, borderRadius: 6 }}>
+                                    <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                                      <span style={{ fontSize: 14, marginTop: 4 }}>📚</span>
+                                      <textarea 
+                                        className="input" 
+                                        rows={2}
+                                        style={{ fontSize: 11, padding: '6px 8px', lineHeight: 1.4, resize: 'vertical', flex: 1, background: '#ffffff' }}
+                                        value={itemText} 
+                                        onChange={e => handleUpdateRefItemText(idx, e.target.value)} 
+                                        placeholder="Format APA Style, contoh: Duckett, J. (2023). HTML and CSS..."
+                                      />
+                                      <button 
+                                        type="button" 
+                                        className="btn btn-ghost btn-icon btn-sm" 
+                                        style={{ color: 'var(--danger)', height: 28, width: 28 }}
+                                        onClick={() => handleRemoveRefItem(idx)}
+                                        title="Hapus Referensi"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingLeft: 22 }}>
+                                      <input
+                                        className="input"
+                                        style={{ fontSize: 10, padding: '4px 8px', flex: 1, height: 28 }}
+                                        placeholder="Tautan/URL Dokumen (misal: https://...)"
+                                        value={itemUrl}
+                                        onChange={e => handleUpdateRefItemUrl(idx, e.target.value)}
+                                      />
+                                      {itemUrl && (
+                                        <button
+                                          type="button"
+                                          className="btn btn-secondary btn-sm"
+                                          style={{ gap: 4, height: 28, padding: '0 8px', fontSize: 10, display: 'flex', alignItems: 'center' }}
+                                          onClick={() => {
+                                            if (itemUrl.startsWith('http://') || itemUrl.startsWith('https://')) {
+                                              window.open(itemUrl, '_blank', 'noopener,noreferrer');
+                                            } else {
+                                              window.open('https://' + itemUrl, '_blank', 'noopener,noreferrer');
+                                            }
+                                          }}
+                                          title="Buka Referensi di Tab Baru"
+                                        >
+                                          <ExternalLink size={11}/> View
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
