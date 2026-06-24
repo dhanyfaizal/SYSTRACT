@@ -359,13 +359,22 @@ export async function generateCplForCourse(courseName, curriculumCpls = [], onPr
 }
 
 // 5. Generate Deskripsi Mata Kuliah berdasarkan Nama Mata Kuliah
-export async function generateCourseDescription(courseName, onProgress = null) {
+export async function generateCourseDescription(courseName, topics = '', onProgress = null) {
+  let actualTopics = topics;
+  let actualOnProgress = onProgress;
+  if (typeof topics === 'function') {
+    actualOnProgress = topics;
+    actualTopics = '';
+  }
+
   const prompt = `
     Anda adalah perancang kurikulum pendidikan tinggi. Berdasarkan nama mata kuliah berikut:
     Nama Mata Kuliah: "${courseName}"
+    ${actualTopics ? `Topik/Fokus Materi Pengembangan: "${actualTopics}"` : ''}
 
     Hasilkan deskripsi mata kuliah yang komprehensif, menarik, dan berstandar akademik tinggi (minimal 100 kata).
     Deskripsi harus menggambarkan fokus utama pembelajaran, relevansi industri/keilmuan, topik-topik kunci yang dicakup, serta kompetensi akhir yang akan dikembangkan oleh mahasiswa setelah menyelesaikan mata kuliah ini.
+    ${actualTopics ? `Pastikan deskripsi ini secara spesifik mencakup dan mengembangkan topik/fokus materi pengembangan yang diberikan di atas.` : ''}
 
     Format output harus berupa JSON OBJECT murni dengan struktur:
     {
@@ -376,7 +385,7 @@ export async function generateCourseDescription(courseName, onProgress = null) {
     Hasilkan JSON murni tanpa ada penjelasan tambahan di luar JSON.
   `;
 
-  return callAi(prompt, true, onProgress);
+  return callAi(prompt, true, actualOnProgress);
 }
 
 // 6. Generate Referensi Pustaka berdasarkan Nama Mata Kuliah dan CPMK

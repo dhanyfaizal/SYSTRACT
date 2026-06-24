@@ -189,6 +189,8 @@ export default function DosenMataKuliah() {
 
   // Temp local state for generated AI content before saving to course
   const [tempDesc, setTempDesc] = useState('')
+  const [topicsInput, setTopicsInput] = useState('')
+  const [topicsModal, setTopicsModal] = useState(false)
   const [tempCpl, setTempCpl] = useState([])
   const [tempCpmk, setTempCpmk] = useState([])
   const [tempWeekly, setTempWeekly] = useState([])
@@ -692,10 +694,11 @@ export default function DosenMataKuliah() {
 
   // ── AI Assistant Actions ─────────────────────────────────────
   async function handleAiGenerateDesc() {
+    setTopicsModal(false)
     setAiGeneratingDesc(true)
-    setAiProgressText("Menganalisis Nama Kursus...")
+    setAiProgressText("Menganalisis Nama Kursus & Topik...")
     try {
-      const res = await generateCourseDescription(selectedCourse.name, handleAiProgress)
+      const res = await generateCourseDescription(selectedCourse.name, topicsInput, handleAiProgress)
       if (res && res.deskripsi) {
         setTempDesc(res.deskripsi)
         toast.success("Deskripsi kursus berhasil dirumuskan AI! 🤖")
@@ -1858,7 +1861,15 @@ export default function DosenMataKuliah() {
                       <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 1: Deskripsi Kursus</span>
-                          <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateDesc} disabled={aiGeneratingDesc}>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ gap: 4 }}
+                            onClick={() => {
+                              setTopicsInput('')
+                              setTopicsModal(true)
+                            }}
+                            disabled={aiGeneratingDesc}
+                          >
                             <Sparkles size={13} color="var(--indigo-600)"/> Generate AI
                           </button>
                         </div>
@@ -2612,6 +2623,54 @@ export default function DosenMataKuliah() {
               <button className="btn btn-primary btn-sm" onClick={handleSaveMaterial} disabled={savingMaterial}>
                 {savingMaterial ? <Loader2 size={13} style={{ animation:'spin .7s linear infinite' }}/> : editingMaterialId ? <Edit2 size={13}/> : <Plus size={13}/>}
                 {editingMaterialId ? 'Simpan Materi' : 'Tambahkan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Input Topik untuk Deskripsi ── */}
+      {topicsModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: 500, maxHeight: '85vh', overflow: 'auto' }}>
+            <div className="modal-header" style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Sparkles size={16} color="var(--indigo-600)"/>
+                <span className="modal-title">Fokus Materi / Topik Deskripsi</span>
+              </div>
+              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setTopicsModal(false)}><X size={14}/></button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="input-group">
+                <label className="input-label" style={{ fontWeight: 600, fontSize: 13 }}>
+                  Topik / Fokus Materi (Opsional)
+                </label>
+                <textarea
+                  className="input"
+                  rows={4}
+                  style={{ resize: 'vertical', fontSize: 13, lineHeight: 1.5 }}
+                  placeholder="Masukkan topik-topik kunci, kata kunci, atau fokus materi yang ingin dibahas dalam deskripsi kursus ini (misal: pengenalan algoritma, struktur data dasar, sorting, pencarian)..."
+                  value={topicsInput}
+                  onChange={e => setTopicsInput(e.target.value)}
+                />
+                <span className="input-hint" style={{ fontSize: 11, color: 'var(--gray-500)' }}>
+                  AI akan mengembangkan topik-topik di atas menjadi deskripsi mata kuliah yang komprehensif.
+                </span>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ position: 'sticky', bottom: 0, background: 'var(--surface)', zIndex: 1 }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setTopicsModal(false)}>Batal</button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleAiGenerateDesc}
+                disabled={aiGeneratingDesc}
+              >
+                {aiGeneratingDesc ? (
+                  <Loader2 size={13} style={{ animation: 'spin .7s linear infinite' }}/>
+                ) : (
+                  <Sparkles size={13}/>
+                )}
+                Rumuskan Deskripsi
               </button>
             </div>
           </div>
