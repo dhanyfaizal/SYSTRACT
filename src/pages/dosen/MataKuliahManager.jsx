@@ -5,7 +5,7 @@ import {
   CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown,
   PlusCircle, Search, Sparkles, RefreshCw, FileText, Download,
   Share2, ArrowLeft, PenTool, CheckCircle, ChevronUp, Info, HelpCircle,
-  Award, Clock
+  Award, Clock, Link
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -2088,79 +2088,173 @@ export default function DosenMataKuliah() {
 
                     {/* Step 3: Referensi Pustaka */}
                     {aiActiveStep === 3 && (
-                      <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 3: Referensi Pustaka</span>
-                          <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateRefs} disabled={aiGeneratingRefs || tempCpmk.length === 0}>
-                            <Sparkles size={13} color="var(--indigo-600)"/> Generate Pustaka
+                      <div className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18, borderRadius: 16, border: '1px solid var(--gray-200)', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gray-100)', paddingBottom: 14 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--indigo-600)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Langkah 3: Referensi Pustaka</span>
+                            <span style={{ fontSize: 11, color: 'var(--gray-500)' }}>Rancang daftar rujukan akademik utama kelas Anda</span>
+                          </div>
+                          <button 
+                            className="btn btn-secondary btn-sm" 
+                            style={{ 
+                              gap: 6, 
+                              padding: '6px 14px', 
+                              borderRadius: 8, 
+                              fontWeight: 600, 
+                              border: '1px solid var(--indigo-200)', 
+                              background: 'var(--indigo-50)', 
+                              color: 'var(--indigo-700)',
+                              transition: 'all 0.15s'
+                            }} 
+                            onClick={handleAiGenerateRefs} 
+                            disabled={aiGeneratingRefs || tempCpmk.length === 0}
+                          >
+                            <Sparkles size={13}/> {aiGeneratingRefs ? 'Generating...' : 'Generate AI Pustaka'}
                           </button>
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)' }}>Daftar Pustaka (Bisa Diedit):</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-700)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              📚 Rujukan Tersimpan ({tempRefs.length})
+                            </span>
                             <button 
                               type="button" 
                               className="btn btn-secondary btn-sm" 
                               onClick={handleAddRefItem}
-                              style={{ fontSize: 11, padding: '4px 10px', gap: 4 }}
+                              style={{ fontSize: 11, padding: '5px 12px', gap: 4, borderRadius: 8 }}
                             >
                               <Plus size={12} /> Tambah Referensi
                             </button>
                           </div>
                           
                           {tempRefs.length === 0 ? (
-                            <div style={{ padding: '15px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
+                            <div style={{ padding: '30px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 12 }}>
                               <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Belum ada data referensi. Klik "Generate Pustaka" atau "+ Tambah Referensi".</span>
                             </div>
                           ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 350, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 8, background: '#f8fafc' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 380, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 12, padding: 12, background: 'var(--gray-50)', boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.03)' }}>
                               {tempRefs.map((r, idx) => {
                                 const isObj = typeof r === 'object' && r !== null;
                                 const itemText = isObj ? (r.teks || '') : r;
                                 const itemUrl = isObj ? (r.url || '') : '';
+                                
+                                const isJurnal = itemText.toLowerCase().includes('journal') || 
+                                                 itemText.toLowerCase().includes('jurnal') || 
+                                                 itemText.toLowerCase().includes('doi:') || 
+                                                 itemUrl.toLowerCase().includes('doi.org') || 
+                                                 itemUrl.toLowerCase().includes('arxiv.org');
 
                                 return (
-                                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#fffbeb', border: '1px solid #fde68a', padding: 10, borderRadius: 6 }}>
-                                    <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-                                      <span style={{ fontSize: 14, marginTop: 4 }}>📚</span>
-                                      <textarea 
-                                        className="input" 
-                                        rows={2}
-                                        style={{ fontSize: 11, padding: '6px 8px', lineHeight: 1.4, resize: 'vertical', flex: 1, background: '#ffffff' }}
-                                        value={itemText} 
-                                        onChange={e => handleUpdateRefItemText(idx, e.target.value)} 
-                                        placeholder="Format APA Style, contoh: Duckett, J. (2023). HTML and CSS..."
-                                      />
+                                  <div 
+                                    key={idx} 
+                                    style={{ 
+                                      display: 'flex', 
+                                      flexDirection: 'column', 
+                                      gap: 10, 
+                                      background: 'var(--surface)', 
+                                      border: '1px solid var(--gray-200)', 
+                                      padding: 14, 
+                                      borderRadius: 10,
+                                      boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                                      transition: 'all 0.15s ease'
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+                                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+                                          <span style={{ fontSize: 10, color: 'var(--gray-400)', fontWeight: 600 }}>Pustaka #{idx + 1}</span>
+                                          {isJurnal ? (
+                                            <span style={{ fontSize: 9, background: 'var(--emerald-50)', color: 'var(--emerald-700)', padding: '1px 6px', borderRadius: 4, fontWeight: 600, border: '1px solid var(--emerald-200)' }}>
+                                              Jurnal Open Access
+                                            </span>
+                                          ) : (
+                                            <span style={{ fontSize: 9, background: 'var(--blue-50)', color: 'var(--blue-700)', padding: '1px 6px', borderRadius: 4, fontWeight: 600, border: '1px solid var(--blue-200)' }}>
+                                              Buku Teks / Textbook
+                                            </span>
+                                          )}
+                                        </div>
+                                        
+                                        <textarea 
+                                          className="input" 
+                                          rows={2}
+                                          style={{ 
+                                            fontSize: 11, 
+                                            padding: '8px 10px', 
+                                            lineHeight: 1.4, 
+                                            resize: 'vertical', 
+                                            background: '#ffffff',
+                                            borderRadius: 6,
+                                            borderColor: 'var(--gray-300)'
+                                          }}
+                                          value={itemText} 
+                                          onChange={e => handleUpdateRefItemText(idx, e.target.value)} 
+                                          placeholder="Format APA Style, contoh: Duckett, J. (2023). HTML and CSS..."
+                                        />
+                                      </div>
+                                      
                                       <button 
                                         type="button" 
-                                        className="btn btn-ghost btn-icon btn-sm" 
-                                        style={{ color: 'var(--danger)', height: 28, width: 28 }}
+                                        style={{ 
+                                          color: 'var(--danger)', 
+                                          background: '#fef2f2',
+                                          border: '1px solid #fee2e2',
+                                          borderRadius: 8,
+                                          height: 32, 
+                                          width: 32,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          cursor: 'pointer',
+                                          marginTop: 20
+                                        }}
                                         onClick={() => handleRemoveRefItem(idx)}
                                         title="Hapus Referensi"
                                       >
                                         <Trash2 size={13} />
                                       </button>
                                     </div>
-                                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingLeft: 22 }}>
-                                      <input
-                                        className="input"
-                                        style={{ fontSize: 10, padding: '4px 8px', flex: 1, height: 28 }}
-                                        placeholder="Tautan/URL Dokumen (misal: https://...)"
-                                        value={itemUrl}
-                                        onChange={e => handleUpdateRefItemUrl(idx, e.target.value)}
-                                      />
+                                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', borderTop: '1px dashed var(--gray-100)', paddingTop: 8 }}>
+                                      <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+                                        <Link size={12} color="var(--gray-400)" style={{ position: 'absolute', left: 8 }}/>
+                                        <input
+                                          className="input"
+                                          style={{ 
+                                            fontSize: 11, 
+                                            padding: '4px 8px 4px 26px', 
+                                            flex: 1, 
+                                            height: 28,
+                                            borderRadius: 6,
+                                            borderColor: 'var(--gray-300)'
+                                          }}
+                                          placeholder="Tautan URL dokumen (e.g. https://doi.org/10.1109/...)"
+                                          value={itemUrl}
+                                          onChange={e => handleUpdateRefItemUrl(idx, e.target.value)}
+                                        />
+                                      </div>
                                       {itemUrl && (
                                         <button
                                           type="button"
                                           className="btn btn-secondary btn-sm"
-                                          style={{ gap: 4, height: 28, padding: '0 8px', fontSize: 10, display: 'flex', alignItems: 'center' }}
+                                          style={{ 
+                                            gap: 4, 
+                                            height: 28, 
+                                            padding: '0 12px', 
+                                            fontSize: 10, 
+                                            display: 'flex', 
+                                            alignItems: 'center',
+                                            borderRadius: 6,
+                                            fontWeight: 600,
+                                            background: 'var(--indigo-600)',
+                                            color: '#fff',
+                                            border: 'none',
+                                            boxShadow: '0 2px 4px rgba(79, 70, 229, 0.15)'
+                                          }}
                                           onClick={() => {
-                                            if (itemUrl.startsWith('http://') || itemUrl.startsWith('https://')) {
-                                              window.open(itemUrl, '_blank', 'noopener,noreferrer');
-                                            } else {
-                                              window.open('https://' + itemUrl, '_blank', 'noopener,noreferrer');
-                                            }
+                                            const target = itemUrl.startsWith('http://') || itemUrl.startsWith('https://') 
+                                              ? itemUrl 
+                                              : 'https://' + itemUrl;
+                                            window.open(target, '_blank', 'noopener,noreferrer');
                                           }}
                                           title="Buka Referensi di Tab Baru"
                                         >
@@ -2687,36 +2781,56 @@ export default function DosenMataKuliah() {
       {/* ── MODAL: Input Topik untuk Deskripsi ── */}
       {topicsModal && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 500, maxHeight: '85vh', overflow: 'auto' }}>
-            <div className="modal-header" style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Sparkles size={16} color="var(--indigo-600)"/>
-                <span className="modal-title">Fokus Materi / Topik Deskripsi</span>
+          <div className="modal" style={{ maxWidth: 520, borderRadius: 16, overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }}>
+            <div style={{ height: 4, background: 'linear-gradient(to right, var(--indigo-500), var(--purple-500))' }} />
+            
+            <div className="modal-header" style={{ padding: '16px 20px', background: 'var(--surface)', borderBottom: '1px solid var(--gray-100)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--indigo-50)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Sparkles size={16} color="var(--indigo-600)"/>
+                </div>
+                <div>
+                  <span className="modal-title" style={{ fontSize: 15, fontWeight: 700 }}>Fokus Materi Pengembangan</span>
+                  <p style={{ margin: 0, fontSize: 11, color: 'var(--gray-500)' }}>Kembangkan deskripsi kursus dengan topik spesifik</p>
+                </div>
               </div>
               <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setTopicsModal(false)}><X size={14}/></button>
             </div>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div className="input-group">
-                <label className="input-label" style={{ fontWeight: 600, fontSize: 13 }}>
-                  Topik / Fokus Materi (Opsional)
+            
+            <div className="modal-body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className="input-group" style={{ margin: 0 }}>
+                <label className="input-label" style={{ fontWeight: 600, fontSize: 13, marginBottom: 6, display: 'block', color: 'var(--gray-700)' }}>
+                  Topik Utama atau Kata Kunci (Opsional)
                 </label>
                 <textarea
                   className="input"
                   rows={4}
-                  style={{ resize: 'vertical', fontSize: 13, lineHeight: 1.5 }}
-                  placeholder="Masukkan topik-topik kunci, kata kunci, atau fokus materi yang ingin dibahas dalam deskripsi kursus ini (misal: pengenalan algoritma, struktur data dasar, sorting, pencarian)..."
+                  style={{ 
+                    resize: 'vertical', 
+                    fontSize: 13, 
+                    lineHeight: 1.5, 
+                    borderRadius: 8, 
+                    borderColor: 'var(--gray-300)',
+                    padding: '10px 12px'
+                  }}
+                  placeholder="Masukkan kata kunci atau topik spesifik (contoh: pemrograman berorientasi objek, class, inheritance, polymorphism, encapsulation)..."
                   value={topicsInput}
                   onChange={e => setTopicsInput(e.target.value)}
                 />
-                <span className="input-hint" style={{ fontSize: 11, color: 'var(--gray-500)' }}>
-                  AI akan mengembangkan topik-topik di atas menjadi deskripsi mata kuliah yang komprehensif.
-                </span>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginTop: 8 }}>
+                  <Info size={14} color="var(--gray-400)" style={{ flexShrink: 0, marginTop: 1 }}/>
+                  <span className="input-hint" style={{ fontSize: 11, color: 'var(--gray-500)', lineHeight: 1.4 }}>
+                    Asisten AI akan menyusun kalimat deskripsi akademik yang profesional dengan mengutamakan topik-topik di atas.
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="modal-footer" style={{ position: 'sticky', bottom: 0, background: 'var(--surface)', zIndex: 1 }}>
-              <button className="btn btn-secondary btn-sm" onClick={() => setTopicsModal(false)}>Batal</button>
+            
+            <div className="modal-footer" style={{ padding: '12px 20px', background: 'var(--gray-50)', borderTop: '1px solid var(--gray-100)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn btn-secondary btn-sm" style={{ borderRadius: 8 }} onClick={() => setTopicsModal(false)}>Batal</button>
               <button
                 className="btn btn-primary btn-sm"
+                style={{ borderRadius: 8, gap: 6, background: 'var(--indigo-600)' }}
                 onClick={handleAiGenerateDesc}
                 disabled={aiGeneratingDesc}
               >
