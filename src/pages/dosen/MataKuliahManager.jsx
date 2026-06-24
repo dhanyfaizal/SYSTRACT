@@ -5,7 +5,7 @@ import {
   CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown,
   PlusCircle, Search, Sparkles, RefreshCw, FileText, Download,
   Share2, ArrowLeft, PenTool, CheckCircle, ChevronUp, Info, HelpCircle,
-  Award, Clock, Link
+  Award, Clock, Link, Check
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
