@@ -369,7 +369,7 @@ export default function CourseDetail() {
             : (m.webview_link ? [{ mime: m.mime_type, url: m.webview_link, label: 'Materi Utama' }] : [])
           
           if (attachments.length === 0 && m.webslide_content) {
-            attachments.push({ mime: 'text/html', url: '#', label: 'WebSlide Presentasi' })
+            attachments.push({ mime: 'text/html', url: '#', label: m.title || 'Materi Presentasi' })
           }
 
           attachments.forEach((a, idx) => {

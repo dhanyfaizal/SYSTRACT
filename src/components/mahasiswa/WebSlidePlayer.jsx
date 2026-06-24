@@ -685,22 +685,6 @@ export default function WebSlidePlayer({
                     </div>
                   </div>
                 )}
-
-                {/* Section Footer Actions (AI Chat triggers) */}
-                <div style={{ marginTop: '18px', borderTop: '1px solid #f1f5f9', paddingTop: '12px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
-                    <Sparkles size={10} color={theme.accent} /> AI Asisten:
-                  </span>
-                  <button className="netacad-ai-section-btn" onClick={() => triggerAiAsk(slide, 'summary')}>
-                    Ringkas Bagian Ini
-                  </button>
-                  <button className="netacad-ai-section-btn" onClick={() => triggerAiAsk(slide, 'cases')}>
-                    Contoh Kasus Nyata
-                  </button>
-                  <button className="netacad-ai-section-btn" onClick={() => triggerAiAsk(slide, 'quiz')}>
-                    Uji Pemahaman Saya (Kuis)
-                  </button>
-                </div>
               </section>
             )
           })}
