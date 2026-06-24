@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import courseBanner from '@/assets/course_banner.png'
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
+import WebSlidePlayer from '@/components/mahasiswa/WebSlidePlayer'
 
 const COUNTDOWN_SEC = 180 // 3 Menit untuk membaca/menonton materi
 
@@ -1125,96 +1126,36 @@ export default function CourseDetail() {
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 {/* WebSlide Integration */}
                 {activeItem.data.webslide_content && (
-                  <div className="card" style={{ 
-                    padding: '16px 20px', 
-                    background: 'linear-gradient(135deg, #f5f3ff 0%, #e0e7ff 100%)', 
-                    border: '1px solid #c7d2fe', 
-                    borderRadius: 12, 
-                    marginBottom: 16,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 12,
-                    boxShadow: 'var(--shadow-sm)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        background: 'var(--indigo-600)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 2px 8px rgba(79, 70, 229, 0.2)'
-                      }}>
-                        <Sparkles size={16} color="#fff" />
-                      </div>
-                      <div>
-                        <h4 style={{ fontSize: 13, fontWeight: 800, color: 'var(--indigo-950)', margin: 0 }}>Presentasi Interaktif WebSlide Tersedia!</h4>
-                        <p style={{ fontSize: 11, color: 'var(--gray-500)', margin: '2px 0 0 0', fontWeight: 500 }}>
-                          Materi ini memiliki slide presentasi interaktif yang dirancang khusus oleh AI untuk membantu pemahaman Anda.
-                        </p>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Presentasi Slide Terintegrasi (SPA)</span>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          onClick={() => {
+                            const htmlContent = generateWebSlideHtml(
+                              course.name,
+                              profile?.program_studi || 'Teknik Informatika',
+                              activeItem.data.week_number || 1,
+                              activeItem.data.webslide_content
+                            );
+                            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+                            const blobUrl = URL.createObjectURL(blob);
+                            window.open(blobUrl, '_blank');
+                          }}
+                          className="btn btn-link btn-xs"
+                          style={{ padding: 0, fontSize: 11, color: 'var(--indigo-600)', display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}
+                        >
+                          <ExternalLink size={11} /> Buka di Tab Baru
+                        </button>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      <button
-                        onClick={() => {
-                          const htmlContent = generateWebSlideHtml(
-                            course.name,
-                            profile?.program_studi || 'Teknik Informatika',
-                            activeItem.data.week_number || 1,
-                            activeItem.data.webslide_content
-                          );
-                          const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-                          const blobUrl = URL.createObjectURL(blob);
-                          window.open(blobUrl, '_blank');
-                        }}
-                        className="btn btn-primary btn-sm"
-                        style={{ 
-                          background: 'var(--indigo-600)', 
-                          borderColor: 'var(--indigo-700)', 
-                          color: '#fff', 
-                          fontWeight: 700,
-                          gap: 4
-                        }}
-                      >
-                        <PlayCircle size={14} /> Buka WebSlide
-                      </button>
-                      <button
-                        onClick={() => {
-                          const htmlContent = generateWebSlideHtml(
-                            course.name,
-                            profile?.program_studi || 'Teknik Informatika',
-                            activeItem.data.week_number || 1,
-                            activeItem.data.webslide_content
-                          );
-                          const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-                          const blobUrl = URL.createObjectURL(blob);
-                          const cleanCourseName = course.name.replace(/[^a-zA-Z0-9]/g, '_');
-                          const fileName = `WebSlide_Pertemuan_${activeItem.data.week_number || 1}_${cleanCourseName}.html`;
-                          const a = document.createElement('a');
-                          a.href = blobUrl;
-                          a.download = fileName;
-                          document.body.appendChild(a);
-                          a.click();
-                          setTimeout(() => {
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(blobUrl);
-                          }, 100);
-                          toast.success('File WebSlide berhasil diunduh!');
-                        }}
-                        className="btn btn-secondary btn-sm"
-                        style={{ 
-                          borderColor: 'var(--gray-200)', 
-                          color: 'var(--gray-700)', 
-                          background: '#fff', 
-                          fontWeight: 600,
-                          gap: 4
-                        }}
-                      >
-                        <FileDown size={14} /> Unduh Slide HTML
-                      </button>
-                    </div>
+                    <WebSlidePlayer
+                      courseName={course.name}
+                      prodiName={profile?.program_studi || 'Teknik Informatika'}
+                      meetingNo={activeItem.data.week_number || 1}
+                      slideData={activeItem.data.webslide_content}
+                      askWithContext={askWithContext}
+                    />
                   </div>
                 )}
 

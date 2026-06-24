@@ -223,7 +223,7 @@ export default function DosenMataKuliah() {
       setAiSlideProgressText(event)
     } else if (event && event.type === 'chunk') {
       const chars = event.text.length
-      setAiSlideProgressText(`AI sedang merancang WebSlide... (${chars.toLocaleString('id-ID')} karakter)`)
+      setAiSlideProgressText(`AI sedang membangun SPA... (${chars.toLocaleString('id-ID')} karakter)`)
     }
   }
 
@@ -1170,7 +1170,7 @@ export default function DosenMataKuliah() {
   async function handleGenerateWebSlide() {
     if (!slideOutline) return
     setGeneratingWebSlide(true)
-    setAiSlideProgressText("Menganalisis materi slide & merancang tata letak (layout) interaktif...")
+    setAiSlideProgressText("Menganalisis materi slide & membangun tata letak SPA interaktif...")
     try {
       const prodiName = profile?.program_studi || 'Teknik Informatika'
       const result = await generateWebSlideData(
@@ -1181,9 +1181,9 @@ export default function DosenMataKuliah() {
         handleAiSlideProgress
       )
       setWebslideData(result)
-      toast.success("Tampilan WebSlide berhasil digenerate! 🎬")
+      toast.success("Aplikasi SPA Slide berhasil dibangun! 🎬")
     } catch (err) {
-      toast.error("Gagal generate WebSlide: " + err.message)
+      toast.error("Gagal membangun SPA Slide: " + err.message)
     } finally {
       setGeneratingWebSlide(false)
       setAiSlideProgressText('')
@@ -3009,7 +3009,7 @@ export default function DosenMataKuliah() {
                       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>2. Tampilan Presentasi WebSlide</span>
                       {!webslideData && !generatingWebSlide && (
                         <button className="btn btn-primary btn-sm" style={{ gap: 6 }} onClick={handleGenerateWebSlide}>
-                          <Sparkles size={13} /> Rancang WebSlide (Layout Dinamis AI)
+                          <Sparkles size={13} /> Bangun SPA (Layout Dinamis AI)
                         </button>
                       )}
 

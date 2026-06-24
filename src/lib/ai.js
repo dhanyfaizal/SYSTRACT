@@ -502,10 +502,11 @@ export async function generateWebSlideData(courseName, prodiName, meetingNo, out
     Data Outline Materi (JSON):
     ${JSON.stringify(outlineData)}
 
-    Berdasarkan data outline sederhana di atas, buatlah presentasi WebSlide lengkap yang memetakan SELURUH slide dari outline data yang diberikan (misalnya 30 sampai 45 slide sesuai jumlah slide di outline). Jangan kurangi atau potong jumlah slide dari outline data tersebut. Untuk setiap slide dari outline, analisis materinya secara mendalam dan tentukan tipe tata letak (layout) yang paling sesuai, variatif, dan profesional agar presentasi interaktif dan tidak monoton.
+    Berdasarkan data outline sederhana di atas, buatlah presentasi WebSlide/SPA lengkap yang memetakan SELURUH slide dari outline data yang diberikan (misalnya 30 sampai 45 slide sesuai jumlah slide di outline). Jangan kurangi atau potong jumlah slide dari outline data tersebut. Untuk setiap slide dari outline, analisis materinya secara mendalam dan tentukan tipe tata letak (layout) yang paling sesuai, variatif, dan profesional agar presentasi interaktif dan tidak monoton.
 
     ATURAN LAYOUT YANG HARUS DIPILIH:
-    Setiap objek slide dapat memuat properti opsional "reference": "Nama Penulis & Tahun (contoh: Williams & Park, 2023)" apabila slide tersebut memuat kutipan/rujukan teoretis.
+    - Setiap objek slide wajib menyertakan properti "image_url" yang bernilai URL gambar referensi asli, beresolusi tinggi, dan relevan dengan topik bahasan slide dari Unsplash atau Shutterstock (misalnya: gambar router/server untuk jaringan, editor kode untuk pemrograman, infografis teknologi, kolaborasi tim, diskusi, dsb.). Format URL harus valid dan nyata (contoh: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80").
+    - Setiap objek slide dapat memuat properti opsional "reference": "Nama Penulis & Tahun (contoh: Williams & Park, 2023)" apabila slide tersebut memuat kutipan/rujukan teoretis.
 
     1. "cover": Hanya untuk Slide 1 (Cover utama perkuliahan).
        {
