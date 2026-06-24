@@ -462,7 +462,7 @@ export async function generateSlideContent(courseName, meetingNo, topic, capabil
     Referensi Pustaka Utama RPS: ${JSON.stringify(formattedRefs)}
 
     Hasilkan outline slide presentasi yang sangat komprehensif, mendalam, dan kaya materi dengan ketentuan berikut:
-    1. Jumlah Slide: MINIMAL 15 SLIDE (slide 1 s.d. slide 15+).
+    1. Jumlah Slide: MINIMAL 30 DAN MAKSIMAL 45 SLIDE (slide 1 s.d. slide 45).
     2. Integrasi Referensi: Hubungkan penjelasan materi dengan referensi pustaka utama RPS di atas yang relevan (cantumkan kutipan/rujukan buku atau artikel ilmiah tersebut pada slide yang relevan).
     3. Kedalaman Konten: Berikan penjelasan yang mendalam dan bermakna pada setiap slide. Di dalam poin-poin materi, berikan CONTOH konkret, PENERAPAN praktis di industri/studi kasus nyata, PERBANDINGAN teori/konsep/metode, dan penjelasan pelengkap lainnya yang dapat mengembangkan wawasan materi ini secara maksimal. Poin penjelasan harus berupa kalimat informatif yang kaya konten (bukan frasa pendek atau ringkasan seadanya).
 
@@ -502,7 +502,7 @@ export async function generateWebSlideData(courseName, prodiName, meetingNo, out
     Data Outline Materi (JSON):
     ${JSON.stringify(outlineData)}
 
-    Berdasarkan data outline sederhana di atas, buatlah presentasi WebSlide lengkap (12 sampai 15 slide). Untuk setiap slide dari outline, analisis materinya secara mendalam dan tentukan tipe tata letak (layout) yang paling sesuai, variatif, dan profesional agar presentasi interaktif dan tidak monoton.
+    Berdasarkan data outline sederhana di atas, buatlah presentasi WebSlide lengkap yang memetakan SELURUH slide dari outline data yang diberikan (misalnya 30 sampai 45 slide sesuai jumlah slide di outline). Jangan kurangi atau potong jumlah slide dari outline data tersebut. Untuk setiap slide dari outline, analisis materinya secara mendalam dan tentukan tipe tata letak (layout) yang paling sesuai, variatif, dan profesional agar presentasi interaktif dan tidak monoton.
 
     ATURAN LAYOUT YANG HARUS DIPILIH:
     Setiap objek slide dapat memuat properti opsional "reference": "Nama Penulis & Tahun (contoh: Williams & Park, 2023)" apabila slide tersebut memuat kutipan/rujukan teoretis.

@@ -1048,7 +1048,7 @@ export default function DosenMataKuliah() {
     const steps = [
       "Menganalisis Kemampuan Akhir & Bahan Kajian...",
       "Mengintegrasikan Referensi Pustaka RPS...",
-      "Merancang Outline & Struktur Presentasi (Minimal 15 Slide)...",
+      "Merancang Outline & Struktur Presentasi (Sampai dengan 45 Slide)...",
       "Mengembangkan Contoh Kasus & Penerapan Industri...",
       "Menyusun Perbandingan Konsep & Penjelasan Detail...",
       "Mempersiapkan Output Draft Slide..."
