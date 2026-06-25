@@ -637,3 +637,51 @@ export async function generateEssayQuestions(courseName, examType, topic, capabi
 
   return callAi(prompt, true, onProgress);
 }
+
+// 10. Generate Soal Pilihan Ganda (MCQ) untuk UTS/UAS
+export async function generateMcqQuestions(courseName, examType, topic, capability, onProgress = null) {
+  const isUts = examType === 'UTS';
+  const rangeText = isUts ? 'topik 1-7' : 'topik 9-15';
+  
+  const prompt = `
+    Anda adalah dosen senior dan pakar evaluasi akademik MOOCs. Tugas Anda adalah membuat bank soal Pilihan Ganda (Multiple Choice Questions) untuk evaluasi berikut:
+    Kursus: "${courseName}"
+    Jenis Evaluasi: "${isUts ? 'Evaluasi Tengah Kursus' : 'Evaluasi Akhir Kursus'}"
+    Materi Acuan: Soal wajib dirangkum secara merata dari materi pembelajaran ${rangeText}.
+    Kemampuan Akhir: "${capability || 'Mengukur pemahaman materi'}"
+
+    Hasilkan daftar soal pilihan ganda (TEPAT 25 SOAL) yang berkualitas tinggi, analitis, dan bervariasi tingkat kesulitannya.
+    Setiap soal harus memiliki tepat 4 opsi jawaban (A, B, C, D) dan kunci jawaban yang benar serta penjelasan singkat.
+
+    Format output wajib berupa JSON OBJECT murni dengan struktur:
+    {
+      "title": "Evaluasi ${isUts ? 'UTS' : 'UAS'} - ${courseName}",
+      "questions": [
+        {
+          "id": "q_1",
+          "type": "multiple_choice",
+          "text": "Pertanyaan pilihan ganda nomor 1...",
+          "options": [
+            "Jawaban A",
+            "Jawaban B",
+            "Jawaban C",
+            "Jawaban D"
+          ],
+          "answer": "A",
+          "explanation": "Penjelasan mengapa jawaban A benar..."
+        },
+        ...
+      ]
+    }
+
+    ATURAN:
+    - Gunakan Bahasa Indonesia formal yang baik, jelas, dan tidak ambigu.
+    - Opsi jawaban harus masuk akal (distractor yang baik).
+    - Tentukan satu huruf kunci jawaban (A, B, C, atau D) pada properti "answer".
+    - Hasilkan TEPAT 25 SOAL pilihan ganda (jangan kurang, jangan lebih).
+    - Jangan berikan penjelasan tambahan apapun di luar JSON murni.
+  `;
+
+  return callAi(prompt, true, onProgress);
+}
+

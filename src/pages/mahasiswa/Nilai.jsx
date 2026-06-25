@@ -81,8 +81,8 @@ export default function Nilai() {
               const isOpen = expanded === fg.id
               const comps = [
                 { label:'Tugas',    val:fg.tugas_avg,      color:'#f59e0b' },
-                { label:'UTS',      val:fg.uts_avg,        color:'#6366f1' },
-                { label:'UAS',      val:fg.uas_avg,        color:'#ef4444' },
+                { label:'Evaluasi', val:fg.uts_avg,        color:'#6366f1' },
+                { label:'Evaluasi', val:fg.uas_avg,        color:'#ef4444' },
                 { label:'Kehadiran',val:fg.attendance_pct, color:'#10b981' },
               ].filter(c => c.val != null && c.val > 0)
               return (

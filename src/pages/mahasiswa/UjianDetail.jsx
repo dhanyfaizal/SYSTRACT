@@ -269,7 +269,7 @@ export default function UjianDetail() {
   const doneCount  = submitted.length
   const questions  = (myAnswer?.questions_snapshot?.length ? myAnswer.questions_snapshot : exam.questions) || []
   const answered   = Object.keys(answers).length
-  const typeLabel  = { uts:'UTS', uas:'UAS', kuis:'Kuis' }
+  const typeLabel  = { uts:'Evaluasi', uas:'Evaluasi', kuis:'Kuis' }
   const canRetry   = mode === 'quiz' || (mode === 'tryout' && doneCount < maxAtt)
 
   /* ── Submitted view ─────────────────────────────────── */

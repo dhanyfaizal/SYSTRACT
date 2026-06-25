@@ -17,7 +17,7 @@ import courseBanner from '@/assets/course_banner.png'
 import {
   generateCourseDescription, generateCplForCourse, generateCpmk,
   generateWeeklyPlan, generateReferences, generateSlideContent,
-  generateWebSlideData, generateEssayQuestions
+  generateWebSlideData, generateMcqQuestions
 } from '@/lib/ai'
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 
@@ -25,12 +25,12 @@ const COLORS   = ['#4f46e5','#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#
 const SEMESTERS = ['Ganjil 2025/2026','Genap 2025/2026','Ganjil 2026/2027']
 
 const MODULES = [
-  { id: 1, name: 'Module 1: Fondasi & Konsep Dasar (Pertemuan 1 - 4)', weeks: [1, 2, 3, 4] },
-  { id: 2, name: 'Module 2: Penerapan & Analisis Praktis (Pertemuan 5 - 7)', weeks: [5, 6, 7] },
-  { id: 3, name: 'Module 3: Evaluasi Tengah Semester (UTS - Pertemuan 8)', weeks: [8] },
-  { id: 4, name: 'Module 4: Pengembangan Sistem & Desain Lanjut (Pertemuan 9 - 12)', weeks: [9, 10, 11, 12] },
-  { id: 5, name: 'Module 5: Integrasi & Pengujian Akhir (Pertemuan 13 - 15)', weeks: [13, 14, 15] },
-  { id: 6, name: 'Module 6: Evaluasi Akhir Semester (UAS - Pertemuan 16)', weeks: [16] }
+  { id: 1, name: 'Module 1: Fondasi & Konsep Dasar (Topik 1 - 4)', weeks: [1, 2, 3, 4] },
+  { id: 2, name: 'Module 2: Penerapan & Analisis Praktis (Topik 5 - 7)', weeks: [5, 6, 7] },
+  { id: 3, name: 'Evaluasi (Topik 8)', weeks: [8] },
+  { id: 4, name: 'Module 4: Pengembangan Sistem & Desain Lanjut (Topik 9 - 12)', weeks: [9, 10, 11, 12] },
+  { id: 5, name: 'Module 5: Integrasi & Pengujian Akhir (Topik 13 - 15)', weeks: [13, 14, 15] },
+  { id: 6, name: 'Evaluasi (Topik 16)', weeks: [16] }
 ]
 
 export function groupMaterialsIntoModules(materials) {
@@ -207,7 +207,7 @@ export default function DosenMataKuliah() {
   const [slideOutline, setSlideOutline] = useState(null)
   const [webslideData, setWebslideData] = useState(null)
   const [aiSlideProgressText, setAiSlideProgressText] = useState('')
-  const [essayData, setEssayData] = useState(null) // for UTS/UAS questions
+  const [mcqData, setMcqData] = useState(null) // for UTS/UAS questions
 
   const handleAiProgress = (event) => {
     if (typeof event === 'string') {
@@ -1035,7 +1035,7 @@ export default function DosenMataKuliah() {
     setActiveMeeting(m)
     setSlideOutline(m.slide_content || null)
     setWebslideData(m.webslide_content || null)
-    setEssayData(null)
+    setMcqData(null)
     setAiSlideProgressText('')
     setSlideModal(true)
   }
@@ -1104,16 +1104,16 @@ export default function DosenMataKuliah() {
     }
   }
 
-  async function handleGenerateEssayQuestions() {
+  async function handleGenerateMcqQuestions() {
     setLoadingSlide(true)
     setAiSlideProgressText("Menghubungi Gateway API Server...")
 
     let subTimer = null
     const steps = [
-      "Menganalisis Kemampuan Akhir & Topik Evaluasi...",
-      "Merancang Soal Essay berbasis HOTS (Higher Order Thinking Skills)...",
-      "Menyusun Rubrik Penilaian & Kriteria Koreksi...",
-      "Menyeimbangkan Bobot Nilai Soal (Total 100%)...",
+      "Menganalisis Cakupan Materi Pembelajaran...",
+      "Merancang 25 Soal Pilihan Ganda (MCQ)...",
+      "Menyusun Kunci Jawaban & Penjelasan...",
+      "Menyeimbangkan Opsi Distractor Jawaban...",
       "Mempersiapkan Output Draft Soal..."
     ]
     let currentStep = 0
@@ -1136,28 +1136,28 @@ export default function DosenMataKuliah() {
         }
       } else if (event && event.type === 'chunk') {
         if (subTimer) clearInterval(subTimer)
-        const matches = event.text.match(/"no"\s*:\s*(\d+)/g)
+        const matches = event.text.match(/"id"\s*:\s*"q_(\d+)"/g)
         let currentQuestion = 1
         if (matches && matches.length > 0) {
           const lastMatch = matches[matches.length - 1]
           const numMatch = lastMatch.match(/\d+/)
           if (numMatch) currentQuestion = parseInt(numMatch[0])
         }
-        setAiSlideProgressText(`AI sedang merumuskan Soal Essay ${currentQuestion}... (${event.text.length.toLocaleString('id-ID')} karakter)`)
+        setAiSlideProgressText(`AI sedang merumuskan Soal Pilihan Ganda ${currentQuestion}/25... (${event.text.length.toLocaleString('id-ID')} karakter)`)
       }
     }
 
     try {
       const examType = activeMeeting.week_number === 8 ? 'UTS' : 'UAS'
-      const result = await generateEssayQuestions(
+      const result = await generateMcqQuestions(
         selectedCourse.name,
         examType,
         activeMeeting.title,
         activeMeeting.description,
         handleProgress
       )
-      setEssayData(result)
-      toast.success("Soal Ujian Essay berhasil disusun AI! 📝")
+      setMcqData(result)
+      toast.success("Soal Ujian Pilihan Ganda berhasil disusun AI! 📝")
     } catch (err) {
       toast.error("Gagal generate soal: " + err.message)
     } finally {
@@ -1261,16 +1261,72 @@ export default function DosenMataKuliah() {
     toast.success('Outline slide berhasil disalin ke clipboard!')
   }
 
-  function handleCopyEssayQuestions() {
-    if (!essayData) return
-    let text = `=== ${essayData.title} ===\n\n`
-    essayData.questions?.forEach(q => {
-      text += `Soal ${q.no} (Bobot: ${q.max_score}%)\n`
-      text += `Pertanyaan:\n${q.question}\n`
-      text += `Rubrik/Kriteria Penilaian:\n${q.rubric}\n\n`
+  function handleCopyMcqQuestions() {
+    if (!mcqData) return
+    let text = `=== ${mcqData.title} ===\n\n`
+    mcqData.questions?.forEach((q, idx) => {
+      text += `Soal ${idx + 1}\n`
+      text += `Pertanyaan:\n${q.text}\n`
+      q.options?.forEach((opt, oi) => {
+        text += `  ${String.fromCharCode(65 + oi)}. ${opt}\n`
+      })
+      text += `Kunci Jawaban: ${q.answer}\n`
+      text += `Penjelasan: ${q.explanation || '—'}\n\n`
     })
     navigator.clipboard.writeText(text)
-    toast.success('Soal essay & rubrik berhasil disalin ke clipboard!')
+    toast.success('Soal pilihan ganda berhasil disalin ke clipboard!')
+  }
+
+  async function handleSaveMcqExam() {
+    if (!mcqData) return
+    setSavingSlide(true)
+    try {
+      const rawType = activeMeeting.week_number === 8 ? 'uts' : 'uas'
+      
+      // Check if there is already an exam of this type for this course
+      const { data: existingExams } = await supabase
+        .from('exams')
+        .select('id')
+        .eq('course_id', selectedCourseId)
+        .eq('type', rawType)
+      
+      if (existingExams && existingExams.length > 0) {
+        // Update the existing exam
+        const examId = existingExams[0].id
+        const { error } = await supabase
+          .from('exams')
+          .update({
+            title: `Evaluasi ${rawType.toUpperCase()}`,
+            questions: mcqData.questions,
+            duration_minutes: 90,
+            is_published: true
+          })
+          .eq('id', examId)
+        if (error) throw error
+      } else {
+        // Insert a new exam
+        const { error } = await supabase
+          .from('exams')
+          .insert({
+            course_id: selectedCourseId,
+            title: `Evaluasi ${rawType.toUpperCase()}`,
+            type: rawType,
+            questions: mcqData.questions,
+            duration_minutes: 90,
+            is_published: true,
+            created_by: user.id
+          })
+        if (error) throw error
+      }
+      
+      toast.success('Soal Evaluasi berhasil disimpan ke database!')
+      setSlideModal(false)
+      fetchMaterials(selectedCourseId)
+    } catch (err) {
+      toast.error('Gagal menyimpan evaluasi ke database: ' + err.message)
+    } finally {
+      setSavingSlide(false)
+    }
   }
 
   // ── Logic Data Grouping ──────────────────────────────────────
@@ -2786,7 +2842,7 @@ export default function DosenMataKuliah() {
                 <textarea className="input" rows={2} style={{ resize:'vertical' }} value={materialForm.description} onChange={e => setMaterialForm(f=>({...f,description:e.target.value}))}/>
               </div>
               <div className="input-group">
-                <label className="input-label">Nomor Pertemuan</label>
+                <label className="input-label">Nomor Topik</label>
                 <input className="input" type="number" min={0} max={16} value={materialForm.week_number} onChange={e => setMaterialForm(f=>({...f,week_number:+e.target.value}))}/>
                 <span className="input-hint">Isi 0 untuk materi umum / pendahuluan kelas</span>
               </div>
@@ -2900,7 +2956,7 @@ export default function DosenMataKuliah() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Sparkles size={16} color="var(--indigo-600)" />
                 <span className="modal-title">
-                  {+activeMeeting.week_number === 8 || +activeMeeting.week_number === 16 ? 'AI Essay Questions Generator' : 'AI Slide & WebSlide Generator'}
+                  {+activeMeeting.week_number === 8 || +activeMeeting.week_number === 16 ? 'AI MCQ Questions Generator' : 'AI Slide & WebSlide Generator'}
                 </span>
               </div>
               <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setSlideModal(false)}><X size={14}/></button>
@@ -2909,7 +2965,7 @@ export default function DosenMataKuliah() {
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Meeting Info */}
               <div style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--gray-200)' }}>
-                <div style={{ fontSize: 10, color: 'var(--gray-400)', fontWeight: 700, textTransform: 'uppercase' }}>Pertemuan {activeMeeting.week_number}</div>
+                <div style={{ fontSize: 10, color: 'var(--gray-400)', fontWeight: 700, textTransform: 'uppercase' }}>Topik {activeMeeting.week_number}</div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)', marginTop: 2 }}>{activeMeeting.title}</div>
                 {activeMeeting.description && <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4 }}>{activeMeeting.description}</div>}
               </div>
@@ -2922,44 +2978,57 @@ export default function DosenMataKuliah() {
                 </div>
               )}
 
-              {/* ── FLOW FOR UTS/UAS: Essay Questions ── */}
+              {/* ── FLOW FOR UTS/UAS: MCQ Questions ── */}
               {(+activeMeeting.week_number === 8 || +activeMeeting.week_number === 16) ? (
                 <div>
-                  {!essayData && !loadingSlide && (
+                  {!mcqData && !loadingSlide && (
                     <div style={{ textAlign: 'center', padding: '30px 10px' }}>
                       <HelpCircle size={40} color="var(--indigo-300)" style={{ marginBottom: 12 }} />
-                      <p style={{ fontSize: 13, color: 'var(--gray-500)' }}>Belum ada soal ujian essay yang dirumuskan AI untuk evaluasi ini.</p>
-                      <button className="btn btn-primary btn-sm" style={{ marginTop: 12, gap: 6 }} onClick={handleGenerateEssayQuestions}>
-                        <Sparkles size={13} /> Susun Soal Ujian (HOTS)
+                      <p style={{ fontSize: 13, color: 'var(--gray-500)' }}>Belum ada soal pilihan ganda yang dirumuskan AI untuk evaluasi ini.</p>
+                      <button className="btn btn-primary btn-sm" style={{ marginTop: 12, gap: 6 }} onClick={handleGenerateMcqQuestions}>
+                        <Sparkles size={13} /> Susun Soal Evaluasi (Pilihan Ganda)
                       </button>
                     </div>
                   )}
 
-                  {essayData && (
+                  {mcqData && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Draf Soal Essay AI:</span>
-                        <button className="btn btn-secondary btn-sm" style={{ padding: '2px 8px', fontSize: 11, gap: 4 }} onClick={handleCopyEssayQuestions}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Draf Soal Evaluasi AI (25 Soal MCQ):</span>
+                        <button className="btn btn-secondary btn-sm" style={{ padding: '2px 8px', fontSize: 11, gap: 4 }} onClick={handleCopyMcqQuestions}>
                           <Copy size={12}/> Salin Soal
                         </button>
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: '#fafafa', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 12, maxHeight: 300, overflowY: 'auto' }}>
-                        <h4 style={{ fontSize: 13, fontWeight: 800, margin: '0 0 8px 0', color: 'var(--gray-800)' }}>{essayData.title}</h4>
-                        {essayData.questions?.map((q, idx) => (
-                          <div key={idx} style={{ borderBottom: idx < essayData.questions.length - 1 ? '1px solid var(--gray-200)' : 'none', paddingBottom: idx < essayData.questions.length - 1 ? 10 : 0, paddingTop: idx > 0 ? 8 : 0 }}>
-                            <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--indigo-700)' }}>Soal {q.no} ({q.max_score} Poin)</div>
-                            <div style={{ fontSize: 12, color: 'var(--gray-800)', marginTop: 4, fontWeight: 600 }}>{q.question}</div>
-                            <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 4, background: '#f1f5f9', padding: 6, borderRadius: 4 }}>
-                              <strong>Rubrik:</strong> {q.rubric}
+                        <h4 style={{ fontSize: 13, fontWeight: 800, margin: '0 0 8px 0', color: 'var(--gray-800)' }}>{mcqData.title}</h4>
+                        {mcqData.questions?.map((q, idx) => (
+                          <div key={idx} style={{ borderBottom: idx < mcqData.questions.length - 1 ? '1px solid var(--gray-200)' : 'none', paddingBottom: idx < mcqData.questions.length - 1 ? 10 : 0, paddingTop: idx > 0 ? 8 : 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--indigo-700)' }}>Soal {idx + 1}</div>
+                            <div style={{ fontSize: 12, color: 'var(--gray-800)', marginTop: 4, fontWeight: 600 }}>{q.text}</div>
+                            <div style={{ paddingLeft: 12, marginTop: 4 }}>
+                              {q.options?.map((opt, oi) => (
+                                <div key={oi} style={{ fontSize: 11, color: 'var(--gray-600)' }}>
+                                  {String.fromCharCode(65 + oi)}. {opt}
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#059669', marginTop: 4, background: '#ecfdf5', padding: 6, borderRadius: 4 }}>
+                              <strong>Kunci Jawaban: {q.answer}</strong>. {q.explanation}
                             </div>
                           </div>
                         ))}
                       </div>
                       
-                      <button className="btn btn-secondary btn-sm" style={{ gap: 4, alignSelf: 'flex-start' }} onClick={handleGenerateEssayQuestions} disabled={loadingSlide}>
-                        <RefreshCw size={12}/> Generate Ulang Soal
-                      </button>
+                      <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                        <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleGenerateMcqQuestions} disabled={loadingSlide}>
+                          <RefreshCw size={12}/> Generate Ulang Soal
+                        </button>
+                        <button className="btn btn-primary btn-sm" style={{ gap: 4, background: 'var(--success)', borderColor: '#059669' }} onClick={handleSaveMcqExam} disabled={savingSlide}>
+                          {savingSlide ? <Loader2 size={13} className="spinner" style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={13}/>}
+                          Simpan Evaluasi ke Database
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

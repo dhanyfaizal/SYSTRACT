@@ -4,7 +4,7 @@ import {
   ArrowLeft, BookOpen, ClipboardList, MessageSquare, FileText,
   ExternalLink, Calendar, User, Star, CheckCircle2, Sparkles,
   PlayCircle, FileDown, BookMarked, Eye, Send, Loader2, Award, Clock,
-  Info, RefreshCw, ChevronUp, ChevronDown, ChevronRight
+  Info, RefreshCw, ChevronUp, ChevronDown, ChevronRight, Lock
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAI } from '@/contexts/AIContext'
@@ -17,12 +17,12 @@ import WebSlidePlayer from '@/components/mahasiswa/WebSlidePlayer'
 const COUNTDOWN_SEC = 180 // 3 Menit untuk membaca/menonton materi
 
 const MODULES = [
-  { id: 1, name: 'Module 1: Fondasi & Konsep Dasar (Pertemuan 1 - 4)', weeks: [1, 2, 3, 4] },
-  { id: 2, name: 'Module 2: Penerapan & Analisis Praktis (Pertemuan 5 - 7)', weeks: [5, 6, 7] },
-  { id: 3, name: 'Module 3: Evaluasi Tengah Semester (UTS - Pertemuan 8)', weeks: [8] },
-  { id: 4, name: 'Module 4: Pengembangan Sistem & Desain Lanjut (Pertemuan 9 - 12)', weeks: [9, 10, 11, 12] },
-  { id: 5, name: 'Module 5: Integrasi & Pengujian Akhir (Pertemuan 13 - 15)', weeks: [13, 14, 15] },
-  { id: 6, name: 'Module 6: Evaluasi Akhir Semester (UAS - Pertemuan 16)', weeks: [16] }
+  { id: 1, name: 'Module 1: Fondasi & Konsep Dasar (Topik 1 - 4)', weeks: [1, 2, 3, 4] },
+  { id: 2, name: 'Module 2: Penerapan & Analisis Praktis (Topik 5 - 7)', weeks: [5, 6, 7] },
+  { id: 3, name: 'Evaluasi (Topik 8)', weeks: [8] },
+  { id: 4, name: 'Module 4: Pengembangan Sistem & Desain Lanjut (Topik 9 - 12)', weeks: [9, 10, 11, 12] },
+  { id: 5, name: 'Module 5: Integrasi & Pengujian Akhir (Topik 13 - 15)', weeks: [13, 14, 15] },
+  { id: 6, name: 'Evaluasi (Topik 16)', weeks: [16] }
 ]
 
 export function groupMaterialsIntoModules(items, weekKey = 'week_number') {
@@ -158,6 +158,44 @@ export default function CourseDetail() {
   
   const [subTab, setSubTab] = useState('belajar') // 'belajar' | 'diskusi'
   const [loading, setLoading] = useState(true)
+
+  const groupedModules = groupMaterialsIntoModules(syllabusItems, 'week')
+
+  const isModuleCompleted = (mod) => {
+    if (!mod || !mod.items || mod.items.length === 0) return true
+    return mod.items.every(item => {
+      if (item.type === 'materi') return completedRefs.has(`mat_${item.data.id}_${item.subIdx}`)
+      if (item.type === 'tugas') return !!submissionsMap[item.data.id]
+      if (item.type === 'ujian') return (examAnswersMap[item.data.id] || 0) >= 70
+      return false
+    })
+  }
+
+  const isModuleLocked = (modIdx) => {
+    if (modIdx <= 0) return false
+    for (let i = 0; i < modIdx; i++) {
+      if (!isModuleCompleted(groupedModules[i])) return true
+    }
+    return false
+  }
+
+  const getLockingModule = (modIdx) => {
+    if (modIdx <= 0) return null
+    for (let i = 0; i < modIdx; i++) {
+      if (!isModuleCompleted(groupedModules[i])) return groupedModules[i]
+    }
+    return null
+  }
+
+  const isItemLocked = (item) => {
+    if (!item) return false
+    const modIdx = groupedModules.findIndex(mod => {
+      if (mod.id === 0 && item.week === 0) return true
+      if (mod.id === 99 && item.week === 99) return true
+      return mod.weeks.includes(item.week)
+    })
+    return isModuleLocked(modIdx)
+  }
 
   const [isEnrolled, setIsEnrolled] = useState(false)
   const [enrollStatus, setEnrollStatus] = useState(null)
@@ -353,15 +391,23 @@ export default function CourseDetail() {
       const weeks = new Set([
         ...(mats || []).map(m => m.week_number || 0),
         ...(assigns || []).map(a => 1), // assume week 1 fallback if not specified
-        ...(exams || []).map(e => 1)
+        ...(exams || []).map(e => {
+          if (e.type === 'uts') return 8
+          if (e.type === 'uas') return 16
+          return 1
+        })
       ])
 
       const sortedWeeks = Array.from(weeks).sort((a, b) => a - b)
       
       sortedWeeks.forEach(w => {
         const weekMaterials = (mats || []).filter(m => (m.week_number || 0) === w)
-        const weekAssignments = w === 1 ? (assigns || []) : [] // show assignments in week 1 or distribute
-        const weekExams = w === 1 ? (exams || []) : []
+        const weekAssignments = w === 1 ? (assigns || []) : []
+        const weekExams = (exams || []).filter(e => {
+          if (e.type === 'uts') return w === 8
+          if (e.type === 'uas') return w === 16
+          return w === 1
+        })
 
         weekMaterials.forEach(m => {
           let attachments = m.attachments?.length > 0 
@@ -398,18 +444,19 @@ export default function CourseDetail() {
               data: a
             })
           })
-
-          exams?.forEach(e => {
-            syllabus.push({
-              id: `exam_${e.id}`,
-              week: w,
-              type: 'ujian',
-              label: `${e.type === 'kuis' ? 'Quiz' : e.type.toUpperCase()}: ${e.title}`,
-              icon: '🧠',
-              data: e
-            })
-          })
         }
+
+        // Add exams for this week
+        weekExams?.forEach(e => {
+          syllabus.push({
+            id: `exam_${e.id}`,
+            week: w,
+            type: 'ujian',
+            label: `${e.type === 'kuis' ? 'Quiz' : 'Evaluasi'}: ${e.title}`,
+            icon: '🧠',
+            data: e
+          })
+        })
       })
 
       setSyllabusItems(syllabus)
@@ -821,7 +868,7 @@ export default function CourseDetail() {
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <span className="badge-pill badge-slate" style={{ fontSize: 10, padding: '2px 8px' }}>
-                              {mod.items.length} Pertemuan
+                              {mod.items.length} Topik
                             </span>
                             {isExpanded ? <ChevronUp size={16} color="var(--gray-400)"/> : <ChevronDown size={16} color="var(--gray-400)"/>}
                           </div>
@@ -1005,8 +1052,10 @@ export default function CourseDetail() {
 
             {/* List items */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {groupMaterialsIntoModules(syllabusItems, 'week').map((mod) => {
+              {groupedModules.map((mod, modIdx) => {
                 const isExpanded = !!expandedSidebarModules[mod.id]
+                const isCompleted = isModuleCompleted(mod)
+                const isLocked = isModuleLocked(modIdx)
                 return (
                   <div key={mod.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {/* Module Header Toggle */}
@@ -1022,25 +1071,26 @@ export default function CourseDetail() {
                         alignItems: 'center',
                         cursor: 'pointer',
                         userSelect: 'none',
-                        marginBottom: 4
+                        marginBottom: 4,
+                        opacity: isLocked ? 0.75 : 1
                       }}
                     >
-                      <span style={{ fontWeight: 750, fontSize: 11, color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                      <span style={{ fontWeight: 750, fontSize: 11, color: isLocked ? 'var(--gray-500)' : 'var(--indigo-700)', display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
                         <div style={{
                           width: 16, 
                           height: 16, 
                           borderRadius: '50%', 
-                          background: '#dcfce7', 
-                          color: '#15803d', 
+                          background: isLocked ? 'var(--gray-100)' : isCompleted ? '#dcfce7' : '#e0e7ff', 
+                          color: isLocked ? 'var(--gray-400)' : isCompleted ? '#15803d' : 'var(--indigo-600)', 
                           display: 'flex', 
                           alignItems: 'center', 
                           justifyContent: 'center',
-                          border: '1px solid #bbf7d0',
+                          border: isLocked ? '1px solid var(--gray-300)' : isCompleted ? '1px solid #bbf7d0' : '1px solid #c7d2fe',
                           fontSize: 9,
                           fontWeight: 800,
                           flexShrink: 0
                         }}>
-                          ✓
+                          {isLocked ? <Lock size={9} /> : isCompleted ? '✓' : '•'}
                         </div>
                         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {mod.name}
@@ -1064,23 +1114,33 @@ export default function CourseDetail() {
                           return (
                             <button
                               key={item.id}
-                              onClick={() => setActiveItem(item)}
+                              onClick={() => {
+                                if (isLocked) {
+                                  toast.error(`Bagian ini terkunci. Silakan selesaikan topik sebelumnya terlebih dahulu!`);
+                                  return;
+                                }
+                                setActiveItem(item);
+                              }}
                               style={{
-                                display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
+                                display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 8, 
+                                cursor: isLocked ? 'not-allowed' : 'pointer', textAlign: 'left',
                                 background: isActive ? 'var(--indigo-50)' : 'transparent',
-                                color: isActive ? 'var(--indigo-700)' : 'var(--gray-600)',
+                                color: isLocked ? 'var(--gray-400)' : (isActive ? 'var(--indigo-700)' : 'var(--gray-600)'),
                                 fontWeight: isActive ? 700 : 500,
-                                fontSize: 11, transition: 'all .15s'
+                                fontSize: 11, transition: 'all .15s',
+                                opacity: isLocked ? 0.6 : 1
                               }}
                             >
-                              {isDone ? (
+                              {isLocked ? (
+                                <Lock size={11} color="var(--gray-400)" style={{ flexShrink: 0 }} />
+                              ) : isDone ? (
                                 <CheckCircle2 size={13} color="var(--success)" fill="#d1fae5" style={{ flexShrink: 0 }} />
                               ) : (
                                 <span style={{ fontSize: 13, flexShrink: 0, width: 14, height: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: 'var(--gray-400)' }}>
                                   •
                                 </span>
                               )}
-                              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', flexShrink: 0 }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: isLocked ? 'var(--gray-300)' : 'var(--gray-400)', flexShrink: 0 }}>
                                 {prefix}
                               </span>
                               <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1122,7 +1182,69 @@ export default function CourseDetail() {
 
           {/* RIGHT: Content Pane */}
           <div style={{ flex: 1, paddingLeft: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-            {activeItem?.type === 'materi' && (
+            {isItemLocked(activeItem) ? (
+              <div className="card animate-fade-in" style={{ padding: 32, textAlign: 'center', margin: 'auto 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, border: '1px solid var(--gray-200)', background: 'linear-gradient(135deg, #f8fafc, #ffffff)', boxShadow: '0 8px 24px rgba(0,0,0,0.04)', borderRadius: 16, maxWidth: 500, alignSelf: 'center' }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: '1px solid #fca5a5', color: '#dc2626', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.1)'
+                }}>
+                  <Lock size={32} />
+                </div>
+                <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--gray-900)' }}>Topik Terkunci</h3>
+                <p style={{ fontSize: 13, color: 'var(--gray-500)', lineHeight: 1.6, margin: 0 }}>
+                  Topik ini belum dapat diakses. Anda harus menyelesaikan materi dan tugas di topik sebelumnya terlebih dahulu untuk membuka konten ini.
+                </p>
+                {(() => {
+                  const activeModIdx = groupedModules.findIndex(mod => {
+                    if (mod.id === 0 && activeItem.week === 0) return true
+                    if (mod.id === 99 && activeItem.week === 99) return true
+                    return mod.weeks.includes(activeItem.week)
+                  })
+                  const lockingModule = getLockingModule(activeModIdx)
+                  if (!lockingModule) return null
+
+                  const pendingItems = lockingModule.items.filter(item => {
+                    if (item.type === 'materi') return !completedRefs.has(`mat_${item.data.id}_${item.subIdx}`)
+                    if (item.type === 'tugas') return !submissionsMap[item.data.id]
+                    if (item.type === 'ujian') return (examAnswersMap[item.data.id] || 0) < 70
+                    return false
+                  })
+
+                  return (
+                    <div style={{ width: '100%', textAlign: 'left', marginTop: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '.5px' }}>
+                        Topik yang Harus Diselesaikan:
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--indigo-700)', marginBottom: 12 }}>
+                        {lockingModule.name}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {pendingItems.map((item, idx) => (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              if (!isItemLocked(item)) {
+                                setActiveItem(item)
+                              } else {
+                                toast.error('Topik ini juga masih terkunci!')
+                              }
+                            }}
+                            className="btn btn-secondary btn-sm"
+                            style={{ justifyContent: 'flex-start', fontSize: 11, gap: 8, background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 8, padding: '8px 12px', width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center' }}
+                          >
+                            <span style={{ fontSize: 12 }}>{item.icon}</span>
+                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+                            <span style={{ fontSize: 10, color: 'var(--indigo-600)', fontWeight: 600 }}>Kerjakan &rarr;</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            ) : (
+              <>
+                {activeItem?.type === 'materi' && (
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 {/* WebSlide Integration */}
                 {activeItem.data.webslide_content && (
@@ -1188,20 +1310,10 @@ export default function CourseDetail() {
                   )
                 )}
 
-                {/* Description & AI summary shortcut */}
-                <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
-                  <div>
-                    <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)' }}>{activeItem.label}</h3>
-                    {activeItem.data.description && <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4 }}>{activeItem.data.description}</p>}
-                  </div>
-                  
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    style={{ gap: 4, color: 'var(--indigo-600)', background: 'var(--indigo-50)', borderColor: '#c7d2fe' }}
-                    onClick={() => askWithContext(`Jelaskan materi kuliah "${activeItem.label}" yang membahas tentang: ${activeItem.data.description || 'Tidak ada deskripsi'}. Berikan ringkasan poin-poin pentingnya.`)}
-                  >
-                    <Sparkles size={12} /> Tanya AI Ringkasan
-                  </button>
+                {/* Description */}
+                <div style={{ marginTop: 16 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)' }}>{activeItem.label}</h3>
+                  {activeItem.data.description && <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4 }}>{activeItem.data.description}</p>}
                 </div>
 
                 {/* Bottom Complete & Continue bar */}
@@ -1480,8 +1592,10 @@ export default function CourseDetail() {
                 `}</style>
               </div>
             )}
-          </div>
-        </div>
+          </>
+        )}
+      </div>
+    </div>
       ) : (
         /* DISCUSSION FORUM BODY */
         <div style={{ display: 'flex', gap: 20, flex: 1, overflow: 'hidden', marginTop: 14 }}>

@@ -61,7 +61,7 @@ export default function WebSlidePlayer({
   askWithContext
 }) {
   const theme = getThemeByProdi(prodiName)
-  const title = slideData?.title || `Materi Pertemuan ${meetingNo}`
+  const title = slideData?.title || `Materi Topik ${meetingNo}`
   
   // Extract slides list
   const rawSlides = slideData?.slides || []
@@ -77,7 +77,7 @@ export default function WebSlidePlayer({
           slide_no: list.length + 1,
           layout: 'thank_you',
           title: 'Rangkuman & Penutup',
-          description: 'Semoga materi perkuliahan hari ini bermanfaat. Silakan tinjau kembali rujukan pustaka dan silabus untuk pendalaman materi lebih lanjut.',
+          description: 'Semoga materi pembelajaran hari ini bermanfaat. Silakan tinjau kembali rujukan pustaka dan silabus untuk pendalaman materi lebih lanjut.',
           image_url: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80'
         })
       }
@@ -440,7 +440,7 @@ export default function WebSlidePlayer({
           </button>
           <div style={{ minWidth: 0 }}>
             <span style={{ fontSize: '0.62rem', color: theme.accent, textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 800 }}>
-              Syllabus SPA Reader — Pertemuan {meetingNo}
+              Syllabus SPA Reader — Topik {meetingNo}
             </span>
             <h4 style={{ fontSize: '0.85rem', color: '#0f172a', margin: '2px 0 0 0', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {title}
@@ -536,11 +536,11 @@ export default function WebSlidePlayer({
                         {slide.subtitle || courseName}
                       </h5>
                       <p style={{ fontSize: '#475569', fontSize: '0.88rem', lineHeight: 1.5, marginBottom: '20px' }}>
-                        {parseHtmlText(slide.description || 'Rancangan materi silabus perkuliahan komprehensif.')}
+                        {parseHtmlText(slide.description || 'Rancangan materi silabus pembelajaran komprehensif.')}
                       </p>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: '0.7rem', padding: '3px 8px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', color: '#64748b', fontWeight: 600 }}>SPA Reader</span>
-                        <span style={{ fontSize: '0.7rem', padding: '3px 8px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', color: '#64748b', fontWeight: 600 }}>Pertemuan Ke-{meetingNo}</span>
+                        <span style={{ fontSize: '0.7rem', padding: '3px 8px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', color: '#64748b', fontWeight: 600 }}>Topik Ke-{meetingNo}</span>
                       </div>
                     </div>
                     <div className="netacad-image-wrapper">
