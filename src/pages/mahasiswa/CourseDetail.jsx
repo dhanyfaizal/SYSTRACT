@@ -529,7 +529,7 @@ export default function CourseDetail() {
 
       // 2. Simpan ke course_progress
       await supabase.from('course_progress').upsert(
-        { material_id: materialId, student_id: user.id, course_id: courseId, points_awarded: true },
+        { material_id: materialId, student_id: user.id, course_id: courseId },
         { onConflict: 'material_id,student_id' }
       )
 
