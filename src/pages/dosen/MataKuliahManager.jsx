@@ -28,8 +28,8 @@ const MODULES = [
   { id: 1, name: 'Module 1: Fondasi & Konsep Dasar (Topik 1 - 4)', weeks: [1, 2, 3, 4] },
   { id: 2, name: 'Module 2: Penerapan & Analisis Praktis (Topik 5 - 7)', weeks: [5, 6, 7] },
   { id: 3, name: 'Evaluasi (Topik 8)', weeks: [8] },
-  { id: 4, name: 'Module 4: Pengembangan Sistem & Desain Lanjut (Topik 9 - 12)', weeks: [9, 10, 11, 12] },
-  { id: 5, name: 'Module 5: Integrasi & Pengujian Akhir (Topik 13 - 15)', weeks: [13, 14, 15] },
+  { id: 4, name: 'Module 3: Pengembangan Sistem & Desain Lanjut (Topik 9 - 12)', weeks: [9, 10, 11, 12] },
+  { id: 5, name: 'Module 4: Integrasi & Pengujian Akhir (Topik 13 - 15)', weeks: [13, 14, 15] },
   { id: 6, name: 'Evaluasi (Topik 16)', weeks: [16] }
 ]
 
