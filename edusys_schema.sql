@@ -485,3 +485,22 @@ CREATE POLICY "All can see user_badges" ON user_badges FOR SELECT USING (true);
 CREATE POLICY "All can see points_log"  ON points_log  FOR SELECT USING (true);
 CREATE POLICY "System inserts points"   ON points_log  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 CREATE POLICY "System awards badges"    ON user_badges FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+-- ============================================================
+-- TABLE: program_studi
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.program_studi (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       TEXT NOT NULL UNIQUE,
+  code       TEXT UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.program_studi ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "program_studi_public_read" ON public.program_studi;
+CREATE POLICY "program_studi_public_read" ON public.program_studi FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "program_studi_admin_all" ON public.program_studi;
+CREATE POLICY "program_studi_admin_all" ON public.program_studi FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+
