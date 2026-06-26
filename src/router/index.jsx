@@ -14,9 +14,6 @@ import CourseDetail       from '@/pages/mahasiswa/CourseDetail'
 import TugasDetail        from '@/pages/mahasiswa/TugasDetail'
 import UjianDetail        from '@/pages/mahasiswa/UjianDetail'
 import Nilai              from '@/pages/mahasiswa/Nilai'
-import Leaderboard        from '@/pages/mahasiswa/Leaderboard'
-import AvatarShop         from '@/pages/mahasiswa/AvatarShop'
-import AvatarEditor       from '@/pages/mahasiswa/AvatarEditor'
 import KatalogKursus       from '@/pages/mahasiswa/KatalogKursus'
 
 
@@ -40,7 +37,7 @@ import AdminEnrollment     from '@/pages/admin/Enrollment'
 import ProgramStudiManager from '@/pages/admin/ProgramStudiManager'
 import AdminAnnouncements  from '@/pages/admin/Announcements'
 import SemesterManager     from '@/pages/admin/SemesterManager'
-import ShopItemManager     from '@/pages/admin/ShopItemManager'
+
 
 // ── Shared ───────────────────────────────────────────────────
 import ForumDetail      from '@/pages/shared/ForumDetail'
@@ -143,9 +140,6 @@ export default function AppRouter() {
             <Route path="/forum"               element={<SmartForum />} />
             <Route path="/forum/:id"           element={<ForumDetail />} />
             <Route path="/nilai"               element={<Nilai />} />
-            <Route path="/leaderboard"         element={<Leaderboard />} />
-            <Route path="/toko-avatar"         element={<AvatarShop />} />
-            <Route path="/avatar-editor"       element={<AvatarEditor />} />
             <Route path="/katalog"             element={<KatalogKursus />} />
             <Route path="/kalender"            element={<AcademicCalendar />} />
 
@@ -166,7 +160,7 @@ export default function AppRouter() {
               <Route path="/admin/program-studi" element={<ProgramStudiManager />} />
               <Route path="/admin/announcements" element={<AdminAnnouncements />} />
               <Route path="/admin/semester"      element={<SemesterManager />} />
-              <Route path="/admin/shop-items"   element={<ShopItemManager />} />
+
             </Route>
           </Route>
         </Route>

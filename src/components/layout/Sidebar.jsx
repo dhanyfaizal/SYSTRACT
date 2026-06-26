@@ -21,7 +21,6 @@ const DOSEN_COURSE_SUBS = [
   { label:'Ujian',        icon: FileText,      key:'ujian',       to: (id) => `/ujian?courseId=${id}`        },
   { label:'Bank Soal',    icon: Database,      key:'bank-soal',   to: (id) => `/bank-soal?courseId=${id}`    },
   { label:'Presensi',     icon: UserCheck,     key:'presensi',    to: (id) => `/absensi?courseId=${id}`      },
-  { label:'Leaderboard',  icon: Trophy,        key:'leaderboard', to: (id) => `/leaderboard?courseId=${id}`  },
 ]
 
 const STATIC_NAV = {
@@ -32,10 +31,6 @@ const STATIC_NAV = {
     ] },
     { section:'Evaluasi', items:[
       { label:'Nilai & Sertifikat', icon:BarChart2, to:'/nilai' },
-    ]},
-    { section:'Komunitas', items:[
-      { label:'Leaderboard', icon:Trophy, to:'/leaderboard' },
-      { label:'Toko Avatar', icon:ShoppingBag, to:'/toko-avatar' },
     ]},
   ],
   dosen: [
@@ -58,8 +53,6 @@ const STATIC_NAV = {
     { section:'Akademik', items:[
       { label:'Kursus',        icon:BookOpen,      to:'/mata-kuliah'          },
       { label:'Program Studi', icon:GraduationCap, to:'/admin/program-studi'  },
-      { label:'Toko Avatar',   icon:ShoppingBag,    to:'/admin/shop-items'     },
-      { label:'Badges',        icon:Trophy,        to:'/admin/badges'         },
     ]},
     { section:'Sistem', items:[
       { label:'Pengumuman', icon:Megaphone,    to:'/admin/announcements' },

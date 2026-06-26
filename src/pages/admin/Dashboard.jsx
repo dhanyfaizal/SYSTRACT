@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Users, BookOpen, Trophy, Clock, TrendingUp, UserCheck, GraduationCap, Shield } from 'lucide-react'
+import { Users, BookOpen, Clock, TrendingUp, UserCheck, GraduationCap, Shield, Megaphone } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { useNavigate } from 'react-router-dom'
@@ -8,7 +8,7 @@ import AnnouncementCarousel from '@/components/AnnouncementCarousel'
 export default function AdminDashboard() {
   const { profile } = useAuth()
   const navigate    = useNavigate()
-  const [stats,   setStats]   = useState({ users: null, courses: null, badges: null, pending: null })
+  const [stats,   setStats]   = useState({ users: null, courses: null, pending: null })
   const [recent,  setRecent]  = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -18,13 +18,11 @@ export default function AdminDashboard() {
     const [
       { count: userCount },
       { count: courseCount },
-      { count: badgeCount },
       { data: pendingRoles },
       { data: recentUsers },
     ] = await Promise.all([
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
       supabase.from('courses').select('*',   { count: 'exact', head: true }),
-      supabase.from('badges').select('*',    { count: 'exact', head: true }),
       supabase.from('profiles').select('id').eq('role', 'guest'),
       supabase.from('profiles').select('id, full_name, email, role, avatar_url, created_at')
         .order('created_at', { ascending: false }).limit(6),
@@ -33,7 +31,6 @@ export default function AdminDashboard() {
     setStats({
       users:   userCount,
       courses: courseCount,
-      badges:  badgeCount,
       pending: pendingRoles?.length || 0,
     })
     setRecent(recentUsers || [])
@@ -48,7 +45,7 @@ export default function AdminDashboard() {
     { label: 'Kelola Pengguna',  icon: Users,         to: '/admin/users',      color: 'var(--indigo-600)', bg: 'var(--indigo-50)' },
     { label: 'Enrollment MK',    icon: GraduationCap, to: '/admin/enrollment', color: '#10b981',           bg: '#d1fae5' },
     { label: 'Mata Kuliah',      icon: BookOpen,      to: '/mata-kuliah',      color: '#f59e0b',           bg: '#fef3c7' },
-    { label: 'Leaderboard',      icon: Trophy,        to: '/leaderboard',      color: '#8b5cf6',           bg: '#ede9fe' },
+    { label: 'Pengumuman',       icon: Megaphone,     to: '/admin/announcements', color: '#8b5cf6',       bg: '#ede9fe' },
   ]
 
   return (
@@ -73,7 +70,6 @@ export default function AdminDashboard() {
         {[
           { label: 'Total Pengguna',    value: stats.users,   icon: Users,      color: 'var(--indigo-600)', bg: 'var(--indigo-50)' },
           { label: 'Mata Kuliah Aktif', value: stats.courses, icon: BookOpen,   color: '#10b981',           bg: '#d1fae5' },
-          { label: 'Badges Tersedia',   value: stats.badges,  icon: Trophy,     color: '#f59e0b',           bg: '#fef3c7' },
           { label: 'Role Pending',      value: stats.pending, icon: Clock,      color: '#ef4444',           bg: '#fee2e2' },
         ].map(s => (
           <div key={s.label} className="stat-card">

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  BookOpen, Trophy, Star, Sparkles, ChevronRight,
-  Clock, CheckCircle2, Users, TrendingUp, Award
+  BookOpen, Sparkles, ChevronRight,
+  Clock, CheckCircle2, Users, Activity, FileText, X
 } from 'lucide-react'
 import { useAuth }   from '@/contexts/AuthContext'
 import { useAI }     from '@/contexts/AIContext'
@@ -34,10 +34,7 @@ export default function MahasiswaDashboard() {
   const navigate = useNavigate()
 
   const [courses,      setCourses]      = useState([])
-  const [leaderboard,  setLeaderboard]  = useState([])
-  const [myBadges,     setMyBadges]     = useState([])
-  const [allBadges,    setAllBadges]    = useState([])
-  const [stats,        setStats]        = useState({ tasks: 0, completed: 0, points: 0, rank: '-' })
+  const [stats,        setStats]        = useState({ tasks: 0, completed: 0 })
   const [loading,      setLoading]      = useState(true)
   const [aiModal,      setAiModal]      = useState(false)
 
@@ -49,8 +46,6 @@ export default function MahasiswaDashboard() {
     setLoading(true)
     await Promise.all([
       fetchCourses(),
-      fetchLeaderboard(),
-      fetchBadges(),
       fetchStats(),
     ])
     setLoading(false)
@@ -163,63 +158,14 @@ export default function MahasiswaDashboard() {
     }
   }
 
-  async function fetchLeaderboard() {
-    const data = await queryCache.get(
-      'leaderboard_top5',
-      () => supabase
-        .from('leaderboard')
-        .select('user_id,full_name,nim,avatar_url,total_points,rank')
-        .order('rank', { ascending: true })
-        .limit(5),
-      2 * 60 * 1000  // cache 2 menit
-    )
-    setLeaderboard(data || [])
-  }
-
-  async function fetchBadges() {
-    const [allB, myB] = await Promise.all([
-      queryCache.get(
-        'all_badges',
-        () => supabase.from('badges').select('*').limit(12),
-        10 * 60 * 1000  // cache 10 menit — badges jarang berubah
-      ),
-      supabase.from('user_badges').select('badge_id').eq('user_id', user.id)
-        .then(r => r.data),
-    ])
-    setAllBadges(allB || [])
-    const earned = new Set((myB || []).map(b => b.badge_id))
-    setMyBadges((allB || []).filter(b => earned.has(b.id)))
-  }
-
   async function fetchStats() {
-    // Step 1: Ambil semester aktif + submission counts sekaligus (parallel)
-    const [{ data: semData }, { count: tasks }, { count: completed }] = await Promise.all([
-      supabase.from('semesters').select('id').eq('is_active', true).maybeSingle(),
+    const [{ count: tasks }, { count: completed }] = await Promise.all([
       supabase.from('submissions').select('*', { count: 'exact', head: true }).eq('student_id', user.id),
       supabase.from('submissions').select('*', { count: 'exact', head: true }).eq('student_id', user.id).eq('status', 'graded'),
     ])
 
-    let totalPoints = 0, myRankNum = '-'
-
-    if (semData?.id) {
-      // Step 2a: Ambil total points (sudah parallel dengan step 1 tidak bisa, tapi semester jarang berubah)
-      const { data: ptData } = await supabase
-        .from('points_log')
-        .select('points')
-        .eq('user_id', user.id)
-        .eq('semester_id', semData.id)
-      totalPoints = (ptData || []).reduce((s, r) => s + (r.points || 0), 0)
-    } else {
-      // Step 2b: Fallback ke leaderboard jika belum ada semester aktif
-      const { data: ld } = await supabase.from('leaderboard').select('total_points,rank').eq('user_id', user.id).maybeSingle()
-      totalPoints = ld?.total_points || 0
-      myRankNum   = ld?.rank || '-'
-    }
-
-    setStats({ tasks: tasks || 0, completed: completed || 0, points: totalPoints, rank: myRankNum })
+    setStats({ tasks: tasks || 0, completed: completed || 0 })
   }
-
-  const myRank = leaderboard.find(l => l.user_id === user?.id)
 
   // ── Render ───────────────────────────────────────────────────
   return (
@@ -248,8 +194,6 @@ export default function MahasiswaDashboard() {
       <div className="stats-grid">
         <StatCard icon={<BookOpen size={16} color="#4f46e5" />} iconBg="#eef2ff" label="Kursus Saya" value={loading ? '–' : courses.length} sub="Kursus yang diikuti" />
         <StatCard icon={<CheckCircle2 size={16} color="#10b981" />} iconBg="#d1fae5" label="Tugas Selesai" value={loading ? '–' : stats.completed} sub={`dari ${stats.tasks} tugas`} />
-        <StatCard icon={<Star size={16} color="#f59e0b" />} iconBg="#fef3c7" label="Total Poin" value={loading ? '–' : stats.points} sub="Poin gamifikasi" />
-        <StatCard icon={<TrendingUp size={16} color="#ef4444" />} iconBg="#fee2e2" label="Peringkat" value={loading ? '–' : `#${stats.rank}`} sub="Leaderboard angkatan" />
       </div>
 
       {/* Main grid */}
@@ -320,110 +264,9 @@ export default function MahasiswaDashboard() {
           </div>
         </div>
 
-        {/* ── Leaderboard ───────────────────────────────────── */}
+        {/* ── Tugas Mendatang ───────────────────────────────── */}
         <div>
           <div className="card" style={{ height: '100%' }}>
-            <div className="card-header">
-              <div style={{ display:'flex', alignItems:'center', gap: 8 }}>
-                <Trophy size={16} color="var(--gray-500)" />
-                <span style={{ fontWeight: 600, fontSize: 14 }}>Leaderboard</span>
-              </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => navigate('/leaderboard')} style={{ gap: 4 }}>
-                Semua <ChevronRight size={13} />
-              </button>
-            </div>
-            <div className="card-body" style={{ padding: '8px 16px' }}>
-              {loading ? (
-                <div style={{ display:'flex',flexDirection:'column',gap:10 }}>
-                  {[1,2,3,4,5].map(i=><div key={i} style={{height:40,background:'var(--gray-100)',borderRadius:6,animation:'pulse 1.5s ease infinite'}}/>)}
-                </div>
-              ) : leaderboard.length === 0 ? (
-                <div className="empty-state" style={{ padding: 24 }}>
-                  <Trophy size={24} color="var(--gray-200)" />
-                  <p className="empty-state-text">Belum ada data</p>
-                </div>
-              ) : (
-                leaderboard.map((lb) => {
-                  const isMe = lb.user_id === user?.id
-                  const rankClass = lb.rank === 1 ? 'lb-rank-1' : lb.rank === 2 ? 'lb-rank-2' : lb.rank === 3 ? 'lb-rank-3' : 'lb-rank-n'
-                  return (
-                    <div key={lb.user_id} className={`leaderboard-row${isMe ? ' lb-me' : ''}`}>
-                      <div className={`lb-rank ${rankClass}`}>
-                        {lb.rank === 1 ? '🥇' : lb.rank === 2 ? '🥈' : lb.rank === 3 ? '🥉' : lb.rank}
-                      </div>
-                      <div className="lb-avatar">
-                        {lb.avatar_url ? <img src={lb.avatar_url} alt="" /> : (lb.full_name?.[0] || 'U')}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="lb-name" style={{ overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
-                          {lb.full_name} {isMe && <span style={{ fontSize:10, color:'var(--indigo-600)', fontWeight:700 }}>(Anda)</span>}
-                        </div>
-                        <div className="lb-nim">{lb.nim}</div>
-                      </div>
-                      <div className="lb-pts">{lb.total_points} pts</div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-            {myRank && (
-              <div className="card-footer" style={{ fontSize: 12, color: 'var(--gray-500)', display:'flex', justifyContent:'space-between' }}>
-                <span>Posisi Anda</span>
-                <strong style={{ color: 'var(--indigo-600)' }}>#{myRank.rank} · {myRank.total_points} pts</strong>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── My Badges ─────────────────────────────────────── */}
-        <div>
-          <div className="card" style={{ height: '100%' }}>
-            <div className="card-header">
-              <div style={{ display:'flex', alignItems:'center', gap: 8 }}>
-                <Award size={16} color="var(--gray-500)" />
-                <span style={{ fontWeight: 600, fontSize: 14 }}>My Badges</span>
-              </div>
-              <span className="badge-pill badge-indigo">{myBadges.length}/{allBadges.length}</span>
-            </div>
-            <div className="card-body">
-              {loading ? (
-                <div className="badges-grid">
-                  {[1,2,3,4,5,6].map(i=><div key={i} style={{height:80,background:'var(--gray-100)',borderRadius:8}}/>)}
-                </div>
-              ) : allBadges.length === 0 ? (
-                <div className="empty-state" style={{ padding: 24 }}>
-                  <Award size={24} color="var(--gray-200)" />
-                  <p className="empty-state-text">Belum ada badges</p>
-                </div>
-              ) : (
-                <div className="badges-grid">
-                  {allBadges.map(badge => {
-                    const earned = myBadges.some(b => b.id === badge.id)
-                    return (
-                      <div
-                        key={badge.id}
-                        className={`badge-item${!earned ? ' locked' : ''}`}
-                        title={`${badge.name}: ${badge.description}`}
-                      >
-                        <div className="badge-emoji">{badge.icon_emoji || '🏅'}</div>
-                        <div className="badge-name">{badge.name}</div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-            {myBadges.length > 0 && (
-              <div className="card-footer" style={{ fontSize: 11, color: 'var(--gray-500)' }}>
-                🎉 {myBadges.length} badge berhasil diraih — terus belajar!
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Aktivitas Terbaru ──────────────────────────────── */}
-        <div className="span-2">
-          <div className="card">
             <div className="card-header">
               <div style={{ display:'flex', alignItems:'center', gap: 8 }}>
                 <Clock size={16} color="var(--gray-500)" />
@@ -432,6 +275,21 @@ export default function MahasiswaDashboard() {
             </div>
             <div className="card-body">
               <UpcomingAssignments userId={user?.id} />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Aktivitas Terakhir ─────────────────────────────── */}
+        <div>
+          <div className="card" style={{ height: '100%' }}>
+            <div className="card-header">
+              <div style={{ display:'flex', alignItems:'center', gap: 8 }}>
+                <Activity size={16} color="var(--gray-500)" />
+                <span style={{ fontWeight: 600, fontSize: 14 }}>Aktivitas Terakhir</span>
+              </div>
+            </div>
+            <div className="card-body">
+              <RecentActivity userId={user?.id} />
             </div>
           </div>
         </div>
@@ -525,6 +383,205 @@ function UpcomingAssignments({ userId }) {
               <div style={{ fontSize: 10, color: 'var(--gray-400)' }}>
                 {due.toLocaleDateString('id-ID', { day:'numeric', month:'short' })}
               </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function timeAgo(iso) {
+  if (!iso) return ''
+  const m = Math.floor((Date.now() - new Date(iso)) / 60000)
+  if (m < 1)    return 'Baru saja'
+  if (m < 60)   return `${m} mnt lalu`
+  if (m < 1440) return `${Math.floor(m/60)} jam lalu`
+  return `${Math.floor(m/1440)} hari lalu`
+}
+
+function RecentActivity({ userId }) {
+  const [activities, setActivities] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!userId) return
+    
+    async function fetchActivities() {
+      try {
+        const [subRes, progressRes, examRes] = await Promise.all([
+          supabase
+            .from('submissions')
+            .select(`
+              id, status, submitted_at, updated_at, grade,
+              assignment:assignments(title, course:courses(name, code))
+            `)
+            .eq('student_id', userId)
+            .order('updated_at', { ascending: false })
+            .limit(5),
+          supabase
+            .from('course_progress')
+            .select(`
+              id, completed_at,
+              material:materials(title),
+              course:courses(name, code)
+            `)
+            .eq('student_id', userId)
+            .order('completed_at', { ascending: false })
+            .limit(5),
+          supabase
+            .from('exam_answers')
+            .select(`
+              id, score, started_at, submitted_at, attempt_number,
+              exam:exams(title, exam_mode, passing_grade, course:courses(name, code))
+            `)
+            .eq('student_id', userId)
+            .not('submitted_at', 'is', null)
+            .order('submitted_at', { ascending: false })
+            .limit(5)
+        ])
+
+        const list = []
+
+        if (subRes.data) {
+          subRes.data.forEach(s => {
+            list.push({
+              id: `sub_${s.id}`,
+              type: 'assignment',
+              title: s.assignment?.title,
+              courseCode: s.assignment?.course?.code,
+              courseName: s.assignment?.course?.name,
+              time: s.submitted_at || s.updated_at,
+              status: s.status,
+              grade: s.grade
+            })
+          })
+        }
+
+        if (progressRes.data) {
+          progressRes.data.forEach(p => {
+            list.push({
+              id: `progress_${p.id}`,
+              type: 'material',
+              title: p.material?.title,
+              courseCode: p.course?.code,
+              courseName: p.course?.name,
+              time: p.completed_at,
+            })
+          })
+        }
+
+        if (examRes.data) {
+          examRes.data.forEach(e => {
+            list.push({
+              id: `exam_${e.id}`,
+              type: 'exam',
+              title: e.exam?.title,
+              courseCode: e.exam?.course?.code,
+              courseName: e.exam?.course?.name,
+              time: e.submitted_at,
+              score: e.score,
+              passingGrade: e.exam?.passing_grade || 70,
+            })
+          })
+        }
+
+        const sorted = list
+          .filter(a => a.time)
+          .sort((a, b) => new Date(b.time) - new Date(a.time))
+          .slice(0, 5)
+
+        setActivities(sorted)
+      } catch (err) {
+        console.error('[SYSTRACT] Error fetching recent activities:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchActivities()
+  }, [userId])
+
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {[1, 2, 3].map(i => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--gray-100)', animation: 'pulse 1.5s ease infinite', flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ height: 12, background: 'var(--gray-100)', borderRadius: 4, width: '60%', marginBottom: 6, animation: 'pulse 1.5s ease infinite' }} />
+            <div style={{ height: 10, background: 'var(--gray-100)', borderRadius: 4, width: '40%', animation: 'pulse 1.5s ease infinite' }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
+  if (activities.length === 0) return (
+    <div className="empty-state" style={{ padding: 24 }}>
+      <Activity size={24} color="var(--gray-200)" />
+      <p className="empty-state-text">Belum ada aktivitas belajar</p>
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {activities.map((a, i) => {
+        // Icon logic
+        let icon = <BookOpen size={15} color="var(--indigo-600)" />
+        let iconBg = 'var(--indigo-50)'
+        let activityLabel = ''
+        
+        if (a.type === 'assignment') {
+          const isGraded = a.status === 'graded'
+          icon = isGraded 
+            ? <CheckCircle2 size={15} color="var(--success)" />
+            : <FileText size={15} color="var(--warning)" />
+          iconBg = isGraded ? '#ecfdf5' : '#fffbeb'
+          activityLabel = isGraded ? 'Tugas Dinilai' : 'Mengirim Tugas'
+        } else if (a.type === 'material') {
+          icon = <BookOpen size={15} color="#0ea5e9" />
+          iconBg = '#f0f9ff'
+          activityLabel = 'Membaca Materi'
+        } else if (a.type === 'exam') {
+          const isPassed = a.score !== null && a.score !== undefined && Number(a.score) >= a.passingGrade
+          icon = isPassed
+            ? <CheckCircle2 size={15} color="var(--success)" />
+            : <X size={15} color="var(--danger)" />
+          iconBg = isPassed ? '#ecfdf5' : '#fef2f2'
+          activityLabel = isPassed ? 'Lulus Ujian' : 'Selesai Ujian'
+        }
+
+        return (
+          <div key={a.id} style={{
+            display: 'flex', alignItems: 'center', gap: 14,
+            padding: '11px 0',
+            borderBottom: i < activities.length - 1 ? '1px solid var(--gray-100)' : 'none'
+          }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: iconBg, display: 'flex', alignItems: 'center', justifycontent: 'center', flexShrink: 0 }}>
+              {icon}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--gray-800)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {a.title}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 2 }}>
+                {activityLabel} · {a.courseCode}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontSize: 10, color: 'var(--gray-400)' }}>
+                {timeAgo(a.time)}
+              </div>
+              {a.type === 'assignment' && a.grade !== null && (
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', marginTop: 2 }}>
+                  Nilai: {a.grade}
+                </div>
+              )}
+              {a.type === 'exam' && a.score !== null && (
+                <div style={{ fontSize: 11, fontWeight: 700, color: Number(a.score) >= a.passingGrade ? 'var(--success)' : 'var(--danger)', marginTop: 2 }}>
+                  Skor: {a.score}
+                </div>
+              )}
             </div>
           </div>
         )
