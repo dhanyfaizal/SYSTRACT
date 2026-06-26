@@ -155,6 +155,8 @@ export default function CourseDetail() {
   const [completedRefs, setCompletedRefs] = useState(new Set()) // 'mat_{id}_{idx}'
   const [submissionsMap, setSubmissionsMap] = useState({}) // { assignment_id: submission }
   const [examAnswersMap, setExamAnswersMap] = useState({}) // { exam_id: score }
+  const [courseAssignments, setCourseAssignments] = useState([])
+  const [activeTugas, setActiveTugas] = useState(null)
   
   const [subTab, setSubTab] = useState('belajar') // 'belajar' | 'diskusi'
   const [loading, setLoading] = useState(true)
@@ -312,6 +314,10 @@ export default function CourseDetail() {
         .select('*')
         .eq('course_id', courseId)
         .order('due_date')
+      setCourseAssignments(assigns || [])
+      if (assigns && assigns.length > 0) {
+        setActiveTugas(assigns[0])
+      }
 
       // 4. Fetch exams
       const { data: exams } = await supabase
@@ -410,7 +416,6 @@ export default function CourseDetail() {
       const syllabus = []
       const weeks = new Set([
         ...(mats || []).map(m => m.week_number || 0),
-        ...(assigns || []).map(a => 1), // assume week 1 fallback if not specified
         ...(exams || []).map(e => {
           if (e.type === 'uts') return 8
           if (e.type === 'uas') return 16
@@ -422,7 +427,6 @@ export default function CourseDetail() {
       
       sortedWeeks.forEach(w => {
         const weekMaterials = (mats || []).filter(m => (m.week_number || 0) === w)
-        const weekAssignments = w === 1 ? (assigns || []) : []
         const weekExams = (exams || []).filter(e => {
           if (e.type === 'uts') return w === 8
           if (e.type === 'uas') return w === 16
@@ -452,20 +456,6 @@ export default function CourseDetail() {
           })
         })
 
-        // Add assignments for this week (or fallback to week 1)
-        if (w === 1) {
-          assigns?.forEach(a => {
-            syllabus.push({
-              id: `assign_${a.id}`,
-              week: w,
-              type: 'tugas',
-              label: `Tugas: ${a.title}`,
-              icon: '📝',
-              data: a
-            })
-          })
-        }
-
         // Add exams for this week
         weekExams?.forEach(e => {
           syllabus.push({
@@ -485,7 +475,6 @@ export default function CourseDetail() {
       if (syllabus.length > 0) {
         let firstUncompleted = syllabus.find(item => {
           if (item.type === 'materi') return !localDone.has(`mat_${item.data.id}_${item.subIdx}`)
-          if (item.type === 'tugas') return !sMap[item.data.id]
           if (item.type === 'ujian') return !eMap[item.data.id]
           return false
         })
@@ -694,12 +683,12 @@ export default function CourseDetail() {
   const totalSteps = syllabusItems.length
   const completedSteps = syllabusItems.filter(item => {
     if (item.type === 'materi') return completedRefs.has(`mat_${item.data.id}_${item.subIdx}`)
-    if (item.type === 'tugas') return !!submissionsMap[item.data.id]
     if (item.type === 'ujian') return (examAnswersMap[item.data.id] || 0) >= (item.data.passing_grade ?? 70)
     return false
   }).length
   const overallPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0
-  const isAllDone = totalSteps > 0 && completedSteps === totalSteps
+  const allAssignmentsSubmitted = courseAssignments.length === 0 || courseAssignments.every(a => !!submissionsMap[a.id])
+  const isAllDone = totalSteps > 0 && completedSteps === totalSteps && allAssignmentsSubmitted
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}><div className="spinner" /></div>
   if (!course) return <div className="empty-state"><p>Kursus tidak ditemukan.</p></div>
@@ -1039,6 +1028,18 @@ export default function CourseDetail() {
             <BookMarked size={13} style={{ marginRight: 4, display: 'inline' }} /> Ruang Kelas
           </button>
           <button
+            onClick={() => setSubTab('tugas')}
+            style={{
+              padding: '6px 14px', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              background: subTab === 'tugas' ? '#fff' : 'transparent',
+              color: subTab === 'tugas' ? 'var(--indigo-600)' : 'var(--gray-500)',
+              boxShadow: subTab === 'tugas' ? 'var(--shadow-xs)' : 'none',
+              transition: 'all .2s'
+            }}
+          >
+            <ClipboardList size={13} style={{ marginRight: 4, display: 'inline' }} /> Tugas ({courseAssignments.length})
+          </button>
+          <button
             onClick={() => setSubTab('diskusi')}
             style={{
               padding: '6px 14px', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
@@ -1054,7 +1055,7 @@ export default function CourseDetail() {
       </div>
 
       {/* Main Body */}
-      {subTab === 'belajar' ? (
+      {subTab === 'belajar' && (
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden', marginTop: 14 }}>
           {/* LEFT: Sidebar Syllabus */}
           <div style={{ width: 280, borderRight: '1px solid var(--gray-200)', display: 'flex', flexDirection: 'column', paddingRight: 16, overflowY: 'auto' }}>
@@ -1616,8 +1617,149 @@ export default function CourseDetail() {
         )}
       </div>
     </div>
-      ) : (
-        /* DISCUSSION FORUM BODY */
+      )}
+
+      {/* TUGAS / ASSIGNMENT TAB BODY */}
+      {subTab === 'tugas' && (
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', marginTop: 14 }}>
+          {/* LEFT: Sidebar Tugas */}
+          <div style={{ width: 280, borderRight: '1px solid var(--gray-200)', display: 'flex', flexDirection: 'column', paddingRight: 16, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', marginBottom: 4, letterSpacing: '.4px' }}>
+                Daftar Tugas
+              </div>
+              {courseAssignments.length === 0 ? (
+                <div style={{ padding: 12, textAlign: 'center', background: '#f8fafc', borderRadius: 8, fontSize: 11, color: 'var(--gray-400)' }}>
+                  Belum ada tugas untuk mata kuliah ini.
+                </div>
+              ) : (
+                courseAssignments.map((a, idx) => {
+                  const sub = submissionsMap[a.id]
+                  const isDone = !!sub
+                  const isActive = activeTugas?.id === a.id
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => setActiveTugas(a)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: 'none', borderRadius: 8, 
+                        cursor: 'pointer', textAlign: 'left',
+                        background: isActive ? 'var(--indigo-50)' : 'transparent',
+                        color: isActive ? 'var(--indigo-700)' : 'var(--gray-600)',
+                        fontWeight: isActive ? 700 : 500,
+                        fontSize: 11, transition: 'all .15s',
+                      }}
+                    >
+                      {isDone ? (
+                        <CheckCircle2 size={13} color="var(--success)" fill="#d1fae5" style={{ flexShrink: 0 }} />
+                      ) : (
+                        <span style={{ fontSize: 13, flexShrink: 0, width: 14, height: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: 'var(--gray-400)' }}>
+                          •
+                        </span>
+                      )}
+                      <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {a.title}
+                      </span>
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT: Content Pane for Selected Tugas */}
+          <div style={{ flex: 1, paddingLeft: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            {activeTugas ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div className="card">
+                  <div className="card-header">
+                    <strong style={{ fontSize: 14 }}>{activeTugas.title}</strong>
+                    {submissionsMap[activeTugas.id] ? (
+                      <span className={`badge-pill ${submissionsMap[activeTugas.id].status === 'graded' ? 'badge-green' : 'badge-indigo'}`}>
+                        {submissionsMap[activeTugas.id].status === 'graded' ? '✓ Sudah Dinilai' : '📨 Dikumpulkan'}
+                      </span>
+                    ) : (
+                      <span className="badge-pill badge-amber">Belum Dikumpulkan</span>
+                    )}
+                  </div>
+                  <div className="card-body">
+                    {activeTugas.description && (
+                      <p style={{ fontSize: 13, color: 'var(--gray-600)', lineHeight: 1.6, marginBottom: 16 }}>
+                        {activeTugas.description}
+                      </p>
+                    )}
+                    
+                    <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--gray-400)', borderTop: '1px solid var(--gray-100)', paddingTop: 12 }}>
+                      <span>📅 Batas Waktu: {activeTugas.due_date ? new Date(activeTugas.due_date).toLocaleString('id-ID') : 'Tidak ada'}</span>
+                      <span>Nilai Maksimum: {activeTugas.max_score}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submission Form */}
+                {submissionsMap[activeTugas.id]?.status === 'graded' ? (
+                  <div style={{ background: 'linear-gradient(135deg,#eef2ff,#f0fdf4)', border: '1px solid #c7d2fe', borderRadius: 10, padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <CheckCircle2 size={20} color="#16a34a" />
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-800)' }}>
+                        Nilai Kompetensi: <span style={{ fontSize: 22, color: 'var(--indigo-700)' }}>{submissionsMap[activeTugas.id].grade}</span>
+                        <span style={{ fontSize: 13, color: 'var(--gray-400)' }}> / {activeTugas.max_score}</span>
+                      </div>
+                    </div>
+                    {submissionsMap[activeTugas.id].feedback && (
+                      <div style={{ fontSize: 12, color: 'var(--gray-700)', background: '#fff', borderRadius: 8, padding: 10, border: '1px solid var(--gray-200)' }}>
+                        <strong>Catatan Instruktur:</strong> {submissionsMap[activeTugas.id].feedback}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="card" style={{ padding: 20 }}>
+                    <strong style={{ fontSize: 13, display: 'block', marginBottom: 12 }}>Kumpulkan Tugas Kompetensi Anda:</strong>
+                    
+                    <div className="input-group">
+                      <label className="input-label">Link Hasil Pekerjaan (Google Drive / GitHub / URL) *</label>
+                      <input
+                        className="input"
+                        placeholder="https://github.com/username/project"
+                        value={linkUrl}
+                        onChange={e => setLinkUrl(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="input-group" style={{ marginTop: 10 }}>
+                      <label className="input-label">Nama File / Label Konten (opsional)</label>
+                      <input
+                        className="input"
+                        placeholder="Contoh: Kode Aplikasi React SYSTRACT"
+                        value={linkName}
+                        onChange={e => setLinkName(e.target.value)}
+                      />
+                    </div>
+
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={submittingTugas || !linkUrl.trim()}
+                      onClick={() => handleTugasSubmit(activeTugas.id)}
+                      style={{ marginTop: 12 }}
+                    >
+                      {submittingTugas ? <Loader2 size={13} className="spinner" /> : <Send size={13} />}
+                      {submissionsMap[activeTugas.id] ? 'Perbarui Pengumpulan' : 'Kumpulkan Tugas'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--gray-400)', padding: 40 }}>
+                <ClipboardList size={48} style={{ marginBottom: 12, opacity: 0.5 }} />
+                <div style={{ fontSize: 14, fontWeight: 600 }}>Pilih tugas dari daftar untuk melihat detail dan mengirimkan hasil pekerjaan Anda.</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* DISCUSSION FORUM BODY */}
+      {subTab === 'diskusi' && (
         <div style={{ display: 'flex', gap: 20, flex: 1, overflow: 'hidden', marginTop: 14 }}>
           {/* Discussion List */}
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
