@@ -166,7 +166,7 @@ export default function CourseDetail() {
     return mod.items.every(item => {
       if (item.type === 'materi') return completedRefs.has(`mat_${item.data.id}_${item.subIdx}`)
       if (item.type === 'tugas') return !!submissionsMap[item.data.id]
-      if (item.type === 'ujian') return (examAnswersMap[item.data.id] || 0) >= 70
+      if (item.type === 'ujian') return (examAnswersMap[item.data.id] || 0) >= (item.data.passing_grade ?? 70)
       return false
     })
   }
