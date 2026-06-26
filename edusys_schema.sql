@@ -170,6 +170,8 @@ CREATE TABLE IF NOT EXISTS exams (
   is_published     BOOLEAN DEFAULT FALSE,
   use_question_bank BOOLEAN DEFAULT FALSE,
   question_config   JSONB   DEFAULT '{"mudah":0,"sedang":0,"sulit":0}',
+  exam_mode        TEXT DEFAULT 'ujian',
+  max_attempts     INTEGER DEFAULT 5,
   created_by       UUID REFERENCES profiles(id),
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
@@ -177,6 +179,8 @@ ALTER TABLE exams ENABLE ROW LEVEL SECURITY;
 -- v1.2 columns (safe on existing DB)
 ALTER TABLE exams ADD COLUMN IF NOT EXISTS use_question_bank BOOLEAN DEFAULT FALSE;
 ALTER TABLE exams ADD COLUMN IF NOT EXISTS question_config   JSONB   DEFAULT '{"mudah":0,"sedang":0,"sulit":0}';
+ALTER TABLE exams ADD COLUMN IF NOT EXISTS exam_mode TEXT DEFAULT 'ujian';
+ALTER TABLE exams ADD COLUMN IF NOT EXISTS max_attempts INTEGER DEFAULT 5;
 
 -- ============================================================
 -- TABLE: exam_answers
