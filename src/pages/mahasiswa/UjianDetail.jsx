@@ -270,7 +270,7 @@ export default function UjianDetail() {
   const questions  = (myAnswer?.questions_snapshot?.length ? myAnswer.questions_snapshot : exam.questions) || []
   const answered   = Object.keys(answers).length
   const typeLabel  = { uts:'Evaluasi', uas:'Evaluasi', kuis:'Kuis' }
-  const canRetry   = mode === 'quiz' || (mode === 'tryout' && doneCount < maxAtt)
+  const canRetry   = mode === 'quiz' || (mode === 'tryout' && doneCount < maxAtt) || (mode === 'ujian' && myAnswer?.score !== null && myAnswer?.score !== undefined && myAnswer.score < 70)
 
   /* ── Submitted view ─────────────────────────────────── */
   if (phase === 'submitted') {
@@ -304,18 +304,25 @@ export default function UjianDetail() {
             </div>
           )}
 
-          {/* Ujian mode: waiting for assessment */}
+          {/* Ujian/Evaluasi mode: display result status based on passing grade */}
           {mode === 'ujian' && (
             <div style={{ display:'flex', justifyContent:'center', marginBottom:20 }}>
-              <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#fff7ed', border:'1px solid #fed7aa', borderRadius:20, padding:'8px 18px' }}>
-                <div style={{ width:8, height:8, borderRadius:'50%', background:'#f97316', animation:'pulse 1.5s infinite' }}/>
-                <span style={{ fontSize:13, fontWeight:700, color:'#ea580c' }}>Menunggu Penilaian Dosen</span>
-              </div>
+              {finalScore !== null && finalScore < 70 ? (
+                <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#fef2f2', border:'1px solid #fca5a5', borderRadius:20, padding:'8px 18px' }}>
+                  <div style={{ width:8, height:8, borderRadius:'50%', background:'#ef4444' }}/>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#b91c1c' }}>Nilai kelulusan belum mencapai minimal passing grade (70)</span>
+                </div>
+              ) : (
+                <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:20, padding:'8px 18px' }}>
+                  <div style={{ width:8, height:8, borderRadius:'50%', background:'#22c55e' }}/>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#15803d' }}>Lulus Kompeten! 🎉</span>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Attempt history for tryout/quiz */}
-          {(mode === 'tryout' || mode === 'quiz') && submitted.length > 0 && (
+          {/* Attempt history for tryout/quiz/ujian */}
+          {(mode === 'tryout' || mode === 'quiz' || mode === 'ujian') && submitted.length > 0 && (
             <div style={{ marginBottom:20 }}>
               <div style={{ fontSize:12, fontWeight:700, color:'var(--gray-500)', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
                 <Trophy size={13} color="#f59e0b"/> Riwayat Percobaan
@@ -358,7 +365,7 @@ export default function UjianDetail() {
               <button className="btn btn-primary" style={{ width:'100%', justifyContent:'center' }}
                 onClick={() => { setPhase('preview') }}>
                 <RotateCcw size={14}/>
-                {mode === 'quiz' ? 'Mulai Lagi' : `Coba Lagi (${maxAtt - doneCount} tersisa)`}
+                {mode === 'quiz' ? 'Mulai Lagi' : mode === 'ujian' ? 'Ulang Evaluasi' : `Coba Lagi (${maxAtt - doneCount} tersisa)`}
               </button>
             )}
             <button className="btn btn-secondary" style={{ width:'100%', justifyContent:'center' }} onClick={() => navigate(-1)}>
