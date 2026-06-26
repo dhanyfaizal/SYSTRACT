@@ -190,11 +190,16 @@ CREATE TABLE IF NOT EXISTS exam_answers (
   started_at         TIMESTAMPTZ DEFAULT NOW(),
   submitted_at       TIMESTAMPTZ,
   questions_snapshot JSONB DEFAULT '[]',
-  UNIQUE (exam_id, student_id)
+  attempt_number     INTEGER DEFAULT 1,
+  UNIQUE (exam_id, student_id, attempt_number)
 );
 ALTER TABLE exam_answers ENABLE ROW LEVEL SECURITY;
--- v1.2 column (safe on existing DB)
+-- v1.2 columns (safe on existing DB)
 ALTER TABLE exam_answers ADD COLUMN IF NOT EXISTS questions_snapshot JSONB DEFAULT '[]';
+ALTER TABLE exam_answers ADD COLUMN IF NOT EXISTS attempt_number INTEGER DEFAULT 1;
+ALTER TABLE exam_answers DROP CONSTRAINT IF EXISTS exam_answers_exam_id_student_id_key;
+ALTER TABLE exam_answers DROP CONSTRAINT IF EXISTS exam_answers_exam_id_student_id_attempt_number_key;
+ALTER TABLE exam_answers ADD CONSTRAINT exam_answers_exam_id_student_id_attempt_number_key UNIQUE (exam_id, student_id, attempt_number);
 
 -- ============================================================
 -- TABLE: questions (Bank Soal — v1.2)
