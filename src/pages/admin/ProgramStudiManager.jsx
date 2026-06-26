@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, GraduationCap, Loader2, X, AlertTriangle } from 'lucide-react'
+import { Plus, Trash2, GraduationCap, Loader2, X, AlertTriangle, Edit2, Save } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
@@ -8,6 +8,7 @@ export default function ProgramStudiManager() {
   const [list,    setList]    = useState([])
   const [loading, setLoading] = useState(true)
   const [adding,  setAdding]  = useState(false)
+  const [editingItem, setEditingItem] = useState(null)
   const [form,    setForm]    = useState({ name: '', code: '' })
   const [saving,  setSaving]  = useState(false)
   const [deleting, setDeleting] = useState(null)  // id being deleted
@@ -37,6 +38,26 @@ export default function ProgramStudiManager() {
       toast.success('Program studi ditambahkan')
       setForm({ name: '', code: '' })
       setAdding(false)
+      fetchList()
+    }
+    setSaving(false)
+  }
+
+  async function handleEdit() {
+    if (!editingItem.name.trim()) { toast.error('Nama program studi wajib diisi'); return }
+    setSaving(true)
+    const { error } = await supabase
+      .from('program_studi')
+      .update({
+        name: editingItem.name.trim(),
+        code: editingItem.code.trim().toUpperCase() || null,
+      })
+      .eq('id', editingItem.id)
+    if (error) {
+      toast.error(error.message.includes('unique') ? 'Program studi sudah ada' : 'Gagal mengubah')
+    } else {
+      toast.success('Program studi diperbarui')
+      setEditingItem(null)
       fetchList()
     }
     setSaving(false)
@@ -132,7 +153,14 @@ export default function ProgramStudiManager() {
                       : <span style={{ fontSize: 12, color: 'var(--gray-300)' }}>–</span>
                     }
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
+                  <td style={{ padding: '12px 16px', display: 'flex', gap: 6 }}>
+                    <button
+                      className="btn btn-ghost btn-icon btn-sm"
+                      style={{ color: 'var(--indigo-600)' }}
+                      onClick={() => setEditingItem({ id: p.id, name: p.name, code: p.code || '' })}
+                    >
+                      <Edit2 size={13}/>
+                    </button>
                     <button
                       className="btn btn-ghost btn-icon btn-sm"
                       style={{ color: 'var(--danger)' }}
@@ -194,6 +222,54 @@ export default function ProgramStudiManager() {
               <button className="btn btn-primary btn-sm" onClick={handleAdd} disabled={saving}>
                 {saving ? <Loader2 size={13} style={{ animation: 'spin .7s linear infinite' }}/> : <Plus size={13}/>}
                 Tambahkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingItem && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setEditingItem(null)}>
+          <div className="modal" style={{ maxWidth: 440 }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <GraduationCap size={16} color="var(--indigo-600)"/>
+                <span className="modal-title">Edit Program Studi</span>
+              </div>
+              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setEditingItem(null)}><X size={14}/></button>
+            </div>
+            <div className="modal-body">
+              <div className="input-group">
+                <label className="input-label">Nama Program Studi *</label>
+                <input
+                  className="input"
+                  placeholder="cth: Sistem Informasi"
+                  value={editingItem.name}
+                  autoFocus
+                  onChange={e => setEditingItem(f => ({ ...f, name: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && handleEdit()}
+                />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Kode (opsional)</label>
+                <input
+                  className="input"
+                  placeholder="cth: SI"
+                  maxLength={10}
+                  value={editingItem.code}
+                  style={{ textTransform: 'uppercase' }}
+                  onChange={e => setEditingItem(f => ({ ...f, code: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && handleEdit()}
+                />
+                <span className="input-hint">Kode singkat program studi, maks 10 karakter</span>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary btn-sm" onClick={() => setEditingItem(null)}>Batal</button>
+              <button className="btn btn-primary btn-sm" onClick={handleEdit} disabled={saving}>
+                {saving ? <Loader2 size={13} style={{ animation: 'spin .7s linear infinite' }}/> : <Save size={13}/>}
+                Simpan
               </button>
             </div>
           </div>
