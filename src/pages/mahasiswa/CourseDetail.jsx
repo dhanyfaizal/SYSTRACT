@@ -348,10 +348,13 @@ export default function CourseDetail() {
       // Let's query points_log to rebuild the accurate list of completed refs
       const { data: pointsData } = await supabase
         .from('points_log')
-        .select('reason')
+        .select('reference_id, reason')
         .eq('user_id', user.id)
         .eq('course_id', courseId)
         .eq('source', 'materi')
+
+      const existingMatIds = new Set(progressData?.map(p => p.material_id) || [])
+      const missingMatIds = []
 
       pointsData?.forEach(p => {
         // reason is like: "Selesai lampiran 1 materi UUID"
@@ -361,7 +364,24 @@ export default function CourseDetail() {
           const matId = m[2]
           localDone.add(`mat_${matId}_${idx}`)
         }
+        if (p.reference_id && !existingMatIds.has(p.reference_id)) {
+          missingMatIds.push(p.reference_id)
+          existingMatIds.add(p.reference_id)
+        }
       })
+
+      // Sync missing progressData to heal database course_progress table
+      if (missingMatIds.length > 0) {
+        const syncRows = missingMatIds.map(mId => ({
+          student_id: user.id,
+          course_id: courseId,
+          material_id: mId
+        }))
+        supabase.from('course_progress').insert(syncRows).then(({ error }) => {
+          if (error) console.error('[SYSTRACT] Progress auto-heal error:', error)
+          else console.log('[SYSTRACT] Progress auto-heal synced', syncRows.length, 'rows')
+        })
+      }
 
       setCompletedRefs(localDone)
 
@@ -675,7 +695,7 @@ export default function CourseDetail() {
   const completedSteps = syllabusItems.filter(item => {
     if (item.type === 'materi') return completedRefs.has(`mat_${item.data.id}_${item.subIdx}`)
     if (item.type === 'tugas') return !!submissionsMap[item.data.id]
-    if (item.type === 'ujian') return (examAnswersMap[item.data.id] || 0) >= 70
+    if (item.type === 'ujian') return (examAnswersMap[item.data.id] || 0) >= (item.data.passing_grade ?? 70)
     return false
   }).length
   const overallPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0

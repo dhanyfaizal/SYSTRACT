@@ -83,6 +83,44 @@ export default function MahasiswaDashboard() {
           .eq('student_id', user.id)
           .in('course_id', courseIds)
 
+        // Fetch points_log for materials to sync any missing course_progress
+        const { data: pointsLogData } = await supabase
+          .from('points_log')
+          .select('course_id, reference_id')
+          .eq('user_id', user.id)
+          .eq('source', 'materi')
+          .in('course_id', courseIds)
+
+        const existingProgress = new Set(completedData?.map(cp => `${cp.course_id}_${cp.material_id}`) || [])
+        const missingRows = []
+        const uniqueKeys = new Set()
+
+        pointsLogData?.forEach(pl => {
+          if (pl.reference_id && pl.course_id) {
+            const key = `${pl.course_id}_${pl.reference_id}`
+            if (!existingProgress.has(key) && !uniqueKeys.has(key)) {
+              uniqueKeys.add(key)
+              missingRows.push({
+                student_id: user.id,
+                course_id: pl.course_id,
+                material_id: pl.reference_id
+              })
+            }
+          }
+        })
+
+        if (missingRows.length > 0) {
+          // Sync database course_progress table
+          await supabase.from('course_progress').insert(missingRows)
+          // Update completedData locally so it reflects on screen immediately
+          missingRows.forEach(row => {
+            completedData.push({
+              course_id: row.course_id,
+              material_id: row.material_id
+            })
+          })
+        }
+
         // Group totals
         const totalMap = {}
         const completedMap = {}
