@@ -70,6 +70,7 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
   // Parser konten slide dinamis berdasarkan layout yang ditentukan AI atau fallback manual
   function renderSlideBody(slide, slideIndex) {
     const layout = slide.layout || (slideIndex === 0 ? 'cover' : 'legacy');
+    const imgUrl = slide.image_url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80';
 
     // 1. LAYOUT: COVER (Slide Pembuka)
     if (layout === 'cover') {
@@ -77,24 +78,31 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
       const subtitle = slide.subtitle || courseName;
       const desc = slide.description || (slide.content && slide.content[0]) || 'Outline presentasi terstruktur pendukung perkuliahan berbasis Outcome-Based Education.';
       return `
-        <div class="cover-content">
-          <h2 class="animate-item animate-delay-1" style="color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 2.5px; font-weight: 700; margin-bottom: 12px; font-size: calc(18px * var(--fs-mult));">
-            Pertemuan ${meetingNo}
-          </h2>
-          <h1 class="animate-item animate-delay-1" style="line-height: 1.15; margin-bottom: 24px; font-weight: 800; font-size: calc(46px * var(--fs-mult)); color: #FFFFFF; text-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-            ${subtitle.toUpperCase()}<br>
-            <span style="color: var(--accent-cyan);">${coverTitle.toUpperCase()}</span>
-          </h1>
-          <p class="animate-item animate-delay-2" style="max-width: 850px; font-weight: 500; font-size: calc(20px * var(--fs-mult)); color: #D8E7FF; line-height: 1.6; margin-bottom: 24px;">
-            ${desc}
-          </p>
-          <div class="animate-item animate-delay-3" style="display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap;">
-            <span class="badge-tag">Rencana Pembelajaran Semester</span>
-            <span class="badge-tag">Pertemuan ${meetingNo}</span>
-            <span class="badge-tag" style="background: rgba(255,255,255,0.15); color: #fff;">${prodiName}</span>
+        <div class="slide-layout-cover-grid animate-item">
+          <div class="slide-content-col" style="justify-content: center;">
+            <h2 class="animate-item animate-delay-1" style="color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 2.5px; font-weight: 700; margin-bottom: 12px; font-size: calc(18px * var(--fs-mult));">
+              Pertemuan ${meetingNo}
+            </h2>
+            <h1 class="animate-item animate-delay-1" style="line-height: 1.15; margin-bottom: 24px; font-weight: 800; font-size: calc(42px * var(--fs-mult)); color: #FFFFFF; text-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+              ${subtitle.toUpperCase()}<br>
+              <span style="color: var(--accent-cyan);">${coverTitle.toUpperCase()}</span>
+            </h1>
+            <p class="animate-item animate-delay-2" style="max-width: 850px; font-weight: 500; font-size: calc(18px * var(--fs-mult)); color: #D8E7FF; line-height: 1.6; margin-bottom: 24px;">
+              ${desc}
+            </p>
+            <div class="animate-item animate-delay-3" style="display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap;">
+              <span class="badge-tag">Rencana Pembelajaran Semester</span>
+              <span class="badge-tag">Pertemuan ${meetingNo}</span>
+              <span class="badge-tag" style="background: rgba(255,255,255,0.15); color: #fff;">${prodiName}</span>
+            </div>
+            <div class="animate-item animate-delay-3" style="margin-top: 30px; font-size: calc(12px * var(--fs-mult)); color: rgba(255,255,255,0.4); font-weight: 600;">
+              Powered by WebSlide — <a href="https://getwebslide.com" target="_blank" style="color: rgba(255,255,255,0.6); text-decoration: none; border-bottom: 1px dotted rgba(255,255,255,0.4);">getwebslide.com</a>
+            </div>
           </div>
-          <div class="animate-item animate-delay-3" style="margin-top: 40px; font-size: calc(12px * var(--fs-mult)); color: rgba(255,255,255,0.4); font-weight: 600;">
-            Powered by WebSlide — <a href="https://getwebslide.com" target="_blank" style="color: rgba(255,255,255,0.6); text-decoration: none; border-bottom: 1px dotted rgba(255,255,255,0.4);">getwebslide.com</a>
+          <div class="slide-image-col">
+            <div class="webslide-image-wrapper">
+              <img src="${imgUrl}" alt="Cover Illustration" class="webslide-image" />
+            </div>
           </div>
         </div>
       `;
@@ -117,61 +125,57 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
       `;
     }
 
-    // 2. LAYOUT: SPLIT (2 Kolom Kiri-Kanan)
+    let innerHtml = '';
+
+    // 2. LAYOUT: SPLIT (Stacked vertically when image is on the right)
     if (layout === 'split') {
       const left = slide.split_left || { heading: 'Konteks Utama', description: '' };
       const rightPoints = slide.split_right || [];
-
-      return `
-        <div class="split animate-item">
-          <div class="col" style="justify-content: center;">
-            <div class="accent-card accent-blue" style="padding: 30px;">
-              <h3 style="font-size: calc(22px * var(--fs-mult)); margin-bottom: 14px; font-weight: 800; color: var(--accent-cyan); font-family: 'Urbanist', sans-serif;">
-                ${left.heading}
-              </h3>
-              <p class="body" style="font-size: calc(15px * var(--fs-mult)); color: var(--text-main); line-height: 1.6;">
-                ${left.description}
-              </p>
-            </div>
+      innerHtml = `
+        <div class="webslide-split-stacked animate-item">
+          <div class="accent-card accent-blue" style="padding: 24px;">
+            <h3 style="font-size: calc(20px * var(--fs-mult)); margin-bottom: 10px; font-weight: 800; color: var(--accent-cyan); font-family: 'Urbanist', sans-serif;">
+              ${left.heading}
+            </h3>
+            <p class="body" style="font-size: calc(14.5px * var(--fs-mult)); color: var(--text-main); line-height: 1.55;">
+              ${left.description}
+            </p>
           </div>
-          <div class="col" style="justify-content: center; gap: 14px;">
+          <div class="webslide-split-right-points" style="margin-top: 10px;">
             ${rightPoints.map((pt, idx) => `
-              <div style="display: flex; gap: 12px; align-items: flex-start;" class="animate-item animate-delay-${idx + 1}">
+              <div style="display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px;" class="animate-item animate-delay-${idx + 1}">
                 <div class="chk chk-green"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1 4.5l2.5 2.5L8 1.5" stroke="var(--accent-cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-                <p class="body" style="font-size: calc(15px * var(--fs-mult)); color: var(--text-dim); line-height: 1.5;">${pt}</p>
+                <p class="body" style="font-size: calc(14.5px * var(--fs-mult)); color: var(--text-dim); line-height: 1.5; margin: 0;">${pt}</p>
               </div>
             `).join('')}
           </div>
         </div>
       `;
     }
-
-    // 3. LAYOUT: GRID (Kartu Tile Berbaris)
-    if (layout === 'grid') {
+    // 3. LAYOUT: GRID
+    else if (layout === 'grid') {
       const items = slide.grid_items || [];
-      const gridClass = items.length === 2 ? 'grid-2-col' : items.length === 3 ? 'grid-3-col' : 'grid-2x2';
-
-      return `
+      const gridClass = items.length === 2 ? 'grid-2-col' : 'grid-2x2';
+      innerHtml = `
         <div class="${gridClass} animate-item">
           ${items.map((item, idx) => `
-            <div class="tile animate-item animate-delay-${idx + 1}">
-              <i class="${item.icon || 'fa-solid fa-lightbulb'}"></i>
-              <h3>${item.title}</h3>
-              <p>${item.desc}</p>
+            <div class="tile animate-item animate-delay-${idx + 1}" style="padding: 20px; min-height: 120px; gap: 8px;">
+              <i class="${item.icon || 'fa-solid fa-lightbulb'}" style="font-size: 24px;"></i>
+              <h3 style="font-size: calc(16px * var(--fs-mult));">${item.title}</h3>
+              <p style="font-size: calc(13px * var(--fs-mult));">${item.desc}</p>
             </div>
           `).join('')}
         </div>
       `;
     }
-
-    // 4. LAYOUT: LIST (Daftar Kartu Aksen Vertikal)
-    if (layout === 'list') {
+    // 4. LAYOUT: LIST
+    else if (layout === 'list') {
       const items = slide.list_items || [];
-      return `
+      innerHtml = `
         <div class="content-list animate-item">
           ${items.map((item, idx) => `
-            <div class="accent-card accent-${item.color || 'blue'} animate-item animate-delay-${idx + 1}">
-              <p class="body" style="font-size: calc(15px * var(--fs-mult)); color: var(--text-dim); line-height: 1.55;">
+            <div class="accent-card accent-${item.color || 'blue'} animate-item animate-delay-${idx + 1}" style="padding: 16px 20px;">
+              <p class="body" style="font-size: calc(14.5px * var(--fs-mult)); color: var(--text-dim); line-height: 1.5;">
                 ${item.text}
               </p>
             </div>
@@ -179,11 +183,10 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
         </div>
       `;
     }
-
-    // 5. LAYOUT: TABLE (Tabel Perbandingan Konsep)
-    if (layout === 'table') {
+    // 5. LAYOUT: TABLE
+    else if (layout === 'table') {
       const table = slide.table_data || { headers: [], rows: [] };
-      return `
+      innerHtml = `
         <div class="table-wrapper animate-item">
           <table>
             <thead>
@@ -202,22 +205,21 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
         </div>
       `;
     }
-
-    // 6. LAYOUT: ACCORDION (Tanya Jawab & Diskusi Kelas Interaktif)
-    if (layout === 'accordion') {
+    // 6. LAYOUT: ACCORDION
+    else if (layout === 'accordion') {
       const items = slide.accordion_items || [];
-      return `
+      innerHtml = `
         <div class="accordion-container animate-item">
-          <p style="font-size: calc(15px * var(--fs-mult)); color: var(--text-dim); margin-bottom: 18px; font-weight: 500;" class="animate-item">
-            Klik pada setiap pertanyaan di bawah untuk membuka poin diskusi dan memancing argumen aktif di dalam kelas:
+          <p style="font-size: calc(14.8px * var(--fs-mult)); color: var(--text-dim); margin-bottom: 12px; font-weight: 500;" class="animate-item">
+            Klik pada setiap pertanyaan di bawah untuk membuka poin diskusi:
           </p>
           ${items.map((item, idx) => `
             <details class="accordion-item animate-item animate-delay-${idx + 1}">
-              <summary class="accordion-header">
+              <summary class="accordion-header" style="padding: 14px 20px; font-size: calc(15px * var(--fs-mult));">
                 <span>${item.header}</span>
                 <i class="fa-solid fa-chevron-down"></i>
               </summary>
-              <div class="accordion-content">
+              <div class="accordion-content" style="padding: 0 20px 16px 20px; font-size: calc(14px * var(--fs-mult));">
                 <p>${item.content}</p>
               </div>
             </details>
@@ -225,57 +227,35 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
         </div>
       `;
     }
-
-    // 7. BACKWARD COMPATIBILITY / FALLBACK (Format Lama / Legacy)
-    const points = slide.content || [];
-    if (points.length === 0) return '';
-
-    if (points.length === 2) {
-      return `
-        <div class="grid-2-col">
+    // 7. BACKWARD COMPATIBILITY / FALLBACK (Legacy)
+    else {
+      const points = slide.content || [];
+      if (points.length === 0) return '';
+      const isCompact = points.length > 4;
+      innerHtml = `
+        <div class="content-list ${isCompact ? 'compact' : ''} animate-item">
           ${points.map((pt, idx) => `
-            <div class="content-card animate-item animate-delay-${idx + 1}">
-              <div class="card-icon"><i class="fa-solid fa-arrow-right"></i></div>
-              <div class="card-text">${pt}</div>
-            </div>
-          `).join('')}
-        </div>
-      `;
-    } else if (points.length === 3) {
-      return `
-        <div class="grid-3-col">
-          ${points.map((pt, idx) => `
-            <div class="content-card animate-item animate-delay-${idx + 1}">
-              <div class="card-icon"><i class="fa-solid fa-bolt"></i></div>
-              <div class="card-text">${pt}</div>
-            </div>
-          `).join('')}
-        </div>
-      `;
-    } else if (points.length === 4) {
-      return `
-        <div class="grid-2x2">
-          ${points.map((pt, idx) => `
-            <div class="content-card animate-item animate-delay-${idx + 1}">
-              <div class="card-icon"><i class="fa-solid fa-circle-dot"></i></div>
-              <div class="card-text">${pt}</div>
-            </div>
-          `).join('')}
-        </div>
-      `;
-    } else {
-      const isCompact = points.length > 5;
-      return `
-        <div class="content-list ${isCompact ? 'compact' : ''}">
-          ${points.map((pt, idx) => `
-            <div class="content-item animate-item animate-delay-${idx + 1}">
+            <div class="content-item animate-item animate-delay-${idx + 1}" style="padding: 14px 20px; gap: 12px;">
               <div class="item-icon"><i class="fa-solid fa-square-check"></i></div>
-              <div class="item-text">${pt}</div>
+              <div class="item-text" style="font-size: calc(14.5px * var(--fs-mult));">${pt}</div>
             </div>
           `).join('')}
         </div>
       `;
     }
+
+    return `
+      <div class="slide-layout-grid animate-item">
+        <div class="slide-content-col">
+          ${innerHtml}
+        </div>
+        <div class="slide-image-col">
+          <div class="webslide-image-wrapper">
+            <img src="${imgUrl}" alt="Slide Reference" class="webslide-image" />
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   // Bangun elemen HTML slide
@@ -522,6 +502,72 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
             color: rgba(216, 231, 255, 0.5) !important;
         }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ── Image & Column layouts ── */
+        .slide-layout-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 40px;
+            align-items: start;
+            width: 100%;
+            height: 100%;
+            flex-grow: 1;
+            min-height: 0;
+        }
+        .slide-layout-cover-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 40px;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            flex-grow: 1;
+            min-height: 0;
+        }
+        .slide-content-col {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 0;
+            justify-content: center;
+            height: 100%;
+        }
+        .slide-image-col {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            min-height: 0;
+        }
+        .webslide-image-wrapper {
+            width: 100%;
+            aspect-ratio: 1.6 / 1;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            background: #e2e8f0;
+            border: 1px solid rgba(209,213,219,1);
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
+        }
+        .webslide-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+        .webslide-image-wrapper:hover .webslide-image {
+            transform: scale(1.02);
+        }
+        .webslide-split-stacked {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .webslide-split-right-points {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
