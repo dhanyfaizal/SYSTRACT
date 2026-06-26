@@ -12,7 +12,7 @@ const EXAM_MODES = [
   { value:'quiz',    label:'Quiz',     desc:'Percobaan tak terbatas, auto-graded',    color:'#7c3aed' },
 ]
 
-const BLANK = { title: '', type: 'kuis', duration_minutes: 90, start_at: '', end_at: '', is_published: false, use_question_bank: false, question_config: [], exam_mode: 'ujian', max_attempts: 5 }
+const BLANK = { title: '', type: 'kuis', duration_minutes: 90, start_at: '', end_at: '', is_published: false, use_question_bank: false, question_config: [], exam_mode: 'ujian', max_attempts: 5, passing_grade: 70 }
 
 function fmt(iso) {
   if (!iso) return '—'
@@ -118,6 +118,7 @@ export default function DosenUjianManager() {
       question_config: Array.isArray(cfg) ? cfg : [],
       exam_mode:    e.exam_mode    || 'ujian',
       max_attempts: e.max_attempts || 5,
+      passing_grade: e.passing_grade || 70,
     })
     setEditing(e.id); setModal(true)
     fetchTopics(courseId)
@@ -338,6 +339,10 @@ export default function DosenUjianManager() {
                 <div className="input-group">
                   <label className="input-label">Durasi (menit)</label>
                   <input className="input" type="number" min={10} max={300} value={form.duration_minutes} onChange={e => setForm(f=>({...f,duration_minutes:+e.target.value}))}/>
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Passing Grade</label>
+                  <input className="input" type="number" min={0} max={100} value={form.passing_grade ?? 70} onChange={e => setForm(f=>({...f,passing_grade:+e.target.value}))}/>
                 </div>
                 <div className="input-group">
                   <label className="input-label">Waktu Mulai</label>

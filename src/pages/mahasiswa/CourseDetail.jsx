@@ -1435,7 +1435,7 @@ export default function CourseDetail() {
                 </div>
 
                 <p style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 20 }}>
-                  Ujian/Kuis ini merupakan evaluasi kompetensi mandiri. Anda harus lulus ujian ini dengan nilai minimal **70** untuk memenuhi kualifikasi sertifikat kompetensi.
+                  Ujian/Kuis ini merupakan evaluasi kompetensi mandiri. Anda harus lulus ujian ini dengan nilai minimal **{activeItem.data.passing_grade ?? 70}** untuk memenuhi kualifikasi sertifikat kompetensi.
                 </p>
 
                 <div style={{ display: 'flex', gap: 24, marginBottom: 24, borderTop: '1px solid var(--gray-100)', borderBottom: '1px solid var(--gray-100)', padding: '12px 0' }}>
@@ -1445,12 +1445,12 @@ export default function CourseDetail() {
                   </div>
                   <div>
                     <div style={{ fontSize: 10, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Passing Grade</div>
-                    <strong style={{ fontSize: 14, color: 'var(--success)' }}>70 / 100</strong>
+                    <strong style={{ fontSize: 14, color: 'var(--success)' }}>{activeItem.data.passing_grade ?? 70} / 100</strong>
                   </div>
                   <div>
                     <div style={{ fontSize: 10, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Status Kelulusan</div>
-                    <strong style={{ fontSize: 14, color: (examAnswersMap[activeItem.data.id] || 0) >= 70 ? 'var(--success)' : 'var(--danger)' }}>
-                      {(examAnswersMap[activeItem.data.id] || 0) >= 70 ? 'LULUS KOMPETEN' : 'BELUM LULUS'}
+                    <strong style={{ fontSize: 14, color: (examAnswersMap[activeItem.data.id] || 0) >= (activeItem.data.passing_grade ?? 70) ? 'var(--success)' : 'var(--danger)' }}>
+                      {(examAnswersMap[activeItem.data.id] || 0) >= (activeItem.data.passing_grade ?? 70) ? 'LULUS KOMPETEN' : 'BELUM LULUS'}
                     </strong>
                   </div>
                 </div>

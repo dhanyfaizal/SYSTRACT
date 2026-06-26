@@ -172,6 +172,7 @@ CREATE TABLE IF NOT EXISTS exams (
   question_config   JSONB   DEFAULT '{"mudah":0,"sedang":0,"sulit":0}',
   exam_mode        TEXT DEFAULT 'ujian',
   max_attempts     INTEGER DEFAULT 5,
+  passing_grade    INTEGER DEFAULT 70,
   created_by       UUID REFERENCES profiles(id),
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
@@ -181,6 +182,7 @@ ALTER TABLE exams ADD COLUMN IF NOT EXISTS use_question_bank BOOLEAN DEFAULT FAL
 ALTER TABLE exams ADD COLUMN IF NOT EXISTS question_config   JSONB   DEFAULT '{"mudah":0,"sedang":0,"sulit":0}';
 ALTER TABLE exams ADD COLUMN IF NOT EXISTS exam_mode TEXT DEFAULT 'ujian';
 ALTER TABLE exams ADD COLUMN IF NOT EXISTS max_attempts INTEGER DEFAULT 5;
+ALTER TABLE exams ADD COLUMN IF NOT EXISTS passing_grade INTEGER DEFAULT 70;
 
 -- ============================================================
 -- TABLE: exam_answers

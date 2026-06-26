@@ -270,7 +270,7 @@ export default function UjianDetail() {
   const questions  = (myAnswer?.questions_snapshot?.length ? myAnswer.questions_snapshot : exam.questions) || []
   const answered   = Object.keys(answers).length
   const typeLabel  = { uts:'Evaluasi', uas:'Evaluasi', kuis:'Kuis' }
-  const canRetry   = mode === 'quiz' || (mode === 'tryout' && doneCount < maxAtt) || (mode === 'ujian' && myAnswer?.score !== null && myAnswer?.score !== undefined && myAnswer.score < 70)
+  const canRetry   = mode === 'quiz' || (mode === 'tryout' && doneCount < maxAtt) || (mode === 'ujian' && myAnswer?.score !== null && myAnswer?.score !== undefined && myAnswer.score < (exam.passing_grade ?? 70))
 
   /* ── Submitted view ─────────────────────────────────── */
   if (phase === 'submitted') {
@@ -307,10 +307,10 @@ export default function UjianDetail() {
           {/* Ujian/Evaluasi mode: display result status based on passing grade */}
           {mode === 'ujian' && (
             <div style={{ display:'flex', justifyContent:'center', marginBottom:20 }}>
-              {finalScore !== null && finalScore < 70 ? (
+              {finalScore !== null && finalScore < (exam.passing_grade ?? 70) ? (
                 <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#fef2f2', border:'1px solid #fca5a5', borderRadius:20, padding:'8px 18px' }}>
                   <div style={{ width:8, height:8, borderRadius:'50%', background:'#ef4444' }}/>
-                  <span style={{ fontSize:13, fontWeight:700, color:'#b91c1c' }}>Nilai kelulusan belum mencapai minimal passing grade (70)</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#b91c1c' }}>Nilai kelulusan belum mencapai minimal passing grade ({exam.passing_grade ?? 70})</span>
                 </div>
               ) : (
                 <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:20, padding:'8px 18px' }}>
