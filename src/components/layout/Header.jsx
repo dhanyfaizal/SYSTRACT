@@ -2,14 +2,13 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Search, Bell, Settings, LogOut, User,
-  ChevronDown, KeyRound, Sparkles, PanelLeftOpen, PanelLeftClose,
+  ChevronDown, Sparkles, PanelLeftOpen, PanelLeftClose,
   Sun, Moon, CheckCheck, Megaphone, BookOpen, ClipboardList
 } from 'lucide-react'
 import { useAuth }    from '@/contexts/AuthContext'
 import { useAI }      from '@/contexts/AIContext'
 import { useTheme }   from '@/contexts/ThemeContext'
 import { useSidebar } from './AppLayout'
-import AISettingsModal from '@/components/ai/AISettingsModal'
 import GlobalSearch   from './GlobalSearch'
 import { supabase }   from '@/lib/supabase'
 
@@ -39,7 +38,6 @@ export default function Header() {
   const navigate                   = useNavigate()
 
   const [dropOpen,  setDropOpen]  = useState(false)
-  const [aiModal,   setAiModal]   = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifs,    setNotifs]    = useState([])
   const [notifLoading, setNotifLoading] = useState(false)
@@ -311,9 +309,6 @@ export default function Header() {
                 <button className="dropdown-item" onClick={() => { navigate('/profile'); setDropOpen(false) }}>
                   <User size={14} /> Profil Saya
                 </button>
-                <button className="dropdown-item" onClick={() => { setAiModal(true); setDropOpen(false) }}>
-                  <KeyRound size={14} /> Pengaturan AI Key
-                </button>
                 <button className="dropdown-item" onClick={() => { navigate('/settings'); setDropOpen(false) }}>
                   <Settings size={14} /> Pengaturan
                 </button>
@@ -329,8 +324,6 @@ export default function Header() {
         </div>
       </header>
 
-      {/* AI Settings Modal */}
-      {aiModal && <AISettingsModal onClose={() => setAiModal(false)} />}
     </>
   )
 }
