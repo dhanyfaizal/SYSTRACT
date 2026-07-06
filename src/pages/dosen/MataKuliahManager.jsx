@@ -1392,9 +1392,22 @@ export default function DosenMataKuliah() {
     const isDirectVideo = url.match(/\.(mp4|webm|ogg|mov)($|\?)/i)
 
     if (ytEmbed) {
+      let origin = ''
+      if (typeof window !== 'undefined') {
+        origin = window.location.origin
+        if (!origin || origin.startsWith('file:')) {
+          origin = 'https://systract.vercel.app'
+        }
+      } else {
+        origin = 'https://systract.vercel.app'
+      }
+      const originParam = origin ? `&origin=${encodeURIComponent(origin)}` : ''
+      const embedUrl = `${ytEmbed}?enablejsapi=1${originParam}`
+
       return (
         <iframe
-          src={ytEmbed}
+          src={embedUrl}
+          referrerPolicy="strict-origin-when-cross-origin"
           style={{ width: '100%', height: '100%', border: 'none' }}
         />
       )

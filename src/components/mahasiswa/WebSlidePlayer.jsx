@@ -189,9 +189,22 @@ export default function WebSlidePlayer({
     const isDirectVideo = url.match(/\.(mp4|webm|ogg|mov)($|\?)/i)
 
     if (ytEmbed) {
+      let origin = ''
+      if (typeof window !== 'undefined') {
+        origin = window.location.origin
+        if (!origin || origin.startsWith('file:')) {
+          origin = 'https://systract.vercel.app'
+        }
+      } else {
+        origin = 'https://systract.vercel.app'
+      }
+      const originParam = origin ? `&origin=${encodeURIComponent(origin)}` : ''
+      const embedUrl = `${ytEmbed}?enablejsapi=1${originParam}`
+
       return (
         <iframe
-          src={ytEmbed}
+          src={embedUrl}
+          referrerPolicy="strict-origin-when-cross-origin"
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen

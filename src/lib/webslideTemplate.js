@@ -90,7 +90,18 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
       const isDirectVideo = url.match(/\.(mp4|webm|ogg|mov)($|\?)/i);
 
       if (ytEmbed) {
-        return '<iframe src="' + ytEmbed + '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width: 100%; height: 100%; border: none; border-radius: 8px;"></iframe>';
+        let origin = '';
+        if (typeof window !== 'undefined') {
+          origin = window.location.origin;
+          if (!origin || origin.startsWith('file:')) {
+            origin = 'https://systract.vercel.app';
+          }
+        } else {
+          origin = 'https://systract.vercel.app';
+        }
+        const originParam = origin ? '&origin=' + encodeURIComponent(origin) : '';
+        const embedUrl = ytEmbed + '?enablejsapi=1' + originParam;
+        return '<iframe src="' + embedUrl + '" referrerpolicy="strict-origin-when-cross-origin" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width: 100%; height: 100%; border: none; border-radius: 8px;"></iframe>';
       }
 
       if (isDirectVideo) {

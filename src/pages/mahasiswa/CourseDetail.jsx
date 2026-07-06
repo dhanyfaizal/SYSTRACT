@@ -74,7 +74,18 @@ function getYouTubeId(url = '') {
 function getEmbedUrl(mime, url = '') {
   if (mime === 'video/youtube') {
     const id = getYouTubeId(url)
-    return id ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1` : null
+    if (!id) return null
+    let origin = ''
+    if (typeof window !== 'undefined') {
+      origin = window.location.origin
+      if (!origin || origin.startsWith('file:')) {
+        origin = 'https://systract.vercel.app'
+      }
+    } else {
+      origin = 'https://systract.vercel.app'
+    }
+    const originParam = origin ? `&origin=${encodeURIComponent(origin)}` : ''
+    return `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&enablejsapi=1${originParam}`
   }
   if (mime === 'application/vnd.google-apps.document') {
     const id = url.match(/\/file\/d\/([^/?\s]+)/)?.[1] || url.match(/[?&]id=([^&]+)/)?.[1]
@@ -1311,6 +1322,7 @@ export default function CourseDetail() {
                       <iframe
                         src={getEmbedUrl(activeItem.attach.mime, activeItem.attach.url)}
                         title={activeItem.label}
+                        referrerPolicy="strict-origin-when-cross-origin"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                         style={{ width: '100%', height: '100%', border: 'none' }}
                       />
