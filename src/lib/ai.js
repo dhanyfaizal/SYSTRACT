@@ -542,8 +542,7 @@ export async function generateWebSlideData(courseName, prodiName, meetingNo, out
     Berdasarkan data outline sederhana di atas, buatlah presentasi WebSlide/SPA lengkap yang memetakan SELURUH slide dari outline data yang diberikan (misalnya 30 sampai 45 slide sesuai jumlah slide di outline). Jangan kurangi atau potong jumlah slide dari outline data tersebut. Untuk setiap slide dari outline, analisis materinya secara mendalam dan tentukan tipe tata letak (layout) yang paling sesuai, variatif, dan profesional agar presentasi interaktif dan tidak monoton.
 
     ATURAN LAYOUT YANG HARUS DIPILIH:
-    - Setiap objek slide wajib menyertakan properti "image_url" yang bernilai URL gambar referensi asli, beresolusi tinggi, dan relevan dengan topik bahasan slide dari Unsplash atau Shutterstock (misalnya: gambar router/server untuk jaringan, editor kode untuk pemrograman, infografis teknologi, kolaborasi tim, diskusi, dsb.). Format URL harus valid dan nyata (contoh: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80").
-    - PENTING: Apabila objek slide di dalam data outline materi (JSON) sudah memiliki properti "image_url", Anda WAJIB menyalin dan menggunakan nilai "image_url" tersebut secara utuh tanpa mengubahnya. Gunakan gambar baru dari Unsplash hanya jika slide outline tidak memiliki "image_url".
+    - PENTING: Hanya sertakan properti "image_url" pada slide jika objek slide di dalam data outline materi (JSON) memiliki properti "image_url" (atau berisi tautan gambar/video tertentu). Apabila objek slide di dalam data outline materi tidak memiliki properti "image_url" (bernilai kosong atau null), Anda DILARANG keras membuat/mengarang "image_url" baru.
     - Setiap objek slide dapat memuat properti opsional "reference": "Nama Penulis & Tahun (contoh: Williams & Park, 2023)" apabila slide tersebut memuat kutipan/rujukan teoretis.
 
     1. "cover": Hanya untuk Slide 1 (Cover utama perkuliahan).
@@ -727,7 +726,7 @@ export async function generateSingleWebSlideData(courseName, prodiName, meetingN
            ]
          }
 
-    3. Jika objek slide di dalam data outline materi (JSON) memiliki properti "image_url", Anda WAJIB menyertakan dan menyalin nilai "image_url" tersebut di objek output tanpa mengubah nilainya.
+    3. Hanya sertakan properti "image_url" di objek output jika objek slide di dalam data outline materi (JSON) memiliki properti "image_url". Apabila objek slide di dalam data outline materi tidak memiliki properti "image_url" (kosong atau null), Anda DILARANG keras menambahkan atau mengarang properti "image_url" baru.
     4. Gunakan tag HTML <strong> untuk kata kunci penting dan <em> untuk istilah asing di dalam teks konten.
 
     Format output harus berupa JSON OBJECT murni dengan struktur salah satu layout di atas, jangan tambahkan penjelasan apapun di luar JSON.
