@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 
 const AuthContext = createContext(null)
@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [profile,      setProfile]      = useState(null)
   const [loading,      setLoading]      = useState(true)
   const [profileReady, setProfileReady] = useState(false)  // true setelah fetch profile pertama selesai
+  const currentUserRef = useRef(null)
 
   // Load profile in BACKGROUND — does not block the loading state
   async function fetchProfile(userId, authUser = null) {
@@ -60,16 +61,18 @@ export function AuthProvider({ children }) {
 
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
+        const initialUser = session?.user ?? null
+        currentUserRef.current = initialUser
         // 1. Set user state immediately
-        setUser(session?.user ?? null)
+        setUser(initialUser)
 
         // 2. Unblock the UI — don't wait for profile
         setLoading(false)
         clearTimeout(maxWait)
 
         // 3. Load profile in background
-        if (session?.user) {
-          fetchProfile(session.user.id, session.user)
+        if (initialUser) {
+          fetchProfile(initialUser.id, initialUser)
         } else {
           setProfileReady(true)  // Tidak ada user → tidak perlu load profile
         }
@@ -85,13 +88,26 @@ export function AuthProvider({ children }) {
       (event, session) => {
         if (event === 'INITIAL_SESSION') return // handled by getSession() above
 
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          setProfileReady(false)  // Reset: sedang load profile baru
-          fetchProfile(session.user.id, session.user) // background, no await
+        const nextUser = session?.user ?? null
+        const currentUser = currentUserRef.current
+        const isSameUser = currentUser?.id === nextUser?.id
+
+        currentUserRef.current = nextUser
+        setUser(nextUser)
+
+        if (!isSameUser) {
+          if (nextUser) {
+            setProfileReady(false)  // Reset: sedang load profile baru
+            fetchProfile(nextUser.id, nextUser) // background, no await
+          } else {
+            setProfile(null)
+            setProfileReady(true)
+          }
         } else {
-          setProfile(null)
-          setProfileReady(true)
+          // Jika user sama, reload/fetch profile di background tanpa mengubah profileReady menjadi false
+          if (nextUser) {
+            fetchProfile(nextUser.id, nextUser)
+          }
         }
       }
     )
@@ -104,6 +120,7 @@ export function AuthProvider({ children }) {
 
   async function signOut() {
     await supabase.auth.signOut()
+    currentUserRef.current = null
     setUser(null)
     setProfile(null)
     window.location.replace('/login')
