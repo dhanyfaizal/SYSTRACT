@@ -44,6 +44,7 @@ import ForumDetail      from '@/pages/shared/ForumDetail'
 import AcademicCalendar from '@/pages/shared/AcademicCalendar'
 import ProfilePage      from '@/pages/shared/ProfilePage'
 import NotFound         from '@/pages/NotFound'
+import WebSlidePreviewPage from '@/pages/dosen/WebSlidePreviewPage'
 
 // ── Protected Route ──────────────────────────────────────────
 function ProtectedRoute({ allowedRoles }) {
@@ -127,6 +128,7 @@ export default function AppRouter() {
 
         {/* All authenticated users */}
         <Route element={<ProtectedRoute />}>
+          <Route path="/webslide-preview"    element={<WebSlidePreviewPage />} />
           <Route element={<AppLayout />}>
             <Route path="/dashboard"          element={<SmartDashboard />} />
             <Route path="/profile"            element={<ProfilePage />} />

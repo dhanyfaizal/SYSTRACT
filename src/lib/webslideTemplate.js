@@ -70,7 +70,7 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
   // Parser konten slide dinamis berdasarkan layout yang ditentukan AI atau fallback manual
   function renderSlideBody(slide, slideIndex) {
     const layout = slide.layout || (slideIndex === 0 ? 'cover' : 'legacy');
-    const imgUrl = slide.image_url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80';
+    const imgUrl = slide.image_url || '';
 
     function renderHtmlMedia(url) {
       if (!url) {
@@ -105,8 +105,9 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
       const coverTitle = slide.title || title;
       const subtitle = slide.subtitle || courseName;
       const desc = slide.description || (slide.content && slide.content[0]) || 'Outline presentasi terstruktur pendukung perkuliahan berbasis Outcome-Based Education.';
+      const hasImage = !!slide.image_url;
       return `
-        <div class="slide-layout-cover-grid animate-item">
+        <div class="slide-layout-cover-grid ${hasImage ? '' : 'no-image'} animate-item">
           <div class="slide-content-col" style="justify-content: center;">
             <h2 class="animate-item animate-delay-1" style="color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 2.5px; font-weight: 700; margin-bottom: 12px; font-size: calc(18px * var(--fs-mult));">
               Pertemuan ${meetingNo}
@@ -127,11 +128,13 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
               Powered by WebSlide — <a href="https://getwebslide.com" target="_blank" style="color: rgba(255,255,255,0.6); text-decoration: none; border-bottom: 1px dotted rgba(255,255,255,0.4);">getwebslide.com</a>
             </div>
           </div>
+          ${hasImage ? `
           <div class="slide-image-col">
             <div class="webslide-image-wrapper">
               ${renderHtmlMedia(imgUrl)}
             </div>
           </div>
+          ` : ''}
         </div>
       `;
     }
@@ -272,16 +275,19 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
       `;
     }
 
+    const hasImage = !!slide.image_url;
     return `
-      <div class="slide-layout-grid animate-item">
+      <div class="slide-layout-grid ${hasImage ? '' : 'no-image'} animate-item">
         <div class="slide-content-col">
           ${innerHtml}
         </div>
+        ${hasImage ? `
         <div class="slide-image-col">
           <div class="webslide-image-wrapper">
             ${renderHtmlMedia(imgUrl)}
           </div>
         </div>
+        ` : ''}
       </div>
     `;
   }
@@ -582,9 +588,16 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
             height: 100%;
             object-fit: cover;
             transition: transform 0.4s ease;
+            cursor: zoom-in;
         }
         .webslide-image-wrapper:hover .webslide-image {
             transform: scale(1.02);
+        }
+        .slide-layout-grid.no-image {
+            grid-template-columns: 1fr;
+        }
+        .slide-layout-cover-grid.no-image {
+            grid-template-columns: 1fr;
         }
         .webslide-split-stacked {
             display: flex;
@@ -624,6 +637,12 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
     <div class="controls">
         <button class="nav-btn-bottom" id="prev-btn" title="Slide Sebelumnya"><i class="fa-solid fa-arrow-left"></i></button>
         <button class="nav-btn-bottom" id="next-btn" title="Slide Berikutnya"><i class="fa-solid fa-arrow-right"></i></button>
+    </div>
+
+    <!-- Lightbox Overlay -->
+    <div id="lightbox-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 10000; align-items: center; justify-content: center; cursor: zoom-out;">
+      <img id="lightbox-img" src="" alt="Lightbox View" style="max-width: 92%; max-height: 92%; object-fit: contain; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+      <button id="lightbox-close" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.25); border: none; border-radius: 50%; width: 44px; height: 44px; color: #fff; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
     </div>
 </div>
 
@@ -701,6 +720,26 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
             }
         }
     }, {passive: true});
+
+    // Lightbox image preview interaction
+    const lightboxOverlay = document.getElementById("lightbox-overlay");
+    const lightboxImg = document.getElementById("lightbox-img");
+    
+    document.querySelectorAll(".webslide-image").forEach(img => {
+        img.addEventListener("click", (e) => {
+            lightboxImg.src = e.target.src;
+            lightboxOverlay.style.display = "flex";
+        });
+    });
+    
+    lightboxOverlay.addEventListener("click", () => {
+        lightboxOverlay.style.display = "none";
+        lightboxImg.src = "";
+    });
+    document.getElementById("lightbox-close").addEventListener("click", () => {
+        lightboxOverlay.style.display = "none";
+        lightboxImg.src = "";
+    });
 
     goToSlide(0);
 

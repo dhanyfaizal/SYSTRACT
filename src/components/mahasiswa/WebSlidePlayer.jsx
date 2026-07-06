@@ -68,6 +68,7 @@ export default function WebSlidePlayer({
   
   // Make sure we have a thank you slide at the end if not exists
   const [slides, setSlides] = useState([])
+  const [lightboxUrl, setLightboxUrl] = useState(null)
   useEffect(() => {
     let list = [...rawSlides]
     if (list.length > 0) {
@@ -173,9 +174,7 @@ export default function WebSlidePlayer({
   }
 
   const renderMedia = (url) => {
-    if (!url) {
-      url = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80'
-    }
+    if (!url) return null
 
     const getYoutubeEmbedUrl = (link) => {
       let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
@@ -216,6 +215,8 @@ export default function WebSlidePlayer({
         src={url} 
         alt="Slide Reference" 
         className="netacad-image" 
+        style={{ cursor: 'zoom-in' }}
+        onClick={() => setLightboxUrl(url)}
         onError={(e) => {
           e.target.onerror = null
           e.target.src = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80'
@@ -579,7 +580,7 @@ export default function WebSlidePlayer({
 
                 {/* Section Body Layout */}
                 {layout === 'cover' ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '30px', alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: slide.image_url ? '1.2fr 0.8fr' : '1fr', gap: '30px', alignItems: 'center' }}>
                     <div>
                       <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#1e293b', marginBottom: '8px', lineHeight: 1.2 }}>
                         {parseHtmlText(slide.title || title)}
@@ -595,12 +596,14 @@ export default function WebSlidePlayer({
                         <span style={{ fontSize: '0.7rem', padding: '3px 8px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', color: '#64748b', fontWeight: 600 }}>Topik Ke-{meetingNo}</span>
                       </div>
                     </div>
-                    <div className="netacad-image-wrapper">
-                      {renderMedia(imgUrl)}
-                    </div>
+                    {slide.image_url && (
+                      <div className="netacad-image-wrapper">
+                        {renderMedia(slide.image_url)}
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 0.85fr', gap: '30px', alignItems: 'start' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: slide.image_url ? '1.15fr 0.85fr' : '1fr', gap: '30px', alignItems: 'start' }}>
                     {/* Content Column */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       {layout === 'split' && (
@@ -730,11 +733,13 @@ export default function WebSlidePlayer({
                     </div>
 
                     {/* Image Column */}
-                    <div>
-                      <div className="netacad-image-wrapper">
-                        {renderMedia(imgUrl)}
+                    {slide.image_url && (
+                      <div>
+                        <div className="netacad-image-wrapper">
+                          {renderMedia(slide.image_url)}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
               </section>
@@ -752,6 +757,53 @@ export default function WebSlidePlayer({
         >
           <ArrowUp size={16} />
         </button>
+      )}
+
+      {lightboxUrl && (
+        <div 
+          onClick={() => setLightboxUrl(null)}
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            cursor: 'zoom-out'
+          }}
+        >
+          <img 
+            src={lightboxUrl} 
+            alt="Fullscreen View" 
+            style={{ 
+              maxWidth: '90%', 
+              maxHeight: '90%', 
+              objectFit: 'contain',
+              borderRadius: 8,
+              boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+            }} 
+          />
+          <button 
+            onClick={() => setLightboxUrl(null)}
+            style={{
+              position: 'absolute',
+              top: 20, right: 20,
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              borderRadius: '50%',
+              width: 40, height: 40,
+              color: '#fff',
+              fontSize: 20,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   )

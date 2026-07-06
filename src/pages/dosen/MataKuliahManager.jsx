@@ -1485,10 +1485,13 @@ export default function DosenMataKuliah() {
   function handlePreviewWebSlide() {
     if (!webslideData) return
     const prodiName = profile?.program_studi || 'Teknik Informatika'
-    const htmlContent = generateWebSlideHtml(selectedCourse.name, prodiName, activeMeeting.week_number, webslideData)
-    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
-    const blobUrl = URL.createObjectURL(blob)
-    window.open(blobUrl, '_blank')
+    localStorage.setItem('webslide_preview_data', JSON.stringify({
+      courseName: selectedCourse.name,
+      prodiName,
+      weekNumber: activeMeeting.week_number,
+      webslideData
+    }))
+    window.open('/webslide-preview', '_blank')
   }
 
   function handleDownloadWebSlide() {
