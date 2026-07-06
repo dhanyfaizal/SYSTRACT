@@ -543,6 +543,7 @@ export async function generateWebSlideData(courseName, prodiName, meetingNo, out
 
     ATURAN LAYOUT YANG HARUS DIPILIH:
     - Setiap objek slide wajib menyertakan properti "image_url" yang bernilai URL gambar referensi asli, beresolusi tinggi, dan relevan dengan topik bahasan slide dari Unsplash atau Shutterstock (misalnya: gambar router/server untuk jaringan, editor kode untuk pemrograman, infografis teknologi, kolaborasi tim, diskusi, dsb.). Format URL harus valid dan nyata (contoh: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80").
+    - PENTING: Apabila objek slide di dalam data outline materi (JSON) sudah memiliki properti "image_url", Anda WAJIB menyalin dan menggunakan nilai "image_url" tersebut secara utuh tanpa mengubahnya. Gunakan gambar baru dari Unsplash hanya jika slide outline tidak memiliki "image_url".
     - Setiap objek slide dapat memuat properti opsional "reference": "Nama Penulis & Tahun (contoh: Williams & Park, 2023)" apabila slide tersebut memuat kutipan/rujukan teoretis.
 
     1. "cover": Hanya untuk Slide 1 (Cover utama perkuliahan).
@@ -635,6 +636,101 @@ export async function generateWebSlideData(courseName, prodiName, meetingNo, out
     - GLOSARIUM: Apabila sebuah slide memuat istilah asing, istilah ilmiah/teknis khusus yang mungkin tidak umum bagi mahasiswa (misalnya visual clutter, whitespace, grid system, hierarchy, dll.), wajib menyisipkan satu slide berikutnya yang secara khusus menjelaskan/mendefinisikan arti istilah tersebut menggunakan layout yang sesuai (seperti split, list, atau accordion).
     - FORMATTING: Gunakan tag HTML <strong> untuk mencetak tebal kata kunci atau poin-poin inti dari penjelasan agar memudahkan audiens menangkap poin penting dengan cepat. Gunakan tag HTML <em> untuk mencetak miring istilah asing, istilah teknis, atau istilah tidak umum.
     - Jangan berikan penjelasan tambahan apapun di luar JSON murni.
+  `;
+
+  return callAi(prompt, true, onProgress);
+}
+
+// 8.b. Generate Single WebSlide Layout (Regenerate layout per slide)
+export async function generateSingleWebSlideData(courseName, prodiName, meetingNo, slideNo, outlineSlide, onProgress = null) {
+  const prompt = `
+    Anda adalah pakar akademis dan desainer instruksional senior. Tugas Anda adalah menerjemahkan SATU slide outline materi perkuliahan menjadi satu objek tata letak (layout) WebSlide terstruktur dan interaktif dengan layout yang bervariasi:
+    Mata Kuliah: "${courseName}"
+    Program Studi: "${prodiName}"
+    Pertemuan Ke: ${meetingNo}
+    
+    Data Slide Outline yang ingin diterjemahkan (JSON):
+    ${JSON.stringify(outlineSlide)}
+
+    Tugas Anda:
+    1. Analisis materi slide outline di atas.
+    2. Pilih dan buatlah salah satu tipe tata letak (layout) yang paling sesuai dari pilihan berikut:
+       - "cover" (hanya jika ini slide ke-1):
+         {
+           "slide_no": ${slideNo},
+           "layout": "cover",
+           "title": "Judul Cover",
+           "subtitle": "Subjudul cover",
+           "description": "Deskripsi singkat isi perkuliahan"
+         }
+       - "split" (layout 2 kolom, kiri & kanan):
+         {
+           "slide_no": ${slideNo},
+           "layout": "split",
+           "title": "Judul Slide",
+           "reference": "Kutipan jika ada (opsional)",
+           "split_left": {
+             "heading": "Judul kolom kiri (cth: Masalah/Definisi)",
+             "description": "Penjelasan mendalam di kolom kiri..."
+           },
+           "split_right": [
+             "Poin detail 1...",
+             "Poin detail 2...",
+             "Poin detail 3..."
+           ]
+         }
+       - "grid" (grid kartu, cocok untuk menguraikan beberapa kategori/komponen):
+         {
+           "slide_no": ${slideNo},
+           "layout": "grid",
+           "title": "Judul Slide",
+           "reference": "Kutipan jika ada (opsional)",
+           "grid_items": [
+             { "title": "Kategori 1", "desc": "Deskripsi...", "icon": "fa-solid fa-lightbulb" },
+             { "title": "Kategori 2", "desc": "Deskripsi...", "icon": "fa-solid fa-code" }
+           ]
+         } (Gunakan FontAwesome class untuk "icon", cth: fa-solid fa-gears, fa-solid fa-shield-halved, fa-solid fa-database)
+       - "list" (daftar kartu berurutan, item dibungkus kartu tepi kiri berwarna):
+         {
+           "slide_no": ${slideNo},
+           "layout": "list",
+           "title": "Judul Slide",
+           "reference": "Kutipan jika ada (opsional)",
+           "list_items": [
+             { "text": "Poin penting 1...", "color": "blue" },
+             { "text": "Poin penting 2...", "color": "green" }
+           ]
+         } (Warna properti "color" harus: "red", "amber", "green", atau "blue")
+       - "table" (tabel perbandingan, membandingkan kelebihan/kekurangan/teknologi):
+         {
+           "slide_no": ${slideNo},
+           "layout": "table",
+           "title": "Judul Slide",
+           "reference": "Kutipan jika ada (opsional)",
+           "table_data": {
+             "headers": ["Aspek", "Konsep A", "Konsep B"],
+             "rows": [
+               ["Aspek 1", "Penjelasan A...", "Penjelasan B..."],
+               ["Aspek 2", "Penjelasan A...", "Penjelasan B..."]
+             ]
+           }
+         }
+       - "accordion" (akordion interaktif, tanya jawab / diskusi):
+         {
+           "slide_no": ${slideNo},
+           "layout": "accordion",
+           "title": "Judul Slide",
+           "reference": "Kutipan jika ada (opsional)",
+           "accordion_items": [
+             { "header": "Pertanyaan 1?", "content": "Jawaban mendalam..." },
+             { "header": "Pertanyaan 2?", "content": "Pembahasan..." }
+           ]
+         }
+
+    3. Jika objek slide di dalam data outline materi (JSON) memiliki properti "image_url", Anda WAJIB menyertakan dan menyalin nilai "image_url" tersebut di objek output tanpa mengubah nilainya.
+    4. Gunakan tag HTML <strong> untuk kata kunci penting dan <em> untuk istilah asing di dalam teks konten.
+
+    Format output harus berupa JSON OBJECT murni dengan struktur salah satu layout di atas, jangan tambahkan penjelasan apapun di luar JSON.
   `;
 
   return callAi(prompt, true, onProgress);

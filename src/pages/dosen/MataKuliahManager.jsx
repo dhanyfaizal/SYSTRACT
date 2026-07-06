@@ -17,7 +17,8 @@ import courseBanner from '@/assets/course_banner.png'
 import {
   generateCourseDescription, generateCplForCourse, generateCpmk,
   generateWeeklyPlan, generateReferences, generateSlideContent,
-  generateWebSlideData, generateMcqQuestions, generateSingleSlide
+  generateWebSlideData, generateMcqQuestions, generateSingleSlide,
+  generateSingleWebSlideData
 } from '@/lib/ai'
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 
@@ -215,6 +216,7 @@ export default function DosenMataKuliah() {
   const [editContent, setEditContent] = useState('')
   const [editImageUrl, setEditImageUrl] = useState('')
   const [regeneratingSlideNo, setRegeneratingSlideNo] = useState(null)
+  const [regeneratingLayoutSlideNo, setRegeneratingLayoutSlideNo] = useState(null)
 
   const handleAiProgress = (event) => {
     if (typeof event === 'string') {
@@ -1273,6 +1275,50 @@ export default function DosenMataKuliah() {
     }
   }
 
+  async function handleRegenerateSlideLayout(slideNo) {
+    if (!slideOutline) return
+    const outlineSlide = slideOutline.slides.find(s => s.slide_no === slideNo)
+    if (!outlineSlide) return
+
+    setRegeneratingLayoutSlideNo(slideNo)
+    try {
+      const prodiName = profile?.program_studi || 'Teknik Informatika'
+      const result = await generateSingleWebSlideData(
+        selectedCourse.name,
+        prodiName,
+        activeMeeting.week_number,
+        slideNo,
+        outlineSlide
+      )
+
+      if (result && result.layout) {
+        // Keep the outline slide's image_url if it was set
+        if (outlineSlide.image_url) {
+          result.image_url = outlineSlide.image_url
+        }
+
+        const updatedWebslides = (webslideData?.slides || []).map(s => {
+          if (s.slide_no === slideNo) {
+            return result
+          }
+          return s
+        })
+
+        setWebslideData({
+          ...webslideData,
+          slides: updatedWebslides
+        })
+        toast.success(`Layout SPA untuk Slide ${slideNo} berhasil di-generate ulang! 🎨`)
+      } else {
+        throw new Error("Respons AI tidak valid")
+      }
+    } catch (err) {
+      toast.error(`Gagal meregenerasi layout Slide ${slideNo}: ` + err.message)
+    } finally {
+      setRegeneratingLayoutSlideNo(null)
+    }
+  }
+
   // ── Sync Slide Outline with WebSlide Layouts (Student SPA) ──
   function syncWebSlideWithOutline(updatedOutlineSlides, activeSlideNo = null, actionType = 'update') {
     if (!webslideData || !webslideData.slides) return
@@ -1387,6 +1433,21 @@ export default function DosenMataKuliah() {
         slideOutline,
         handleAiSlideProgress
       )
+
+      // Merge custom image/video URLs from the outline slides
+      if (result && result.slides && slideOutline && slideOutline.slides) {
+        result.slides = result.slides.map(s => {
+          const outlineSlide = slideOutline.slides.find(os => os.slide_no === s.slide_no)
+          if (outlineSlide && outlineSlide.image_url) {
+            return {
+              ...s,
+              image_url: outlineSlide.image_url
+            }
+          }
+          return s
+        })
+      }
+
       setWebslideData(result)
       toast.success("Aplikasi SPA Slide berhasil dibangun! 🎬")
     } catch (err) {
@@ -3281,6 +3342,7 @@ export default function DosenMataKuliah() {
                           {slideOutline.slides?.map(s => {
                             const isEditing = editingSlideNo === s.slide_no;
                             const isRegenerating = regeneratingSlideNo === s.slide_no;
+                            const isRegeneratingLayout = regeneratingLayoutSlideNo === s.slide_no;
 
                             return (
                               <div key={s.slide_no} style={{ 
@@ -3309,6 +3371,24 @@ export default function DosenMataKuliah() {
                                   }}>
                                     <Loader2 size={20} className="spinner" style={{ animation: 'spin 1s linear infinite', color: 'var(--indigo-600)' }} />
                                     <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--indigo-700)' }}>AI sedang meregenerasi slide...</span>
+                                  </div>
+                                )}
+
+                                {/* Loading overlay for single slide layout regeneration */}
+                                {isRegeneratingLayout && (
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: 0, left: 0, right: 0, bottom: 0,
+                                    background: 'rgba(255,255,255,0.8)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 10,
+                                    borderRadius: 10,
+                                    zIndex: 5
+                                  }}>
+                                    <Loader2 size={20} className="spinner" style={{ animation: 'spin 1s linear infinite', color: 'var(--indigo-600)' }} />
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--indigo-700)' }}>AI sedang meregenerasi layout SPA...</span>
                                   </div>
                                 )}
 
@@ -3367,25 +3447,49 @@ export default function DosenMataKuliah() {
                                         <span style={{ fontSize: 10, fontWeight: 800, background: 'var(--indigo-50)', color: 'var(--indigo-600)', padding: '2px 8px', borderRadius: 99 }}>
                                           SLIDE {s.slide_no}
                                         </span>
+                                        {webslideData && webslideData.slides && (
+                                          (() => {
+                                            const layoutObj = webslideData.slides.find(ws => ws.slide_no === s.slide_no);
+                                            if (layoutObj) {
+                                              return (
+                                                <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', background: 'var(--gray-100)', color: 'var(--gray-600)', padding: '2px 6px', borderRadius: 4 }}>
+                                                  {layoutObj.layout}
+                                                </span>
+                                              );
+                                            }
+                                            return null;
+                                          })()
+                                        )}
                                         <h5 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: 'var(--gray-800)' }}>{s.title}</h5>
                                       </div>
                                       
                                       {/* Slide Actions Toolbar */}
-                                      <div style={{ display: 'flex', gap: 4 }}>
+                                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                        {webslideData && webslideData.slides && (
+                                          <button 
+                                            className="btn btn-ghost btn-xs" 
+                                            title="Generate Ulang Layout SPA Slide Ini"
+                                            onClick={() => handleRegenerateSlideLayout(s.slide_no)}
+                                            disabled={loadingSlide || regeneratingSlideNo !== null || regeneratingLayoutSlideNo !== null}
+                                            style={{ padding: '2px 6px', fontSize: 10, gap: 4, color: 'var(--indigo-600)', background: 'var(--indigo-50)', borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                                          >
+                                            <Sparkles size={10}/> Layout SPA
+                                          </button>
+                                        )}
                                         <button 
                                           className="btn btn-ghost btn-icon btn-xs" 
                                           title="Edit Slide"
                                           onClick={() => handleStartEditSlide(s)}
-                                          disabled={loadingSlide || regeneratingSlideNo !== null}
+                                          disabled={loadingSlide || regeneratingSlideNo !== null || regeneratingLayoutSlideNo !== null}
                                           style={{ padding: 4, borderRadius: 6 }}
                                         >
                                           <Edit2 size={12} color="var(--gray-500)"/>
                                         </button>
                                         <button 
                                           className="btn btn-ghost btn-icon btn-xs" 
-                                          title="Generate Ulang Slide Ini"
+                                          title="Generate Ulang Konten Slide Ini"
                                           onClick={() => handleRegenerateSlide(s.slide_no, s.title, s.content)}
-                                          disabled={loadingSlide || regeneratingSlideNo !== null}
+                                          disabled={loadingSlide || regeneratingSlideNo !== null || regeneratingLayoutSlideNo !== null}
                                           style={{ padding: 4, borderRadius: 6 }}
                                         >
                                           <RefreshCw size={12} color="var(--indigo-600)"/>
@@ -3394,7 +3498,7 @@ export default function DosenMataKuliah() {
                                           className="btn btn-ghost btn-icon btn-xs text-danger" 
                                           title="Hapus Slide"
                                           onClick={() => handleDeleteSlide(s.slide_no)}
-                                          disabled={loadingSlide || regeneratingSlideNo !== null}
+                                          disabled={loadingSlide || regeneratingSlideNo !== null || regeneratingLayoutSlideNo !== null}
                                           style={{ padding: 4, borderRadius: 6 }}
                                         >
                                           <Trash2 size={12} color="var(--red-600)"/>
