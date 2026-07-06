@@ -213,6 +213,7 @@ export default function DosenMataKuliah() {
   const [editingSlideNo, setEditingSlideNo] = useState(null)
   const [editTitle, setEditTitle] = useState('')
   const [editContent, setEditContent] = useState('')
+  const [editImageUrl, setEditImageUrl] = useState('')
   const [regeneratingSlideNo, setRegeneratingSlideNo] = useState(null)
 
   const handleAiProgress = (event) => {
@@ -1184,6 +1185,10 @@ export default function DosenMataKuliah() {
       ...slideOutline,
       slides: updatedSlides
     })
+
+    // Sync deletion to webslideData (SPA Layout)
+    syncWebSlideWithOutline(updatedSlides, slideNo, 'delete')
+
     toast.success(`Slide ${slideNo} berhasil dihapus`)
   }
 
@@ -1191,6 +1196,7 @@ export default function DosenMataKuliah() {
     setEditingSlideNo(slide.slide_no)
     setEditTitle(slide.title)
     setEditContent(slide.content ? slide.content.join('\n') : '')
+    setEditImageUrl(slide.image_url || '')
   }
 
   function handleSaveEditSlide(slideNo) {
@@ -1200,7 +1206,8 @@ export default function DosenMataKuliah() {
         return {
           ...s,
           title: editTitle,
-          content: editContent.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+          content: editContent.split('\n').map(line => line.trim()).filter(line => line.length > 0),
+          image_url: editImageUrl
         }
       }
       return s
@@ -1210,6 +1217,10 @@ export default function DosenMataKuliah() {
       ...slideOutline,
       slides: updatedSlides
     })
+
+    // Sync changes to webslideData (SPA Layout)
+    syncWebSlideWithOutline(updatedSlides, slideNo, 'update')
+
     setEditingSlideNo(null)
     toast.success(`Slide ${slideNo} berhasil diperbarui`)
   }
@@ -1236,7 +1247,8 @@ export default function DosenMataKuliah() {
             return {
               ...s,
               title: result.title || s.title,
-              content: result.content
+              content: result.content,
+              image_url: s.image_url // Keep existing image/media url
             }
           }
           return s
@@ -1246,6 +1258,10 @@ export default function DosenMataKuliah() {
           ...slideOutline,
           slides: updatedSlides
         })
+
+        // Sync changes to webslideData (SPA Layout)
+        syncWebSlideWithOutline(updatedSlides, slideNo, 'update')
+
         toast.success(`Slide ${slideNo} berhasil di-generate ulang! 🤖`)
       } else {
         throw new Error("Respons AI tidak valid")
@@ -1255,6 +1271,107 @@ export default function DosenMataKuliah() {
     } finally {
       setRegeneratingSlideNo(null)
     }
+  }
+
+  // ── Sync Slide Outline with WebSlide Layouts (Student SPA) ──
+  function syncWebSlideWithOutline(updatedOutlineSlides, activeSlideNo = null, actionType = 'update') {
+    if (!webslideData || !webslideData.slides) return
+
+    let updatedWebslides = [...webslideData.slides]
+
+    if (actionType === 'delete') {
+      updatedWebslides = updatedWebslides.filter(s => s.slide_no !== activeSlideNo)
+      updatedWebslides = updatedWebslides.map((s, idx) => ({ ...s, slide_no: idx + 1 }))
+    } else if (actionType === 'update') {
+      const outlineSlide = updatedOutlineSlides.find(s => s.slide_no === activeSlideNo)
+      if (outlineSlide) {
+        updatedWebslides = updatedWebslides.map(s => {
+          if (s.slide_no === activeSlideNo) {
+            const newTitle = outlineSlide.title
+            const newImgUrl = outlineSlide.image_url || s.image_url
+            const newContent = outlineSlide.content || []
+
+            let updatedSlide = {
+              ...s,
+              title: newTitle,
+              image_url: newImgUrl,
+              content: newContent
+            }
+
+            if (s.layout === 'split') {
+              updatedSlide.split_right = newContent
+            } else if (s.layout === 'list') {
+              updatedSlide.list_items = newContent.map(text => ({ text, color: 'blue' }))
+            } else if (s.layout === 'grid') {
+              updatedSlide.grid_items = newContent.map((desc, i) => ({ 
+                title: `Poin ${i + 1}`, 
+                desc, 
+                icon: 'fa-solid fa-lightbulb' 
+              }))
+            } else if (s.layout === 'accordion') {
+              updatedSlide.accordion_items = newContent.map((content, i) => ({ 
+                header: `Poin ${i + 1}`, 
+                content 
+              }))
+            }
+
+            return updatedSlide
+          }
+          return s
+        })
+      }
+    }
+
+    setWebslideData({
+      ...webslideData,
+      slides: updatedWebslides
+    })
+  }
+
+  function renderMediaPreview(url) {
+    if (!url) return null
+    
+    const getYoutubeEmbedUrl = (link) => {
+      let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
+      let match = link.match(regExp)
+      if (match && match[2].length === 11) {
+        return `https://www.youtube.com/embed/${match[2]}`
+      }
+      return null
+    }
+
+    const ytEmbed = getYoutubeEmbedUrl(url)
+    const isDirectVideo = url.match(/\.(mp4|webm|ogg|mov)($|\?)/i)
+
+    if (ytEmbed) {
+      return (
+        <iframe
+          src={ytEmbed}
+          style={{ width: '100%', height: '100%', border: 'none' }}
+        />
+      )
+    }
+
+    if (isDirectVideo) {
+      return (
+        <video
+          src={url}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000' }}
+        />
+      )
+    }
+
+    return (
+      <img 
+        src={url} 
+        alt="Preview" 
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+        onError={(e) => {
+          e.target.onerror = null
+          e.target.src = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=150&q=80'
+        }}
+      />
+    )
   }
 
   async function handleGenerateWebSlide() {
@@ -3222,6 +3339,17 @@ export default function DosenMataKuliah() {
                                         placeholder="Masukkan poin slide..."
                                       />
                                     </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray-500)' }}>URL Gambar atau Video (Internet):</label>
+                                      <input 
+                                        type="text" 
+                                        className="input" 
+                                        style={{ padding: '6px 10px', fontSize: 12, borderRadius: 6 }} 
+                                        value={editImageUrl}
+                                        onChange={e => setEditImageUrl(e.target.value)}
+                                        placeholder="Contoh: https://images.unsplash.com/photo-... atau https://www.youtube.com/watch?v=..."
+                                      />
+                                    </div>
                                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 4 }}>
                                       <button className="btn btn-ghost btn-xs" style={{ gap: 4 }} onClick={handleCancelEdit}>
                                         <X size={12}/> Batal
@@ -3274,21 +3402,35 @@ export default function DosenMataKuliah() {
                                       </div>
                                     </div>
 
-                                    {/* Slide Content Bullet Points */}
-                                    <ul style={{ 
-                                      paddingLeft: 18, 
-                                      margin: 0, 
-                                      fontSize: 12, 
-                                      color: 'var(--gray-600)',
-                                      lineHeight: 1.6,
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      gap: 4
-                                    }}>
-                                      {s.content?.map((c, ci) => (
-                                        <li key={ci} style={{ listStyleType: 'disc' }}>{c}</li>
-                                      ))}
-                                    </ul>
+                                    {/* Slide Content Bullet Points & Preview */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: s.image_url ? '1fr 180px' : '1fr', gap: 16, alignItems: 'start' }}>
+                                      <ul style={{ 
+                                        paddingLeft: 18, 
+                                        margin: 0, 
+                                        fontSize: 12, 
+                                        color: 'var(--gray-600)',
+                                        lineHeight: 1.6,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 4
+                                      }}>
+                                        {s.content?.map((c, ci) => (
+                                          <li key={ci} style={{ listStyleType: 'disc' }}>{c}</li>
+                                        ))}
+                                      </ul>
+                                      {s.image_url && (
+                                        <div style={{ 
+                                          width: 180, 
+                                          height: 112, 
+                                          borderRadius: 8, 
+                                          overflow: 'hidden', 
+                                          border: '1px solid var(--gray-200)',
+                                          background: '#f1f5f9'
+                                        }}>
+                                          {renderMediaPreview(s.image_url)}
+                                        </div>
+                                      )}
+                                    </div>
                                   </>
                                 )}
                               </div>

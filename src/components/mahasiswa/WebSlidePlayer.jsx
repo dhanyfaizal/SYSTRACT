@@ -172,6 +172,58 @@ export default function WebSlidePlayer({
     return <span dangerouslySetInnerHTML={{ __html: text }} />
   }
 
+  const renderMedia = (url) => {
+    if (!url) {
+      url = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80'
+    }
+
+    const getYoutubeEmbedUrl = (link) => {
+      let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
+      let match = link.match(regExp)
+      if (match && match[2].length === 11) {
+        return `https://www.youtube.com/embed/${match[2]}`
+      }
+      return null
+    }
+
+    const ytEmbed = getYoutubeEmbedUrl(url)
+    const isDirectVideo = url.match(/\.(mp4|webm|ogg|mov)($|\?)/i)
+
+    if (ytEmbed) {
+      return (
+        <iframe
+          src={ytEmbed}
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          style={{ width: '100%', height: '100%', border: 'none' }}
+        />
+      )
+    }
+
+    if (isDirectVideo) {
+      return (
+        <video
+          src={url}
+          controls
+          style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000' }}
+        />
+      )
+    }
+
+    return (
+      <img 
+        src={url} 
+        alt="Slide Reference" 
+        className="netacad-image" 
+        onError={(e) => {
+          e.target.onerror = null
+          e.target.src = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80'
+        }}
+      />
+    )
+  }
+
   return (
     <div
       className="netacad-viewer-container"
@@ -544,7 +596,7 @@ export default function WebSlidePlayer({
                       </div>
                     </div>
                     <div className="netacad-image-wrapper">
-                      <img src={imgUrl} alt="Cover Illustration" className="netacad-image" />
+                      {renderMedia(imgUrl)}
                     </div>
                   </div>
                 ) : (
@@ -680,7 +732,7 @@ export default function WebSlidePlayer({
                     {/* Image Column */}
                     <div>
                       <div className="netacad-image-wrapper">
-                        <img src={imgUrl} alt="Slide Reference" className="netacad-image" />
+                        {renderMedia(imgUrl)}
                       </div>
                     </div>
                   </div>

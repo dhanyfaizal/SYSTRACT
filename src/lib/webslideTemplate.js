@@ -72,6 +72,34 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
     const layout = slide.layout || (slideIndex === 0 ? 'cover' : 'legacy');
     const imgUrl = slide.image_url || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80';
 
+    function renderHtmlMedia(url) {
+      if (!url) {
+        url = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80';
+      }
+
+      const getYoutubeEmbedUrl = (link) => {
+        let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        let match = link.match(regExp);
+        if (match && match[2].length === 11) {
+          return 'https://www.youtube.com/embed/' + match[2];
+        }
+        return null;
+      };
+
+      const ytEmbed = getYoutubeEmbedUrl(url);
+      const isDirectVideo = url.match(/\.(mp4|webm|ogg|mov)($|\?)/i);
+
+      if (ytEmbed) {
+        return '<iframe src="' + ytEmbed + '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width: 100%; height: 100%; border: none; border-radius: 8px;"></iframe>';
+      }
+
+      if (isDirectVideo) {
+        return '<video src="' + url + '" controls style="width: 100%; height: 100%; object-fit: cover; background: #000; border-radius: 8px;"></video>';
+      }
+
+      return '<img src="' + url + '" alt="Slide Reference" class="webslide-image" onerror="this.onerror=null;this.src=\'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80\';" />';
+    }
+
     // 1. LAYOUT: COVER (Slide Pembuka)
     if (layout === 'cover') {
       const coverTitle = slide.title || title;
@@ -101,7 +129,7 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
           </div>
           <div class="slide-image-col">
             <div class="webslide-image-wrapper">
-              <img src="${imgUrl}" alt="Cover Illustration" class="webslide-image" />
+              ${renderHtmlMedia(imgUrl)}
             </div>
           </div>
         </div>
@@ -251,7 +279,7 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
         </div>
         <div class="slide-image-col">
           <div class="webslide-image-wrapper">
-            <img src="${imgUrl}" alt="Slide Reference" class="webslide-image" />
+            ${renderHtmlMedia(imgUrl)}
           </div>
         </div>
       </div>
