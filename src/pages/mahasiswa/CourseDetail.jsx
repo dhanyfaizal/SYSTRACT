@@ -276,7 +276,9 @@ export default function CourseDetail() {
   }, [activeItem, completedRefs, subTab])
 
   async function fetchCourseAndSyllabus() {
-    setLoading(true)
+    if (!course) {
+      setLoading(true)
+    }
     try {
       // 1. Fetch course details
       const { data: courseData, error: courseErr } = await supabase

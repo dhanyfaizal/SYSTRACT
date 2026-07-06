@@ -93,9 +93,9 @@ export function AuthProvider({ children }) {
         const isSameUser = currentUser?.id === nextUser?.id
 
         currentUserRef.current = nextUser
-        setUser(nextUser)
 
         if (!isSameUser) {
+          setUser(nextUser)
           if (nextUser) {
             setProfileReady(false)  // Reset: sedang load profile baru
             fetchProfile(nextUser.id, nextUser) // background, no await
