@@ -218,6 +218,8 @@ export default function DosenMataKuliah() {
   const [regeneratingSlideNo, setRegeneratingSlideNo] = useState(null)
   const [regeneratingLayoutSlideNo, setRegeneratingLayoutSlideNo] = useState(null)
 
+  const isOutlineEmpty = !slideOutline || !slideOutline.slides || slideOutline.slides.length === 0
+
   const handleAiProgress = (event) => {
     if (typeof event === 'string') {
       setAiProgressText(event)
@@ -3312,20 +3314,41 @@ export default function DosenMataKuliah() {
                     <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>1. Outline Materi Slide</span>
                     {!slideOutline && !loadingSlide && (
                       <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={handleGenerateSlideOutline}>
-                        <Sparkles size={13} /> Generate Outline Slide AI (Min 15 Slide)
+                        <Sparkles size={13} /> Generate Outline
                       </button>
                     )}
 
                     {slideOutline && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--gray-800)' }}>{slideOutline.title}</span>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--gray-800)' }}>{slideOutline.title || 'Materi Slide'}</span>
                           <div style={{ display: 'flex', gap: 6 }}>
-                            <button className="btn btn-ghost btn-xs" style={{ gap: 4, color: 'var(--indigo-600)' }} onClick={handleCopySlideOutline}>
+                            <button 
+                              className="btn btn-ghost btn-xs" 
+                              style={{ 
+                                gap: 4, 
+                                color: isOutlineEmpty ? 'var(--gray-400)' : 'var(--indigo-600)',
+                                cursor: isOutlineEmpty ? 'not-allowed' : 'pointer'
+                              }} 
+                              onClick={handleCopySlideOutline}
+                              disabled={isOutlineEmpty}
+                            >
                               <Copy size={11}/> Salin Outline
                             </button>
-                            <button className="btn btn-ghost btn-xs" style={{ gap: 4 }} onClick={handleGenerateSlideOutline}>
-                              <RefreshCw size={11}/> Outline Ulang
+                            <button 
+                              className="btn btn-ghost btn-xs" 
+                              style={{ gap: 4 }} 
+                              onClick={handleGenerateSlideOutline}
+                            >
+                              {isOutlineEmpty ? (
+                                <>
+                                  <Sparkles size={11} color="var(--indigo-600)"/> <span style={{ color: 'var(--indigo-600)', fontWeight: 700 }}>Generate Outline</span>
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw size={11}/> Outline Ulang
+                                </>
+                              )}
                             </button>
                           </div>
                         </div>
@@ -3342,7 +3365,15 @@ export default function DosenMataKuliah() {
                           padding: 16, 
                           background: '#f8fafc' 
                         }}>
-                          {slideOutline.slides?.map(s => {
+                          {isOutlineEmpty ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 16px', color: 'var(--gray-400)', gap: 10 }}>
+                              <Sparkles size={24} style={{ color: 'var(--indigo-400)', opacity: 0.8 }} />
+                              <span style={{ fontSize: 13, fontWeight: 500, textAlign: 'center' }}>
+                                Belum ada outline. Klik <strong>"Generate Outline"</strong> di atas untuk memulai.
+                              </span>
+                            </div>
+                          ) : (
+                            slideOutline.slides?.map(s => {
                             const isEditing = editingSlideNo === s.slide_no;
                             const isRegenerating = regeneratingSlideNo === s.slide_no;
                             const isRegeneratingLayout = regeneratingLayoutSlideNo === s.slide_no;
@@ -3542,7 +3573,8 @@ export default function DosenMataKuliah() {
                                 )}
                               </div>
                             );
-                          })}
+                            })
+                          )}
                         </div>
                       </div>
                     )}
@@ -3553,7 +3585,12 @@ export default function DosenMataKuliah() {
                     <div>
                       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>2. Tampilan Presentasi WebSlide</span>
                       {!webslideData && !generatingWebSlide && (
-                        <button className="btn btn-primary btn-sm" style={{ gap: 6 }} onClick={handleGenerateWebSlide}>
+                        <button 
+                          className="btn btn-primary btn-sm" 
+                          style={{ gap: 6 }} 
+                          onClick={handleGenerateWebSlide}
+                          disabled={isOutlineEmpty}
+                        >
                           <Sparkles size={13} /> Bangun SPA (Layout Dinamis AI)
                         </button>
                       )}
@@ -3582,7 +3619,7 @@ export default function DosenMataKuliah() {
                   {/* Save to materials button */}
                   {(slideOutline || webslideData) && (
                     <div style={{ borderTop: '1px solid var(--gray-200)', paddingTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
-                      <button className="btn btn-primary btn-sm" onClick={handleSaveAiSlideContent} disabled={savingSlide}>
+                      <button className="btn btn-primary btn-sm" onClick={handleSaveAiSlideContent} disabled={savingSlide || isOutlineEmpty}>
                         {savingSlide ? <Loader2 size={13} className="spinner" style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={13}/>}
                         Simpan Rancangan Slide ke Silabus
                       </button>
