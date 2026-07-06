@@ -491,6 +491,43 @@ export async function generateSlideContent(courseName, meetingNo, topic, capabil
   return callAi(prompt, true, onProgress);
 }
 
+// 7.b. Generate/Regenerate Ulang Single Slide
+export async function generateSingleSlide(courseName, meetingNo, topic, slideNo, slideTitle, currentContent = [], onProgress = null) {
+  const prompt = `
+    Anda adalah pakar akademis dan desainer instruksional senior. Tugas Anda adalah merumuskan ulang (regenerate) konten untuk SATU slide presentasi tertentu dalam rangkaian materi perkuliahan berikut:
+    Mata Kuliah: "${courseName}"
+    Pertemuan Ke: ${meetingNo}
+    Topik Utama: "${topic || '—'}"
+    
+    Slide yang harus Anda formulasikan ulang:
+    Slide No: ${slideNo}
+    Judul Slide Saat Ini: "${slideTitle}"
+    Konten Saat Ini (sebagai referensi): ${JSON.stringify(currentContent)}
+
+    Hasilkan konten slide yang baru, sangat komprehensif, mendalam, dan kaya materi dengan ketentuan berikut:
+    1. Berikan penjelasan yang mendalam dan bermakna pada slide ini.
+    2. Berikan CONTOH konkret, PENERAPAN praktis di industri/studi kasus nyata, atau PERBANDINGAN konsep/metode/teori yang relevan.
+    3. Hasilkan minimal 3 dan maksimal 6 poin penjelasan (bullet points) yang berkualitas tinggi. Setiap poin harus berupa kalimat informatif yang kaya konten (bukan frasa pendek atau ringkasan seadanya).
+    
+    Format output harus berupa JSON OBJECT murni dengan struktur:
+    {
+      "slide_no": ${slideNo},
+      "title": "Judul Slide Baru (boleh diimprovisasi)",
+      "content": [
+        "Poin penjelasan baru ke-1...",
+        "Poin penjelasan baru ke-2...",
+        "Poin penjelasan baru ke-3..."
+      ]
+    }
+
+    ATURAN:
+    - Gunakan Bahasa Indonesia formal akademik.
+    - Jangan berikan penjelasan tambahan apapun di luar JSON murni.
+  `;
+
+  return callAi(prompt, true, onProgress);
+}
+
 // 8. Generate WebSlide Layouts
 export async function generateWebSlideData(courseName, prodiName, meetingNo, outlineData, onProgress = null) {
   const prompt = `

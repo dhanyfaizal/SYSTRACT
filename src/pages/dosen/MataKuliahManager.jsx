@@ -17,7 +17,7 @@ import courseBanner from '@/assets/course_banner.png'
 import {
   generateCourseDescription, generateCplForCourse, generateCpmk,
   generateWeeklyPlan, generateReferences, generateSlideContent,
-  generateWebSlideData, generateMcqQuestions
+  generateWebSlideData, generateMcqQuestions, generateSingleSlide
 } from '@/lib/ai'
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 
@@ -208,6 +208,12 @@ export default function DosenMataKuliah() {
   const [webslideData, setWebslideData] = useState(null)
   const [aiSlideProgressText, setAiSlideProgressText] = useState('')
   const [mcqData, setMcqData] = useState(null) // for UTS/UAS questions
+
+  // ── State untuk Edit & Regenerate Ulang Slide ────────────────
+  const [editingSlideNo, setEditingSlideNo] = useState(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editContent, setEditContent] = useState('')
+  const [regeneratingSlideNo, setRegeneratingSlideNo] = useState(null)
 
   const handleAiProgress = (event) => {
     if (typeof event === 'string') {
@@ -1164,6 +1170,90 @@ export default function DosenMataKuliah() {
       if (subTimer) clearInterval(subTimer)
       setLoadingSlide(false)
       setAiSlideProgressText('')
+    }
+  }
+
+  // ── Edit/Hapus/Regenerate Per Slide Actions ────────────────
+  function handleDeleteSlide(slideNo) {
+    if (!slideOutline) return
+    const updatedSlides = slideOutline.slides
+      .filter(s => s.slide_no !== slideNo)
+      .map((s, idx) => ({ ...s, slide_no: idx + 1 })) // Re-index slides
+
+    setSlideOutline({
+      ...slideOutline,
+      slides: updatedSlides
+    })
+    toast.success(`Slide ${slideNo} berhasil dihapus`)
+  }
+
+  function handleStartEditSlide(slide) {
+    setEditingSlideNo(slide.slide_no)
+    setEditTitle(slide.title)
+    setEditContent(slide.content ? slide.content.join('\n') : '')
+  }
+
+  function handleSaveEditSlide(slideNo) {
+    if (!slideOutline) return
+    const updatedSlides = slideOutline.slides.map(s => {
+      if (s.slide_no === slideNo) {
+        return {
+          ...s,
+          title: editTitle,
+          content: editContent.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+        }
+      }
+      return s
+    })
+
+    setSlideOutline({
+      ...slideOutline,
+      slides: updatedSlides
+    })
+    setEditingSlideNo(null)
+    toast.success(`Slide ${slideNo} berhasil diperbarui`)
+  }
+
+  function handleCancelEdit() {
+    setEditingSlideNo(null)
+  }
+
+  async function handleRegenerateSlide(slideNo, slideTitle, currentContent) {
+    setRegeneratingSlideNo(slideNo)
+    try {
+      const result = await generateSingleSlide(
+        selectedCourse.name,
+        activeMeeting.week_number,
+        activeMeeting.title,
+        slideNo,
+        slideTitle,
+        currentContent
+      )
+
+      if (result && result.content) {
+        const updatedSlides = slideOutline.slides.map(s => {
+          if (s.slide_no === slideNo) {
+            return {
+              ...s,
+              title: result.title || s.title,
+              content: result.content
+            }
+          }
+          return s
+        })
+
+        setSlideOutline({
+          ...slideOutline,
+          slides: updatedSlides
+        })
+        toast.success(`Slide ${slideNo} berhasil di-generate ulang! 🤖`)
+      } else {
+        throw new Error("Respons AI tidak valid")
+      }
+    } catch (err) {
+      toast.error(`Gagal meregenerasi Slide ${slideNo}: ` + err.message)
+    } finally {
+      setRegeneratingSlideNo(null)
     }
   }
 
@@ -2951,7 +3041,7 @@ export default function DosenMataKuliah() {
       {/* ── MODAL: AI Slide / WebSlide / Essay Generator ── */}
       {slideModal && activeMeeting && (
         <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 650, maxHeight: '85vh', overflow: 'auto' }}>
+          <div className="modal" style={{ maxWidth: 800, maxHeight: '85vh', overflow: 'auto' }}>
             <div className="modal-header" style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 2 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Sparkles size={16} color="var(--indigo-600)" />
@@ -3046,27 +3136,164 @@ export default function DosenMataKuliah() {
                     )}
 
                     {slideOutline && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-600)' }}>{slideOutline.title}</span>
-                          <button className="btn btn-ghost btn-xs" style={{ gap: 4, color: 'var(--indigo-600)' }} onClick={handleCopySlideOutline}>
-                            <Copy size={11}/> Salin Outline
-                          </button>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--gray-800)' }}>{slideOutline.title}</span>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button className="btn btn-ghost btn-xs" style={{ gap: 4, color: 'var(--indigo-600)' }} onClick={handleCopySlideOutline}>
+                              <Copy size={11}/> Salin Outline
+                            </button>
+                            <button className="btn btn-ghost btn-xs" style={{ gap: 4 }} onClick={handleGenerateSlideOutline}>
+                              <RefreshCw size={11}/> Outline Ulang
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 8, fontSize: 12, background: '#fafafa' }}>
-                          {slideOutline.slides?.map(s => (
-                            <div key={s.slide_no} style={{ marginBottom: 8 }}>
-                              <strong>Slide {s.slide_no}: {s.title}</strong>
-                              <ul style={{ paddingLeft: 16, margin: '2px 0 0 0', color: 'var(--gray-500)' }}>
-                                {s.content?.map((c, ci) => <li key={ci}>{c}</li>)}
-                              </ul>
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button className="btn btn-ghost btn-xs" style={{ gap: 4 }} onClick={handleGenerateSlideOutline}>
-                            <RefreshCw size={11}/> Outline Ulang
-                          </button>
+
+                        {/* List of Slide Cards */}
+                        <div style={{ 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          gap: 12, 
+                          maxHeight: 400, 
+                          overflowY: 'auto', 
+                          border: '1px solid var(--gray-200)', 
+                          borderRadius: 12, 
+                          padding: 16, 
+                          background: '#f8fafc' 
+                        }}>
+                          {slideOutline.slides?.map(s => {
+                            const isEditing = editingSlideNo === s.slide_no;
+                            const isRegenerating = regeneratingSlideNo === s.slide_no;
+
+                            return (
+                              <div key={s.slide_no} style={{ 
+                                background: '#ffffff', 
+                                border: '1px solid var(--gray-200)', 
+                                borderRadius: 10, 
+                                padding: 16,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 10,
+                                position: 'relative'
+                              }}>
+                                {/* Loading overlay for single slide regeneration */}
+                                {isRegenerating && (
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: 0, left: 0, right: 0, bottom: 0,
+                                    background: 'rgba(255,255,255,0.8)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 10,
+                                    borderRadius: 10,
+                                    zIndex: 5
+                                  }}>
+                                    <Loader2 size={20} className="spinner" style={{ animation: 'spin 1s linear infinite', color: 'var(--indigo-600)' }} />
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--indigo-700)' }}>AI sedang meregenerasi slide...</span>
+                                  </div>
+                                )}
+
+                                {isEditing ? (
+                                  /* EDITING MODE */
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <span style={{ fontSize: 11, fontWeight: 800, background: 'var(--indigo-50)', color: 'var(--indigo-600)', padding: '2px 8px', borderRadius: 99 }}>
+                                        SLIDE {s.slide_no}
+                                      </span>
+                                      <input 
+                                        type="text" 
+                                        className="input" 
+                                        style={{ flex: 1, padding: '6px 10px', fontSize: 13, borderRadius: 6 }} 
+                                        value={editTitle}
+                                        onChange={e => setEditTitle(e.target.value)}
+                                        placeholder="Judul Slide"
+                                      />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray-500)' }}>Poin Slide (Satu baris untuk setiap poin):</label>
+                                      <textarea 
+                                        className="input"
+                                        rows={4}
+                                        style={{ resize: 'vertical', fontSize: 12, padding: 8, borderRadius: 6, lineHeight: 1.5 }}
+                                        value={editContent}
+                                        onChange={e => setEditContent(e.target.value)}
+                                        placeholder="Masukkan poin slide..."
+                                      />
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 4 }}>
+                                      <button className="btn btn-ghost btn-xs" style={{ gap: 4 }} onClick={handleCancelEdit}>
+                                        <X size={12}/> Batal
+                                      </button>
+                                      <button className="btn btn-primary btn-xs" style={{ gap: 4, background: 'var(--indigo-600)' }} onClick={() => handleSaveEditSlide(s.slide_no)}>
+                                        <Check size={12}/> Simpan
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  /* READ-ONLY MODE */
+                                  <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span style={{ fontSize: 10, fontWeight: 800, background: 'var(--indigo-50)', color: 'var(--indigo-600)', padding: '2px 8px', borderRadius: 99 }}>
+                                          SLIDE {s.slide_no}
+                                        </span>
+                                        <h5 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: 'var(--gray-800)' }}>{s.title}</h5>
+                                      </div>
+                                      
+                                      {/* Slide Actions Toolbar */}
+                                      <div style={{ display: 'flex', gap: 4 }}>
+                                        <button 
+                                          className="btn btn-ghost btn-icon btn-xs" 
+                                          title="Edit Slide"
+                                          onClick={() => handleStartEditSlide(s)}
+                                          disabled={loadingSlide || regeneratingSlideNo !== null}
+                                          style={{ padding: 4, borderRadius: 6 }}
+                                        >
+                                          <Edit2 size={12} color="var(--gray-500)"/>
+                                        </button>
+                                        <button 
+                                          className="btn btn-ghost btn-icon btn-xs" 
+                                          title="Generate Ulang Slide Ini"
+                                          onClick={() => handleRegenerateSlide(s.slide_no, s.title, s.content)}
+                                          disabled={loadingSlide || regeneratingSlideNo !== null}
+                                          style={{ padding: 4, borderRadius: 6 }}
+                                        >
+                                          <RefreshCw size={12} color="var(--indigo-600)"/>
+                                        </button>
+                                        <button 
+                                          className="btn btn-ghost btn-icon btn-xs text-danger" 
+                                          title="Hapus Slide"
+                                          onClick={() => handleDeleteSlide(s.slide_no)}
+                                          disabled={loadingSlide || regeneratingSlideNo !== null}
+                                          style={{ padding: 4, borderRadius: 6 }}
+                                        >
+                                          <Trash2 size={12} color="var(--red-600)"/>
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Slide Content Bullet Points */}
+                                    <ul style={{ 
+                                      paddingLeft: 18, 
+                                      margin: 0, 
+                                      fontSize: 12, 
+                                      color: 'var(--gray-600)',
+                                      lineHeight: 1.6,
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: 4
+                                    }}>
+                                      {s.content?.map((c, ci) => (
+                                        <li key={ci} style={{ listStyleType: 'disc' }}>{c}</li>
+                                      ))}
+                                    </ul>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
