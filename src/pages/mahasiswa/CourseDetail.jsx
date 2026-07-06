@@ -1519,294 +1519,472 @@ export default function CourseDetail() {
                   </button>
                 </div>
 
-                {/* Certificate design */}
-                <div className="printable-certificate" style={{
-                  background: '#fff',
-                  fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
-                  boxShadow: '0 20px 40px -15px rgba(0,0,0,0.12)',
-                  maxWidth: '920px',
-                  width: '100%',
-                  aspectRatio: '16 / 9',
-                  margin: '0 auto',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  borderRadius: 8,
-                  border: '1px solid #e2e8f0',
-                  boxSizing: 'border-box'
-                }}>
-                  {/* Left Sidebar Watermark */}
-                  <div style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: 44,
-                    background: '#1e293b',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                {/* Printable container encompassing both pages */}
+                <div className="printable-certificate-container" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+                  
+                  {/* PAGE 1: Certificate design */}
+                  <div className="printable-certificate" style={{
+                    background: '#fff',
+                    fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+                    boxShadow: '0 20px 40px -15px rgba(0,0,0,0.12)',
+                    maxWidth: '920px',
+                    width: '100%',
+                    aspectRatio: '16 / 9',
+                    margin: '0 auto',
+                    position: 'relative',
                     overflow: 'hidden',
-                    color: 'rgba(255,255,255,0.08)',
-                    fontFamily: 'sans-serif',
-                    fontSize: 13,
-                    fontWeight: 800,
-                    letterSpacing: '2px',
-                    lineHeight: 1,
-                    userSelect: 'none'
+                    borderRadius: 8,
+                    border: '1px solid #e2e8f0',
+                    boxSizing: 'border-box'
                   }}>
+                    {/* Left Sidebar Watermark */}
                     <div style={{
-                      writingMode: 'vertical-lr',
-                      transform: 'rotate(180deg)',
-                      display: 'flex',
-                      gap: 20,
-                      whiteSpace: 'nowrap'
-                    }}>
-                      SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt
-                    </div>
-                  </div>
-
-                  {/* Gold divider bar on the left */}
-                  <div style={{
-                    position: 'absolute',
-                    left: 44,
-                    top: 0,
-                    bottom: 0,
-                    width: 6,
-                    background: '#eab308'
-                  }} />
-
-                  {/* Header Logos & Labels (Top Right) */}
-                  <div style={{
-                    position: 'absolute',
-                    top: 24,
-                    right: 28,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-end',
-                      fontFamily: 'sans-serif',
-                      fontWeight: 700,
-                      fontSize: 11,
-                      gap: 2
-                    }}>
-                      <span style={{ background: '#eab308', color: 'white', padding: '2px 8px', borderRadius: 2 }}>STIKOM Yos Sudarso</span>
-                      <span style={{ background: '#1e293b', color: 'white', padding: '2px 8px', borderRadius: 2, fontSize: 9, letterSpacing: '0.5px' }}>Training Center</span>
-                    </div>
-                    {/* CSS SYS TraCt Logo */}
-                    <div style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '50%',
-                      background: '#0f3cc9',
-                      color: 'white',
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 44,
+                      background: '#1e293b',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      overflow: 'hidden',
+                      color: 'rgba(255,255,255,0.08)',
                       fontFamily: 'sans-serif',
-                      lineHeight: 1.1,
-                      fontWeight: 800
-                    }}>
-                      <span style={{ fontSize: 12, letterSpacing: '0.5px' }}>SYS</span>
-                      <span style={{ fontSize: 7, fontWeight: 600, marginTop: -2 }}>TraCt</span>
-                    </div>
-                    {/* STIKOM Seal Logo */}
-                    <img src="https://i.ibb.co.com/kgV7WDhF/Logo-SYS.png" alt="STIKOM Seal" style={{ height: 40, width: 40, objectFit: 'contain' }} />
-                  </div>
-
-                  {/* Right Competencies Badge (Asymmetrical Curved Design) */}
-                  <div style={{
-                    position: 'absolute',
-                    right: 0,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: 290,
-                    background: '#eab308',
-                    color: 'white',
-                    padding: '20px 24px',
-                    borderTopLeftRadius: 20,
-                    borderBottomLeftRadius: 20,
-                    boxShadow: '-4px 4px 12px rgba(0,0,0,0.06)',
-                    textAlign: 'left',
-                    fontFamily: 'sans-serif',
-                    zIndex: 10
-                  }}>
-                    <div style={{ fontWeight: 800, fontSize: 11, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Kompetensi Dikuasai:
-                    </div>
-                    <ul style={{ margin: 0, paddingLeft: 14, fontSize: 10.5, lineHeight: 1.5, fontWeight: 600, listStyleType: 'disc' }}>
-                      {getCompetencies(course.name).map((comp, idx) => (
-                        <li key={idx} style={{ marginBottom: 4 }}>{comp}</li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Main Content Layout (Left-Aligned Asymmetric Style) */}
-                  <div style={{
-                    paddingLeft: '76px',
-                    paddingRight: '320px',
-                    textAlign: 'left',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    height: '100%',
-                    boxSizing: 'border-box'
-                  }}>
-                    {/* Title */}
-                    <h1 style={{
-                      fontFamily: '"Plus Jakarta Sans", sans-serif',
+                      fontSize: 13,
                       fontWeight: 800,
-                      fontSize: '26px',
-                      color: '#0f172a',
-                      margin: '0 0 4px 0',
-                      letterSpacing: '-0.5px',
-                      textTransform: 'uppercase'
+                      letterSpacing: '2px',
+                      lineHeight: 1,
+                      userSelect: 'none'
                     }}>
-                      Sertifikat Penyelesaian
-                    </h1>
-                    <p style={{
-                      fontFamily: '"Plus Jakarta Sans", sans-serif',
-                      fontSize: '11px',
-                      color: '#64748b',
-                      margin: '0 0 20px 0',
-                      fontWeight: 600,
-                      letterSpacing: '0.2px'
-                    }}>
-                      sertifikat ini diberikan kepada
-                    </p>
-
-                    {/* Student Name */}
-                    <h2 style={{
-                      fontFamily: '"Plus Jakarta Sans", sans-serif',
-                      fontWeight: 800,
-                      fontSize: '32px',
-                      color: '#0f172a',
-                      margin: '0 0 2px 0',
-                      lineHeight: '1.1'
-                    }}>
-                      {profile?.full_name}
-                    </h2>
-                    <div style={{
-                      fontFamily: '"Plus Jakarta Sans", sans-serif',
-                      fontSize: '11px',
-                      color: '#475569',
-                      margin: '0 0 16px 0',
-                      fontWeight: 700,
-                      letterSpacing: '0.2px'
-                    }}>
-                      NIM: {profile?.nim || '-'} &bull; Program Studi: {profile?.program_studi || '-'}
-                    </div>
-
-                    <p style={{
-                      fontFamily: '"Plus Jakarta Sans", sans-serif',
-                      fontSize: '11px',
-                      color: '#64748b',
-                      margin: '0 0 10px 0',
-                      fontWeight: 600,
-                      letterSpacing: '0.2px'
-                    }}>
-                      telah mengikuti pelatihan
-                    </p>
-
-                    {/* Course Title */}
-                    <h3 style={{
-                      fontFamily: '"Plus Jakarta Sans", sans-serif',
-                      fontWeight: 800,
-                      fontStyle: 'italic',
-                      fontSize: '18px',
-                      color: '#1e3a8a',
-                      margin: '0 0 12px 0'
-                    }}>
-                      {course.name} ({course.code})
-                    </h3>
-
-                    {/* Description */}
-                    <p style={{
-                      fontFamily: '"Plus Jakarta Sans", sans-serif',
-                      fontSize: '11.5px',
-                      color: '#334155',
-                      lineHeight: '1.6',
-                      maxWidth: '460px',
-                      margin: '0 0 20px 0',
-                      fontWeight: 500
-                    }}>
-                      Telah menyelesaikan materi pelatihan serta ujian akhir kompetensi dengan hasil kelulusan yang memenuhi kualifikasi standar profesional.
-                    </p>
-
-                    {/* Signature */}
-                    <div style={{
-                      fontFamily: '"Plus Jakarta Sans", sans-serif',
-                      marginTop: '10px'
-                    }}>
-                      <div style={{ height: '24px' }}></div>
                       <div style={{
-                        fontWeight: 800,
-                        fontSize: '12px',
-                        color: '#0f172a',
-                        marginBottom: '1px'
+                        writingMode: 'vertical-lr',
+                        transform: 'rotate(180deg)',
+                        display: 'flex',
+                        gap: 20,
+                        whiteSpace: 'nowrap'
                       }}>
-                        Dhany Faizal Racma, M.Kom
+                        SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt
                       </div>
+                    </div>
+
+                    {/* Gold divider bar on the left */}
+                    <div style={{
+                      position: 'absolute',
+                      left: 44,
+                      top: 0,
+                      bottom: 0,
+                      width: 6,
+                      background: '#eab308'
+                    }} />
+
+                    {/* Header Logos & Labels (Top Right) */}
+                    <div style={{
+                      position: 'absolute',
+                      top: 24,
+                      right: 28,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12
+                    }}>
                       <div style={{
-                        fontSize: '9px',
-                        color: '#64748b',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-end',
+                        fontFamily: 'sans-serif',
                         fontWeight: 700,
+                        fontSize: 11,
+                        gap: 2
+                      }}>
+                        <span style={{ background: '#eab308', color: 'white', padding: '2px 8px', borderRadius: 2 }}>STIKOM Yos Sudarso</span>
+                        <span style={{ background: '#1e293b', color: 'white', padding: '2px 8px', borderRadius: 2, fontSize: 9, letterSpacing: '0.5px' }}>Training Center</span>
+                      </div>
+                      {/* CSS SYS TraCt Logo */}
+                      <div style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        background: '#0f3cc9',
+                        color: 'white',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontFamily: 'sans-serif',
+                        lineHeight: 1.1,
+                        fontWeight: 800
+                      }}>
+                        <span style={{ fontSize: 12, letterSpacing: '0.5px' }}>SYS</span>
+                        <span style={{ fontSize: 7, fontWeight: 600, marginTop: -2 }}>TraCt</span>
+                      </div>
+                      {/* STIKOM Seal Logo */}
+                      <img src="https://i.ibb.co.com/kgV7WDhF/Logo-SYS.png" alt="STIKOM Seal" style={{ height: 40, width: 40, objectFit: 'contain' }} />
+                    </div>
+
+                    {/* Right Competencies Badge (Asymmetrical Curved Design) */}
+                    <div style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: 290,
+                      background: '#eab308',
+                      color: 'white',
+                      padding: '20px 24px',
+                      borderTopLeftRadius: 20,
+                      borderBottomLeftRadius: 20,
+                      boxShadow: '-4px 4px 12px rgba(0,0,0,0.06)',
+                      textAlign: 'left',
+                      fontFamily: 'sans-serif',
+                      zIndex: 10
+                    }}>
+                      <div style={{ fontWeight: 800, fontSize: 11, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Kompetensi Dikuasai:
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: 14, fontSize: 10.5, lineHeight: 1.5, fontWeight: 600, listStyleType: 'disc' }}>
+                        {getCompetencies(course.name).map((comp, idx) => (
+                          <li key={idx} style={{ marginBottom: 4 }}>{comp}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Main Content Layout (Left-Aligned Asymmetric Style) */}
+                    <div style={{
+                      paddingLeft: '76px',
+                      paddingRight: '320px',
+                      textAlign: 'left',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      height: '100%',
+                      boxSizing: 'border-box'
+                    }}>
+                      {/* Title */}
+                      <h1 style={{
+                        fontFamily: "'Cormorant Garamond', Georgia, serif",
+                        fontWeight: 700,
+                        fontSize: '32px',
+                        color: '#0f172a',
+                        margin: '0 0 4px 0',
+                        letterSpacing: '0.5px',
+                        textTransform: 'uppercase'
+                      }}>
+                        Sertifikat Penyelesaian
+                      </h1>
+                      <p style={{
+                        fontFamily: '"Plus Jakarta Sans", sans-serif',
+                        fontSize: '11px',
+                        color: '#64748b',
+                        margin: '0 0 20px 0',
+                        fontWeight: 600,
                         letterSpacing: '0.2px'
                       }}>
-                        Direktur SYSTRACT
+                        sertifikat ini diberikan kepada
+                      </p>
+
+                      {/* Student Name */}
+                      <h2 style={{
+                        fontFamily: "'Cormorant Garamond', Georgia, serif",
+                        fontWeight: 700,
+                        fontSize: '38px',
+                        color: '#0f172a',
+                        margin: '0 0 16px 0',
+                        lineHeight: '1.1'
+                      }}>
+                        {profile?.full_name}
+                      </h2>
+
+                      <p style={{
+                        fontFamily: '"Plus Jakarta Sans", sans-serif',
+                        fontSize: '11px',
+                        color: '#64748b',
+                        margin: '0 0 10px 0',
+                        fontWeight: 600,
+                        letterSpacing: '0.2px'
+                      }}>
+                        telah mengikuti pelatihan
+                      </p>
+
+                      {/* Course Title */}
+                      <h3 style={{
+                        fontFamily: "'Cormorant Garamond', Georgia, serif",
+                        fontWeight: 700,
+                        fontStyle: 'italic',
+                        fontSize: '22px',
+                        color: '#1e3a8a',
+                        margin: '0 0 12px 0'
+                      }}>
+                        {course.name} ({course.code})
+                      </h3>
+
+                      {/* Description */}
+                      <p style={{
+                        fontFamily: '"Plus Jakarta Sans", sans-serif',
+                        fontSize: '11.5px',
+                        color: '#334155',
+                        lineHeight: '1.6',
+                        maxWidth: '460px',
+                        margin: '0 0 20px 0',
+                        fontWeight: 500
+                      }}>
+                        Telah menyelesaikan materi pelatihan serta ujian akhir kompetensi pada platform pembelajaran digital (MOOCs) dengan hasil kelulusan yang memenuhi kualifikasi standar profesional.
+                      </p>
+
+                      {/* Signature */}
+                      <div style={{
+                        fontFamily: '"Plus Jakarta Sans", sans-serif',
+                        marginTop: '10px'
+                      }}>
+                        <div style={{ height: '24px' }}></div>
+                        <div style={{
+                          fontWeight: 800,
+                          fontSize: '12px',
+                          color: '#0f172a',
+                          marginBottom: '1px'
+                        }}>
+                          Dhany Faizal Racma, M.Kom
+                        </div>
+                        <div style={{
+                          fontSize: '9px',
+                          color: '#64748b',
+                          fontWeight: 700,
+                          letterSpacing: '0.2px'
+                        }}>
+                          Direktur SYSTRACT
+                        </div>
                       </div>
+                    </div>
+
+                    {/* Bottom Horizontal Watermark */}
+                    <div style={{
+                      position: 'absolute',
+                      bottom: 35,
+                      left: 70,
+                      right: 20,
+                      display: 'flex',
+                      justifyContent: 'flex-start',
+                      overflow: 'hidden',
+                      color: 'rgba(30,41,59,0.05)',
+                      fontFamily: 'sans-serif',
+                      fontSize: 28,
+                      fontWeight: 800,
+                      letterSpacing: 4,
+                      whiteSpace: 'nowrap',
+                      userSelect: 'none',
+                      pointerEvents: 'none'
+                    }}>
+                      SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt
+                    </div>
+
+                    {/* Bottom Footer Bar */}
+                    <div style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 50,
+                      right: 0,
+                      height: 35,
+                      background: '#1e293b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                      paddingRight: 24,
+                      color: 'white',
+                      fontFamily: 'sans-serif',
+                      fontSize: 10,
+                      fontWeight: 600,
+                      letterSpacing: '0.5px'
+                    }}>
+                      Certificate No. : SYSTRACT/CERT/{(course.code || 'CERT').toUpperCase()}/{user.id.slice(0, 8).toUpperCase()}
                     </div>
                   </div>
 
-                  {/* Bottom Horizontal Watermark */}
-                  <div style={{
-                    position: 'absolute',
-                    bottom: 35,
-                    left: 70,
-                    right: 20,
-                    display: 'flex',
-                    justifyContent: 'flex-start',
+                  {/* PAGE 2: Transcript design */}
+                  <div className="printable-transcript" style={{
+                    background: '#fff',
+                    fontFamily: '"Plus Jakarta Sans", "Inter", sans-serif',
+                    boxShadow: '0 20px 40px -15px rgba(0,0,0,0.12)',
+                    maxWidth: '920px',
+                    width: '100%',
+                    aspectRatio: '16 / 9',
+                    margin: '0 auto',
+                    position: 'relative',
                     overflow: 'hidden',
-                    color: 'rgba(30,41,59,0.05)',
-                    fontFamily: 'sans-serif',
-                    fontSize: 28,
-                    fontWeight: 800,
-                    letterSpacing: 4,
-                    whiteSpace: 'nowrap',
-                    userSelect: 'none',
-                    pointerEvents: 'none'
-                  }}>
-                    SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt
-                  </div>
-
-                  {/* Bottom Footer Bar */}
-                  <div style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 50,
-                    right: 0,
-                    height: 35,
-                    background: '#1e293b',
+                    borderRadius: 8,
+                    border: '1px solid #e2e8f0',
+                    boxSizing: 'border-box',
+                    padding: '32px 32px 32px 50px',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'flex-end',
-                    paddingRight: 24,
-                    color: 'white',
-                    fontFamily: 'sans-serif',
-                    fontSize: 10,
-                    fontWeight: 600,
-                    letterSpacing: '0.5px'
+                    flexDirection: 'column',
+                    textAlign: 'left'
                   }}>
-                    Certificate No. : SYSTRACT/CERT/{(course.code || 'CERT').toUpperCase()}/{user.id.slice(0, 8).toUpperCase()}
+                    {/* Left Sidebar Accent */}
+                    <div style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 16,
+                      background: '#1e293b'
+                    }} />
+                    <div style={{
+                      position: 'absolute',
+                      left: 16,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      background: '#eab308'
+                    }} />
+
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                      <div>
+                        <h2 style={{
+                          fontFamily: "'Cormorant Garamond', Georgia, serif",
+                          fontWeight: 700,
+                          fontSize: '22px',
+                          color: '#0f172a',
+                          margin: 0,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          Transkrip Kompetensi Pembelajaran
+                        </h2>
+                        <p style={{ fontSize: '9px', color: '#64748b', margin: '2px 0 0 0', fontWeight: 600 }}>
+                          SYSTRACT Academy &bull; Yos Sudarso Training Center
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-end',
+                          fontFamily: 'sans-serif',
+                          fontWeight: 700,
+                          fontSize: 9,
+                          gap: 1
+                        }}>
+                          <span style={{ background: '#eab308', color: 'white', padding: '1px 6px', borderRadius: 2 }}>STIKOM Yos Sudarso</span>
+                          <span style={{ background: '#1e293b', color: 'white', padding: '1px 6px', borderRadius: 2, fontSize: 8 }}>Training Center</span>
+                        </div>
+                        <img src="https://i.ibb.co.com/kgV7WDhF/Logo-SYS.png" alt="STIKOM Seal" style={{ height: 32, width: 32, objectFit: 'contain' }} />
+                      </div>
+                    </div>
+
+                    {/* Student Metadata Panel */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1.2fr 0.8fr',
+                      gap: '8px 16px',
+                      background: '#f8fafc',
+                      padding: '10px 14px',
+                      borderRadius: '6px',
+                      border: '1px solid #e2e8f0',
+                      marginBottom: '16px',
+                      fontSize: '10.5px',
+                      fontFamily: '"Plus Jakarta Sans", sans-serif'
+                    }}>
+                      <div>
+                        <span style={{ color: '#64748b', fontWeight: 600 }}>Nama Peserta:</span>
+                        <strong style={{ color: '#0f172a', marginLeft: 6 }}>{profile?.full_name}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', fontWeight: 600 }}>Tanggal:</span>
+                        <strong style={{ color: '#0f172a', marginLeft: 6 }}>
+                          {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', fontWeight: 600 }}>Kursus MOOCs:</span>
+                        <strong style={{ color: '#0f172a', marginLeft: 6 }}>{course.name} ({course.code})</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b', fontWeight: 600 }}>ID Sertifikat:</span>
+                        <strong style={{ color: '#0f172a', marginLeft: 6, fontFamily: 'monospace' }}>
+                          SYSTRACT/CERT/{(course.code || 'CERT').toUpperCase()}/{user.id.slice(0, 8).toUpperCase()}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* Table of Modules & Mastered Topics */}
+                    <div style={{ flexGrow: 1, overflowY: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ background: '#1e293b', color: '#fff' }}>
+                            <th style={{ padding: '6px 12px', fontSize: '9.5px', fontWeight: 700, textTransform: 'uppercase', width: '40px' }}>No</th>
+                            <th style={{ padding: '6px 12px', fontSize: '9.5px', fontWeight: 700, textTransform: 'uppercase', width: '220px' }}>Modul Kompetensi</th>
+                            <th style={{ padding: '6px 12px', fontSize: '9.5px', fontWeight: 700, textTransform: 'uppercase' }}>Detail Materi Utama yang Dikuasai</th>
+                            <th style={{ padding: '6px 12px', fontSize: '9.5px', fontWeight: 700, textTransform: 'uppercase', width: '100px', textAlign: 'center' }}>Hasil</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            const grouped = groupMaterialsIntoModules(materials)
+                            return grouped.map((mod, idx) => {
+                              // Extract unique titles of materials
+                              const titles = Array.from(new Set((mod.items || []).map(item => item.title || item.label)))
+                              const displayTitles = titles.length > 0 
+                                ? titles.slice(0, 3).join(', ') + (titles.length > 3 ? '...' : '') 
+                                : 'Evaluasi Akhir Modul'
+
+                              return (
+                                <tr key={idx}>
+                                  <td style={{ padding: '6px 12px', borderBottom: '1px solid #e2e8f0', fontSize: '10px', color: '#334155', fontWeight: 600 }}>
+                                    {idx + 1}
+                                  </td>
+                                  <td style={{ padding: '6px 12px', borderBottom: '1px solid #e2e8f0', fontSize: '10px', color: '#0f172a', fontWeight: 700 }}>
+                                    {mod.name.replace(/Module \d+:\s*/i, '')}
+                                  </td>
+                                  <td style={{ padding: '6px 12px', borderBottom: '1px solid #e2e8f0', fontSize: '9.5px', color: '#475569', lineHeight: 1.4 }}>
+                                    {displayTitles}
+                                  </td>
+                                  <td style={{ padding: '6px 12px', borderBottom: '1px solid #e2e8f0', fontSize: '9.5px', color: '#10b981', fontWeight: 700, textAlign: 'center' }}>
+                                    KOMPETEN
+                                  </td>
+                                </tr>
+                              )
+                            })
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Footer Signature */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      marginTop: 'auto',
+                      paddingTop: '10px',
+                      fontFamily: '"Plus Jakarta Sans", sans-serif'
+                    }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '9px', color: '#64748b', fontWeight: 600, marginBottom: '20px' }}>
+                          Verifikasi Akademis
+                        </div>
+                        <div style={{
+                          fontWeight: 800,
+                          fontSize: '11px',
+                          color: '#0f172a',
+                          marginBottom: '1px'
+                        }}>
+                          Dhany Faizal Racma, M.Kom
+                        </div>
+                        <div style={{
+                          fontSize: '8px',
+                          color: '#64748b',
+                          fontWeight: 700,
+                          letterSpacing: '0.2px'
+                        }}>
+                          Direktur SYSTRACT Academy
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 <style>{`
+                  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
                   @media print {
                     @page {
                       size: landscape;
@@ -1817,17 +1995,22 @@ export default function CourseDetail() {
                       -webkit-print-color-adjust: exact !important;
                       print-color-adjust: exact !important;
                     }
-                    /* Ensure only the certificate is visible on print */
+                    /* Ensure only the certificate container is visible on print */
                     body * {
                       visibility: hidden;
                     }
-                    .printable-certificate, .printable-certificate * {
+                    .printable-certificate-container, .printable-certificate-container * {
                       visibility: visible;
                     }
-                    .printable-certificate {
-                      position: fixed !important;
+                    .printable-certificate-container {
+                      position: absolute !important;
                       left: 0 !important;
                       top: 0 !important;
+                      width: 100vw !important;
+                      margin: 0 !important;
+                      padding: 0 !important;
+                    }
+                    .printable-certificate, .printable-transcript {
                       width: 100vw !important;
                       height: 100vh !important;
                       max-width: none !important;
@@ -1835,10 +2018,14 @@ export default function CourseDetail() {
                       box-shadow: none !important;
                       margin: 0 !important;
                       border-radius: 0 !important;
-                      z-index: 9999999 !important;
+                      page-break-after: always;
+                      break-after: page;
                       background: white !important;
                       -webkit-print-color-adjust: exact !important;
                       print-color-adjust: exact !important;
+                    }
+                    .printable-transcript {
+                      margin-top: 0 !important;
                     }
                   }
                 `}</style>
