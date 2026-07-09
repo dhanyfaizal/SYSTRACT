@@ -1600,24 +1600,8 @@ export default function CourseDetail() {
                         <span style={{ background: '#eab308', color: 'white', padding: '2px 8px', borderRadius: 2 }}>STIKOM Yos Sudarso</span>
                         <span style={{ background: '#1e293b', color: 'white', padding: '2px 8px', borderRadius: 2, fontSize: 9, letterSpacing: '0.5px' }}>Training Center</span>
                       </div>
-                      {/* CSS SYS TraCt Logo */}
-                      <div style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        background: '#0f3cc9',
-                        color: 'white',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontFamily: 'sans-serif',
-                        lineHeight: 1.1,
-                        fontWeight: 800
-                      }}>
-                        <span style={{ fontSize: 12, letterSpacing: '0.5px' }}>SYS</span>
-                        <span style={{ fontSize: 7, fontWeight: 600, marginTop: -2 }}>TraCt</span>
-                      </div>
+                      {/* SYSTRACT Logo */}
+                      <img src="https://i.ibb.co/BKFH2Hk9/SYSTRACT.png" alt="SYSTRACT Logo" style={{ height: 40, width: 40, objectFit: 'contain' }} />
                       {/* STIKOM Seal Logo */}
                       <img src="https://i.ibb.co.com/kgV7WDhF/Logo-SYS.png" alt="STIKOM Seal" style={{ height: 40, width: 40, objectFit: 'contain' }} />
                     </div>
