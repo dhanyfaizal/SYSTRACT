@@ -69,6 +69,18 @@ export default function WebSlidePlayer({
   // Make sure we have a thank you slide at the end if not exists
   const [slides, setSlides] = useState([])
   const [lightboxUrl, setLightboxUrl] = useState(null)
+  const [zoomScale, setZoomScale] = useState(1)
+  const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+
+  useEffect(() => {
+    if (!lightboxUrl) {
+      setZoomScale(1)
+      setZoomPos({ x: 0, y: 0 })
+      setIsDragging(false)
+    }
+  }, [lightboxUrl])
   useEffect(() => {
     let list = [...rawSlides]
     if (list.length > 0) {
@@ -778,31 +790,70 @@ export default function WebSlidePlayer({
           style={{
             position: 'fixed',
             top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.9)',
+            background: 'rgba(15, 23, 42, 0.95)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 9999,
-            cursor: 'zoom-out'
+            cursor: 'default',
+            userSelect: 'none',
+            overflow: 'hidden'
           }}
         >
-          <img 
-            src={lightboxUrl} 
-            alt="Fullscreen View" 
-            style={{ 
-              maxWidth: '90%', 
-              maxHeight: '90%', 
-              objectFit: 'contain',
-              borderRadius: 8,
-              boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
-            }} 
-          />
+          {/* Zoom controls */}
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            style={{
+              position: 'absolute',
+              bottom: 30,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(30, 41, 59, 0.85)',
+              backdropFilter: 'blur(8px)',
+              padding: '6px 16px',
+              borderRadius: 30,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+              zIndex: 10000,
+              border: '1px solid rgba(255,255,255,0.1)'
+            }}
+          >
+            <button 
+              onClick={() => setZoomScale(s => Math.max(0.5, s - 0.25))}
+              style={{ background: 'none', border: 'none', color: '#fff', fontSize: 20, cursor: 'pointer', padding: '0 8px', fontWeight: 'bold' }}
+              title="Zoom Out"
+            >
+              -
+            </button>
+            <span style={{ color: '#fff', fontSize: 13, minWidth: 45, textAlign: 'center', fontFamily: 'monospace', fontWeight: 600 }}>
+              {Math.round(zoomScale * 100)}%
+            </span>
+            <button 
+              onClick={() => setZoomScale(s => Math.min(4, s + 0.25))}
+              style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer', padding: '0 8px', fontWeight: 'bold' }}
+              title="Zoom In"
+            >
+              +
+            </button>
+            <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.2)' }} />
+            <button 
+              onClick={() => { setZoomScale(1); setZoomPos({ x: 0, y: 0 }) }}
+              style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', fontSize: 11, cursor: 'pointer', padding: '4px 10px', borderRadius: 20, fontWeight: 600 }}
+              title="Reset Zoom"
+            >
+              Reset
+            </button>
+          </div>
+
+          {/* Close button */}
           <button 
             onClick={() => setLightboxUrl(null)}
             style={{
               position: 'absolute',
               top: 20, right: 20,
-              background: 'rgba(255,255,255,0.2)',
+              background: 'rgba(255,255,255,0.1)',
               border: 'none',
               borderRadius: '50%',
               width: 40, height: 40,
@@ -811,11 +862,61 @@ export default function WebSlidePlayer({
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              zIndex: 10000,
+              transition: 'background 0.2s'
             }}
+            onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+            onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
           >
             ✕
           </button>
+
+          {/* Image with grab-drag pan & zoom */}
+          <img 
+            src={lightboxUrl} 
+            alt="Fullscreen View" 
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => {
+              e.stopPropagation()
+              if (zoomScale > 1) {
+                setZoomScale(1); setZoomPos({ x: 0, y: 0 })
+              } else {
+                setZoomScale(2); setZoomPos({ x: 0, y: 0 })
+              }
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation()
+              if (zoomScale > 1) {
+                setIsDragging(true)
+                setDragStart({ x: e.clientX - zoomPos.x, y: e.clientY - zoomPos.y })
+              }
+            }}
+            onMouseMove={(e) => {
+              e.stopPropagation()
+              if (isDragging && zoomScale > 1) {
+                setZoomPos({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y })
+              }
+            }}
+            onMouseUp={(e) => {
+              e.stopPropagation()
+              setIsDragging(false)
+            }}
+            onMouseLeave={() => {
+              setIsDragging(false)
+            }}
+            style={{ 
+              transform: `translate(${zoomPos.x}px, ${zoomPos.y}px) scale(${zoomScale})`,
+              transition: isDragging ? 'none' : 'transform 0.15s ease-out',
+              maxWidth: '90%', 
+              maxHeight: '90%', 
+              objectFit: 'contain',
+              borderRadius: 8,
+              boxShadow: '0 20px 50px rgba(0,0,0,0.7)',
+              cursor: zoomScale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in',
+              userSelect: 'none'
+            }} 
+          />
         </div>
       )}
     </div>
