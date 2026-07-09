@@ -76,7 +76,7 @@ export default function DosenAnalytics() {
       { data: enr }, { data: assignments }, { data: sessions },
       { data: finalGrades }, { data: exams },
     ] = await Promise.all([
-      supabase.from('enrollments').select('student:profiles(id,full_name,nim)').eq('course_id', courseId),
+      supabase.from('enrollments').select('student:profiles!student_id(id,full_name,nim)').eq('course_id', courseId),
       supabase.from('assignments').select('id,title,due_date,max_score').eq('course_id', courseId).order('due_date'),
       supabase.from('attendance_sessions').select('id,meeting_number,title,created_at').eq('course_id', courseId).eq('dosen_id', user.id).order('meeting_number'),
       supabase.from('final_grades').select('*').eq('course_id', courseId),

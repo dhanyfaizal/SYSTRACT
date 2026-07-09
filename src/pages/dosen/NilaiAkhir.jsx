@@ -50,7 +50,7 @@ export default function NilaiAkhir() {
     setLoading(true)
     // Get enrolled students
     const { data: enr } = await supabase.from('enrollments')
-      .select('student:profiles(id,full_name,nim,avatar_url)').eq('course_id', courseId)
+      .select('student:profiles!student_id(id,full_name,nim,avatar_url)').eq('course_id', courseId)
     const sts = (enr||[]).map(e=>e.student).filter(Boolean)
     setStudents(sts)
 

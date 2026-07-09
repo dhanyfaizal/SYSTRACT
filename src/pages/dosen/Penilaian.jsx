@@ -532,7 +532,7 @@ function RekapTab({ userId }) {
     // Parallel: fetch semua data sekaligus
     const [{ data: enrollments }, { data: assignments }, { data: exams }] = await Promise.all([
       supabase.from('enrollments')
-        .select('student:profiles(id, full_name, nim)').eq('course_id', cid),
+        .select('student:profiles!student_id(id, full_name, nim)').eq('course_id', cid),
       supabase.from('assignments')
         .select('id, title, max_score, submissions(student_id, grade, status)')
         .eq('course_id', cid).order('created_at'),
@@ -846,7 +846,7 @@ function SertifikatTab({ userId }) {
     setLoading(true)
     try {
       const [enrRes, matRes, assignRes, examRes] = await Promise.all([
-        supabase.from('enrollments').select('*, student:profiles(id, full_name, nim, avatar_url)').eq('course_id', cid).eq('status', 'approved'),
+        supabase.from('enrollments').select('*, student:profiles!student_id(id, full_name, nim, avatar_url)').eq('course_id', cid).eq('status', 'approved'),
         supabase.from('materials').select('*').eq('course_id', cid),
         supabase.from('assignments').select('*').eq('course_id', cid),
         supabase.from('exams').select('*').eq('course_id', cid).eq('is_published', true)

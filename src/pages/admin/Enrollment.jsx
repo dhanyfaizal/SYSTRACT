@@ -26,7 +26,7 @@ export default function AdminEnrollment() {
   async function fetchEnrolled() {
     setLoading(true)
     const { data } = await supabase.from('enrollments')
-      .select('id, student:profiles(id,full_name,nim,email)')
+      .select('id, student:profiles!student_id(id,full_name,nim,email)')
       .eq('course_id', selCourse)
     setEnrolled(data || [])
     setLoading(false)

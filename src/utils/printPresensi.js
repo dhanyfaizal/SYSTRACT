@@ -18,7 +18,7 @@ export async function printPresensi({ supabase, courseId, userId }) {
       .eq('course_id', courseId)
       .order('meeting_number', { ascending: true }),
     supabase.from('enrollments')
-      .select('student:profiles(id, full_name, nim)')
+      .select('student:profiles!student_id(id, full_name, nim)')
       .eq('course_id', courseId),
   ])
 

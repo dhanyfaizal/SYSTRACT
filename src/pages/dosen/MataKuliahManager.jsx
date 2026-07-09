@@ -299,7 +299,7 @@ export default function DosenMataKuliah() {
     try {
       const { data, error } = await supabase
         .from('enrollments')
-        .select('*, student:profiles(id, full_name, nim, email, avatar_url)')
+        .select('*, student:profiles!student_id(id, full_name, nim, email, avatar_url)')
         .eq('course_id', courseId)
         .order('enrolled_at', { ascending: false })
       if (error) throw error

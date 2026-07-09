@@ -86,7 +86,7 @@ export default function AttendanceManager() {
   async function fetchStudents() {
     const { data } = await supabase
       .from('enrollments')
-      .select('student:profiles(id,full_name,nim,avatar_url)')
+      .select('student:profiles!student_id(id,full_name,nim,avatar_url)')
       .eq('course_id', courseId)
     setStudents((data || []).map(e => e.student).filter(Boolean))
   }
