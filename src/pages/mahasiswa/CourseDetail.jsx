@@ -212,6 +212,9 @@ export default function CourseDetail() {
 
   const [isEnrolled, setIsEnrolled] = useState(false)
   const [enrollStatus, setEnrollStatus] = useState(null)
+  const [certificateStatus, setCertificateStatus] = useState('unvalidated')
+  const [certificateNotes, setCertificateNotes] = useState('')
+  const [enrollmentId, setEnrollmentId] = useState(null)
   const [expandedPreviewModules, setExpandedPreviewModules] = useState({
     0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 99: true
   })
@@ -303,7 +306,7 @@ export default function CourseDetail() {
       // Check enrollment
       const { data: enrollDataCheck } = await supabase
         .from('enrollments')
-        .select('id, status')
+        .select('id, status, certificate_status, certificate_notes')
         .eq('course_id', courseId)
         .eq('student_id', user.id)
         .maybeSingle()
@@ -311,6 +314,9 @@ export default function CourseDetail() {
       const enrolled = !!enrollDataCheck && enrollDataCheck.status === 'approved'
       setIsEnrolled(enrolled)
       setEnrollStatus(enrollDataCheck ? enrollDataCheck.status : null)
+      setCertificateStatus(enrollDataCheck ? (enrollDataCheck.certificate_status || 'unvalidated') : 'unvalidated')
+      setCertificateNotes(enrollDataCheck ? (enrollDataCheck.certificate_notes || '') : '')
+      setEnrollmentId(enrollDataCheck ? enrollDataCheck.id : null)
 
       // 2. Fetch materials
       const { data: mats } = await supabase
@@ -702,6 +708,21 @@ export default function CourseDetail() {
   const overallPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0
   const allAssignmentsSubmitted = courseAssignments.length === 0 || courseAssignments.every(a => !!submissionsMap[a.id])
   const isAllDone = totalSteps > 0 && completedSteps === totalSteps && allAssignmentsSubmitted
+
+  // Auto-submit certificate for validation
+  useEffect(() => {
+    if (isAllDone && enrollmentId && (certificateStatus === 'unvalidated' || certificateStatus === 'returned')) {
+      supabase.from('enrollments')
+        .update({ certificate_status: 'pending' })
+        .eq('id', enrollmentId)
+        .then(({ error }) => {
+          if (!error) {
+            setCertificateStatus('pending')
+            toast.success('Persyaratan lengkap! Pengajuan sertifikasi otomatis dikirim ke Instruktur 📨')
+          }
+        })
+    }
+  }, [isAllDone, enrollmentId, certificateStatus])
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}><div className="spinner" /></div>
   if (!course) return <div className="empty-state"><p>Kursus tidak ditemukan.</p></div>
@@ -1508,19 +1529,209 @@ export default function CourseDetail() {
             )}
 
             {activeItem?.type === 'sertifikat' && (
-              <div style={{ textAlign: 'center', padding: '10px 0' }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => window.print()}
-                    style={{ gap: 4, fontWeight: 600 }}
-                  >
-                    <FileDown size={14} /> Cetak / Simpan PDF
-                  </button>
+              <div style={{ textAlign: 'left', padding: '10px 0' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingBottom: 16, borderBottom: '1px solid var(--gray-200)' }}>
+                  <div>
+                    <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--gray-950)', margin: 0, fontFamily: 'Outfit, sans-serif' }}>Laporan Kelayakan Sertifikasi Kompetensi</h2>
+                    <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4, margin: 0 }}>
+                      Evaluasi kesiapan sertifikat kompetensi berbasis penyelesaian topik dan penugasan mandiri.
+                    </p>
+                  </div>
+                  
+                  {/* Cetak Button */}
+                  {certificateStatus === 'validated' ? (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => window.print()}
+                      style={{ gap: 6, fontWeight: 700, background: '#10b981', color: '#fff', borderColor: '#10b981' }}
+                    >
+                      <FileDown size={14} /> Cetak Sertifikat Kompetensi
+                    </button>
+                  ) : (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      disabled
+                      style={{ gap: 6, fontWeight: 700, cursor: 'not-allowed', opacity: 0.6 }}
+                      title="Menunggu validasi instruktur untuk dapat mencetak sertifikat"
+                    >
+                      <Lock size={14} /> Cetak Sertifikat (Belum Valid)
+                    </button>
+                  )}
                 </div>
 
-                {/* Printable container encompassing both pages */}
-                <div className="printable-certificate-container" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+                {/* Status Banner */}
+                {certificateStatus === 'validated' ? (
+                  <div className="card animate-fade-in" style={{ padding: '16px 20px', background: '#ecfdf5', borderColor: '#a7f3d0', color: '#065f46', borderRadius: 12, marginBottom: 24, display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#34d399', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 850, fontSize: 18, flexShrink: 0 }}>✓</div>
+                    <div>
+                      <h4 style={{ fontWeight: 800, fontSize: 13, margin: 0 }}>Sertifikat Terverifikasi &amp; Valid!</h4>
+                      <p style={{ fontSize: 11, color: '#047857', margin: '4px 0 0 0', lineHeight: 1.4 }}>
+                        Instruktur telah memverifikasi pencapaian kompetensi Anda. File cetak dan pratinjau sertifikat diaktifkan di bawah ini.
+                      </p>
+                    </div>
+                  </div>
+                ) : certificateStatus === 'pending' ? (
+                  <div className="card animate-fade-in" style={{ padding: '16px 20px', background: '#fffbeb', borderColor: '#fde68a', color: '#92400e', borderRadius: 12, marginBottom: 24, display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <Loader2 size={20} className="spinner" style={{ animation: 'spin 1.5s linear infinite', color: '#d97706', flexShrink: 0 }} />
+                    <div>
+                      <h4 style={{ fontWeight: 800, fontSize: 13, margin: 0 }}>Menunggu Validasi Instruktur</h4>
+                      <p style={{ fontSize: 11, color: '#b45309', margin: '4px 0 0 0', lineHeight: 1.4 }}>
+                        Pekerjaan dan progres belajar Anda sedang dalam peninjauan oleh Instruktur kelas. Sertifikat dapat dicetak segera setelah disetujui.
+                      </p>
+                    </div>
+                  </div>
+                ) : certificateStatus === 'returned' ? (
+                  <div className="card animate-fade-in" style={{ padding: '16px 20px', background: '#fff5f5', borderColor: '#fee2e2', color: '#991b1b', borderRadius: 12, marginBottom: 24, display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#f87171', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>↩</div>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontWeight: 800, fontSize: 13, margin: 0 }}>Sertifikat Dikembalikan untuk Revisi</h4>
+                      <p style={{ fontSize: 11, color: '#b91c1c', margin: '4px 0 0 0', lineHeight: 1.4 }}>
+                        Instruktur meminta Anda untuk melakukan revisi/perbaikan tugas agar dapat divalidasi.
+                      </p>
+                      {certificateNotes && (
+                        <div style={{ marginTop: 8, padding: '8px 12px', background: '#fff', border: '1px solid #fee2e2', borderRadius: 8, fontSize: 11, color: '#374151' }}>
+                          <strong style={{ display: 'block', color: '#991b1b', marginBottom: 2 }}>Catatan Instruktur:</strong>
+                          {certificateNotes}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card animate-fade-in" style={{ padding: '16px 20px', background: '#f8fafc', borderColor: '#e2e8f0', color: '#475569', borderRadius: 12, marginBottom: 24, display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#94a3b8', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>!</div>
+                    <div>
+                      <h4 style={{ fontWeight: 800, fontSize: 13, margin: 0 }}>Persyaratan Belum Lengkap</h4>
+                      <p style={{ fontSize: 11, color: '#64748b', margin: '4px 0 0 0', lineHeight: 1.4 }}>
+                        Selesaikan seluruh materi kuliah, lulus ujian kompetensi (nilai &gt;= 70), dan kumpulkan seluruh tugas untuk mengajukan sertifikat.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Progress Stats Widget */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+                  <div className="card" style={{ padding: 16, background: '#f8fafc' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Progres Pembelajaran</span>
+                    <h3 style={{ fontSize: 20, fontWeight: 800, color: 'var(--gray-950)', margin: '6px 0', fontFamily: 'Outfit, sans-serif' }}>{completedSteps} / {totalSteps} Selesai</h3>
+                    <div style={{ height: 6, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${overallPercent}%`, background: 'var(--indigo-600)' }} />
+                    </div>
+                  </div>
+
+                  <div className="card" style={{ padding: 16, background: '#f8fafc' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Pengumpulan Tugas</span>
+                    {(() => {
+                      const submitted = courseAssignments.filter(a => !!submissionsMap[a.id]).length
+                      const total = courseAssignments.length
+                      return (
+                        <>
+                          <h3 style={{ fontSize: 20, fontWeight: 800, color: 'var(--gray-950)', margin: '6px 0', fontFamily: 'Outfit, sans-serif' }}>{submitted} / {total} Dikirim</h3>
+                          <span style={{ fontSize: 10, color: submitted === total ? 'var(--success)' : 'var(--gray-400)', fontWeight: 600 }}>
+                            {submitted === total ? '✓ Semua tugas selesai dikirim' : 'Harap kirimkan semua tugas kelas'}
+                          </span>
+                        </>
+                      )
+                    })()}
+                  </div>
+                </div>
+
+                {/* Detailed Topics and Tasks List */}
+                <div className="card animate-fade-in" style={{ padding: 20, marginBottom: 24 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--gray-950)', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>Detail Pencapaian Pembelajaran</h3>
+                  
+                  {/* Module List */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {groupedModules.map((mod, modIdx) => {
+                      return (
+                        <div key={mod.id} style={{ borderBottom: '1px solid var(--gray-100)', paddingBottom: 12 }}>
+                          <h4 style={{ fontSize: 12, fontWeight: 800, color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 8px 0' }}>
+                            <span>Module {mod.id === 0 ? 'Pengenalan' : mod.id === 99 ? 'Akhir' : mod.id}:</span>
+                            <span style={{ color: 'var(--gray-800)' }}>{mod.name}</span>
+                          </h4>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 12 }}>
+                            {mod.items.map((item, idx) => {
+                              let itemDone = false
+                              let scoreText = ''
+                              if (item.type === 'materi') {
+                                itemDone = completedRefs.has(`mat_${item.data.id}_${item.subIdx}`)
+                                scoreText = itemDone ? 'Selesai Dibaca' : 'Belum Dibaca'
+                              } else if (item.type === 'ujian') {
+                                const score = examAnswersMap[item.data.id] || 0
+                                itemDone = score >= (item.data.passing_grade ?? 70)
+                                scoreText = score > 0 ? `Nilai: ${score} (Lulus >= ${item.data.passing_grade ?? 70})` : 'Belum Ujian'
+                              }
+
+                              return (
+                                <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
+                                  <span style={{ color: 'var(--gray-600)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span>{item.type === 'materi' ? '📖' : '🧠'}</span>
+                                    <span>{item.label}</span>
+                                  </span>
+                                  <span style={{ fontWeight: 700, color: itemDone ? 'var(--success)' : 'var(--gray-400)' }}>
+                                    {scoreText} {itemDone ? '✓' : ''}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Assignment List */}
+                <div className="card animate-fade-in" style={{ padding: 20, marginBottom: 24 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--gray-950)', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>Pemeriksaan Tugas &amp; Proyek</h3>
+                  
+                  {courseAssignments.length === 0 ? (
+                    <p style={{ fontSize: 12, color: 'var(--gray-400)', margin: 0 }}>Tidak ada penugasan terdaftar pada kelas ini.</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {courseAssignments.map(a => {
+                        const sub = submissionsMap[a.id]
+                        const isGraded = sub?.status === 'graded'
+                        const isRevision = sub?.status === 'revision'
+                        return (
+                          <div key={a.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid var(--gray-200)' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-800)' }}>{a.title}</span>
+                              <span style={{ fontSize: 10, color: 'var(--gray-400)' }}>Nilai Maksimal: {a.max_score}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              {sub ? (
+                                <>
+                                  <span className={`badge-pill ${isGraded ? 'badge-green' : isRevision ? 'badge-amber' : 'badge-indigo'}`} style={{ fontSize: 10, padding: '2px 8px' }}>
+                                    {isGraded ? `Dinilai: ${sub.grade}` : isRevision ? 'Perlu Revisi' : 'Terkirim / Menunggu Nilai'}
+                                  </span>
+                                  {sub.webview_link && (
+                                    <a href={sub.webview_link} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 600, color: 'var(--indigo-600)', textDecoration: 'none' }}>
+                                      Buka Tugas ↗
+                                    </a>
+                                  )}
+                                </>
+                              ) : (
+                                <span style={{ fontSize: 11, color: 'var(--danger)', fontWeight: 700 }}>
+                                  Belum Dikirim!
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Printable Certificate Container Preview (only shown if validated) */}
+                {certificateStatus === 'validated' && (
+                  <div style={{ marginTop: 32 }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--gray-950)', marginBottom: 16, fontFamily: 'Outfit, sans-serif' }}>Pratinjau Sertifikat</h3>
+                    
+                    {/* Printable container encompassing both pages */}
+                    <div className="printable-certificate-container" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
                   
                   {/* PAGE 1: Certificate design */}
                   <div className="printable-certificate" style={{
@@ -1965,6 +2176,8 @@ export default function CourseDetail() {
                     </div>
                   </div>
                 </div>
+                </div>
+                )}
 
                 <style>{`
                   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
