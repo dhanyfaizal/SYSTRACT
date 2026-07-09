@@ -60,7 +60,7 @@ export default function DosenAnalytics() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState({
     students:[], assignments:[], submissions:[], finalGrades:[],
-    sessions:[], attendances:[], exams:[], examAnswers:[],
+    materials:[], progress:[], exams:[], examAnswers:[],
   })
 
   useEffect(() => {
@@ -73,36 +73,42 @@ export default function DosenAnalytics() {
   async function fetchAll() {
     setLoading(true)
     const [
-      { data: enr }, { data: assignments }, { data: sessions },
+      { data: enr }, { data: assignments }, { data: materials },
       { data: finalGrades }, { data: exams },
     ] = await Promise.all([
       supabase.from('enrollments').select('student:profiles!student_id(id,full_name,nim)').eq('course_id', courseId),
       supabase.from('assignments').select('id,title,due_date,max_score').eq('course_id', courseId).order('due_date'),
-      supabase.from('attendance_sessions').select('id,meeting_number,title,created_at').eq('course_id', courseId).eq('dosen_id', user.id).order('meeting_number'),
+      supabase.from('materials').select('id,title,week_number').eq('course_id', courseId).order('week_number'),
       supabase.from('final_grades').select('*').eq('course_id', courseId),
       supabase.from('exams').select('id,title,type').eq('course_id', courseId),
     ])
     const students = (enr||[]).map(e=>e.student).filter(Boolean)
     const assignIds  = (assignments||[]).map(a=>a.id)
-    const sessionIds = (sessions||[]).map(s=>s.id)
     const examIds    = (exams||[]).map(e=>e.id)
 
-    const [{ data: subs }, { data: atts }, { data: examAns }] = await Promise.all([
+    const [{ data: subs }, { data: progress }, { data: examAns }] = await Promise.all([
       assignIds.length
         ? supabase.from('submissions').select('id,student_id,assignment_id,grade,status,submitted_at').in('assignment_id', assignIds)
         : Promise.resolve({ data:[] }),
-      sessionIds.length
-        ? supabase.from('attendances').select('student_id,status,session_id').in('session_id', sessionIds)
-        : Promise.resolve({ data:[] }),
+      supabase.from('course_progress').select('material_id,student_id').eq('course_id', courseId),
       examIds.length
         ? supabase.from('exam_answers').select('student_id,exam_id,score,submitted_at').in('exam_id', examIds)
         : Promise.resolve({ data:[] }),
     ])
-    setData({ students, assignments:assignments||[], submissions:subs||[], finalGrades:finalGrades||[], sessions:sessions||[], attendances:atts||[], exams:exams||[], examAnswers:examAns||[] })
+    setData({
+      students,
+      assignments: assignments||[],
+      submissions: subs||[],
+      finalGrades: finalGrades||[],
+      materials: materials||[],
+      progress: progress||[],
+      exams: exams||[],
+      examAnswers: examAns||[]
+    })
     setLoading(false)
   }
 
-  const { students, assignments, submissions, finalGrades, sessions, attendances, exams, examAnswers } = data
+  const { students, assignments, submissions, finalGrades, materials, progress, exams, examAnswers } = data
 
   // ── Computed metrics ────────────────────────────────────────
   const totalStudents = students.length
@@ -135,16 +141,18 @@ export default function DosenAnalytics() {
     }).filter(b => b.value > 0)
   }, [finalGrades])
 
-  // Attendance per session
-  const sessionStats = useMemo(() => sessions.map(s => {
-    const satts = attendances.filter(a => a.session_id === s.id)
-    const hadir = satts.filter(a => a.status === 'hadir').length
-    const pct   = totalStudents > 0 ? hadir/totalStudents*100 : 0
-    return { ...s, hadir, pct }
-  }), [sessions, attendances, totalStudents])
+  // Learning Progress per material
+  const materialStats = useMemo(() => (materials || []).map(m => {
+    const mProgress = (progress || []).filter(p => p.material_id === m.id)
+    const completed = mProgress.length
+    const pct = totalStudents > 0 ? (completed / totalStudents * 100) : 0
+    return { ...m, completed, pct }
+  }), [materials, progress, totalStudents])
 
-  const avgAttendance = sessionStats.length
-    ? sessionStats.reduce((s,x)=>s+x.pct,0)/sessionStats.length : 0
+  const avgProgress = useMemo(() => {
+    if (!materials?.length || !totalStudents) return 0
+    return (progress?.length || 0) / (materials.length * totalStudents) * 100
+  }, [progress, materials, totalStudents])
 
   // Top/bottom students
   const studentRanking = useMemo(() => {
@@ -157,17 +165,18 @@ export default function DosenAnalytics() {
             return s + (x.grade/(a?.max_score||100)*100)
           }, 0) / stSubs.length
         : 0
-      const stAtts = attendances.filter(a => a.student_id === st.id)
-      const hadirPct = sessions.length ? stAtts.filter(a=>a.status==='hadir').length/sessions.length*100 : 0
+      const stProg = (progress || []).filter(p => p.student_id === st.id)
+      const progressPct = materials.length ? (stProg.length / materials.length * 100) : 0
       const score = fg?.final_score ?? tugasAvg
-      return { ...st, score, tugasAvg, hadirPct, hasFinal: !!fg, grade: fg?.grade_letter }
+      return { ...st, score, tugasAvg, progressPct, hasFinal: !!fg, grade: fg?.grade_letter }
     }).sort((a,b) => b.score - a.score)
-  }, [students, finalGrades, submissions, attendances, sessions, assignments])
+  }, [students, finalGrades, submissions, progress, materials, assignments])
 
   const avgFinal = finalGrades.length
     ? finalGrades.reduce((s,g)=>s+(g.final_score||0),0)/finalGrades.length : 0
 
-  const atRisk = studentRanking.filter(s => s.score < 55 || s.hadirPct < 75)
+  // At-risk: score < 55 or progressPct < 50
+  const atRisk = studentRanking.filter(s => s.score < 55 || s.progressPct < 50)
 
   if (loading) return (
     <div>
@@ -175,7 +184,7 @@ export default function DosenAnalytics() {
       <Sk.StatCards n={5}/>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, marginBottom:20 }}>
         <div className="card" style={{ padding:20 }}><Sk.Chart h={140} label="Tugas"/></div>
-        <div className="card" style={{ padding:20 }}><Sk.Chart h={140} label="Kehadiran"/></div>
+        <div className="card" style={{ padding:20 }}><Sk.Chart h={140} label="Progres Belajar"/></div>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, marginBottom:20 }}>
         <div className="card" style={{ padding:20 }}><Sk.Chart h={120} label="Distribusi Nilai"/></div>
@@ -204,9 +213,9 @@ export default function DosenAnalytics() {
         {[
           { icon:Users,         label:'Mahasiswa',         value:totalStudents,               color:'#2563eb', bg:'#dbeafe' },
           { icon:ClipboardList, label:'Submission Rate',   value:`${submissionRate.toFixed(1)}%`, color:'#d97706', bg:'#fef3c7' },
-          { icon:CheckCircle2,  label:'Rata-rata Kehadiran', value:`${avgAttendance.toFixed(1)}%`, color:'#16a34a', bg:'#dcfce7' },
+          { icon:CheckCircle2,  label:'Rata-rata Progres Belajar', value:`${avgProgress.toFixed(1)}%`, color:'#16a34a', bg:'#dcfce7' },
           { icon:Award,         label:'Rata-rata Nilai Akhir', value: finalGrades.length ? avgFinal.toFixed(1) : '—', color:'#7c3aed', bg:'#ede9fe' },
-          { icon:AlertTriangle, label:'At-Risk (<55/75%)', value:atRisk.length,               color:'#dc2626', bg:'#fee2e2' },
+          { icon:AlertTriangle, label:'At-Risk (<55/50%)', value:atRisk.length,               color:'#dc2626', bg:'#fee2e2' },
         ].map(k=>(
           <div key={k.label} className="stat-card">
             <div className="stat-card-icon" style={{ background:k.bg }}><k.icon size={16} color={k.color}/></div>
@@ -251,22 +260,22 @@ export default function DosenAnalytics() {
           )}
         </div>
 
-        {/* Attendance per session */}
+        {/* Learning progress per material */}
         <div className="card">
           <div className="card-header">
-            <span style={{ fontWeight:700, fontSize:13, display:'flex', alignItems:'center', gap:6 }}><CheckCircle2 size={14}/> Kehadiran Per Pertemuan</span>
-            <span style={{ fontSize:11, color:'var(--gray-400)' }}>{sessions.length} sesi</span>
+            <span style={{ fontWeight:700, fontSize:13, display:'flex', alignItems:'center', gap:6 }}><CheckCircle2 size={14}/> Penyelesaian Modul</span>
+            <span style={{ fontSize:11, color:'var(--gray-400)' }}>{materials.length} modul</span>
           </div>
-          {sessionStats.length === 0 ? (
-            <div className="empty-state" style={{ padding:40 }}><CheckCircle2 size={24} color="var(--gray-200)"/><p className="empty-state-text" style={{ fontSize:12 }}>Belum ada sesi presensi</p></div>
+          {materialStats.length === 0 ? (
+            <div className="empty-state" style={{ padding:40 }}><CheckCircle2 size={24} color="var(--gray-200)"/><p className="empty-state-text" style={{ fontSize:12 }}>Belum ada materi/modul</p></div>
           ) : (
             <div style={{ padding:'8px 20px 16px' }}>
               <BarChart
-                data={sessionStats.map(s=>({ label:`P${s.meeting_number}`, value:s.hadir, color: s.pct>=75?'#16a34a':s.pct>=50?'#f59e0b':'#ef4444' }))}
+                data={materialStats.map((m, idx)=>({ label:`M${idx+1}`, value:m.completed, color: m.pct>=75?'#16a34a':m.pct>=50?'#f59e0b':'#ef4444' }))}
                 maxVal={totalStudents} height={120}
               />
               <div style={{ fontSize:11, color:'var(--gray-400)', textAlign:'center', marginTop:8 }}>
-                Jumlah mahasiswa hadir per pertemuan (target: {totalStudents})
+                Jumlah mahasiswa yang menyelesaikan modul (target: {totalStudents})
               </div>
             </div>
           )}
@@ -329,8 +338,8 @@ export default function DosenAnalytics() {
                     <div style={{ fontSize:12, fontWeight:700, color: st.score<55?'#dc2626':'var(--gray-700)' }}>
                       {st.score.toFixed(1)}
                     </div>
-                    <div style={{ fontSize:10, color: st.hadirPct<75?'#dc2626':'var(--gray-400)' }}>
-                      Hadir {st.hadirPct.toFixed(0)}%
+                    <div style={{ fontSize:10, color: st.progressPct<50?'#dc2626':'var(--gray-400)' }}>
+                      Progres {st.progressPct.toFixed(0)}%
                     </div>
                   </div>
                 </div>
@@ -350,7 +359,7 @@ export default function DosenAnalytics() {
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead>
               <tr style={{ background:'var(--gray-50)', borderBottom:'2px solid var(--gray-200)' }}>
-                {['#','Mahasiswa','Nilai Tugas','Kehadiran','Nilai Akhir','Grade'].map(h=>(
+                {['#','Mahasiswa','Nilai Tugas','Progres Belajar','Nilai Akhir','Grade'].map(h=>(
                   <th key={h} style={{ padding:'9px 14px', textAlign:'left', fontSize:11, fontWeight:700, color:'var(--gray-500)', textTransform:'uppercase', letterSpacing:'.4px', whiteSpace:'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -369,9 +378,9 @@ export default function DosenAnalytics() {
                       <ProgressRow label="" value={st.tugasAvg} max={100} color="var(--indigo-600)" suffix=""/>
                     </td>
                     <td style={{ padding:'9px 14px' }}>
-                      <div style={{ fontSize:12, fontWeight:700, color: st.hadirPct<75?'#dc2626':'#16a34a' }}>{st.hadirPct.toFixed(0)}%</div>
+                      <div style={{ fontSize:12, fontWeight:700, color: st.progressPct<50?'#dc2626':'#16a34a' }}>{st.progressPct.toFixed(0)}%</div>
                       <div style={{ height:4, width:60, background:'var(--gray-100)', borderRadius:99, marginTop:3 }}>
-                        <div style={{ height:'100%', width:`${st.hadirPct}%`, background: st.hadirPct<75?'#ef4444':'#16a34a', borderRadius:99 }}/>
+                        <div style={{ height:'100%', width:`${st.progressPct}%`, background: st.progressPct<50?'#ef4444':'#16a34a', borderRadius:99 }}/>
                       </div>
                     </td>
                     <td style={{ padding:'9px 14px', fontSize:16, fontWeight:800, color: st.score>=55?'#065f46':'#dc2626' }}>

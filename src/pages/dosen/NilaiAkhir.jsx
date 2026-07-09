@@ -59,8 +59,8 @@ export default function NilaiAkhir() {
       .select('id,max_score').eq('course_id', courseId)
     const { data: exams } = await supabase.from('exams')
       .select('id,title,type').eq('course_id', courseId)
-    const { data: sessions } = await supabase.from('attendance_sessions')
-      .select('id').eq('course_id', courseId).eq('dosen_id', user.id)
+    const { data: materials } = await supabase.from('materials')
+      .select('id').eq('course_id', courseId)
 
     // Get existing final_grades
     const { data: existing } = await supabase.from('final_grades')
@@ -71,15 +71,15 @@ export default function NilaiAkhir() {
     const studentIds = sts.map(s=>s.id)
     const assignIds  = (assignments||[]).map(a=>a.id)
     const examIds    = (exams||[]).map(e=>e.id)
-    const sessionIds = (sessions||[]).map(s=>s.id)
 
-    const [{ data: subs }, { data: results }] = await Promise.all([
+    const [{ data: subs }, { data: results }, { data: progress }] = await Promise.all([
       assignIds.length
         ? supabase.from('submissions').select('student_id,grade,assignment_id,status').in('assignment_id', assignIds).eq('status','graded')
         : Promise.resolve({ data:[] }),
       examIds.length
         ? supabase.from('exam_answers').select('student_id,score,exam_id').in('exam_id', examIds)
         : Promise.resolve({ data:[] }),
+      supabase.from('course_progress').select('material_id, student_id').eq('course_id', courseId)
     ])
 
     // Build lookup maps
@@ -87,9 +87,13 @@ export default function NilaiAkhir() {
     const existMap = {}
     ;(existing||[]).forEach(e => { existMap[e.student_id] = e })
 
-    // Participation (keaktifan) — from existing final_grades.attendance_pct (manual)
+    // Participation (keaktifan) — otomatis dihitung dari progres penyelesaian materi
     const partMap = {}
-    ;(existing||[]).forEach(e => { partMap[e.student_id] = e.attendance_pct || 0 })
+    sts.forEach(st => {
+      const stProg = (progress || []).filter(p => p.student_id === st.id).length
+      const matTotal = materials?.length || 0
+      partMap[st.id] = matTotal > 0 ? Math.min(100, Math.round((stProg / matTotal) * 100)) : 0
+    })
     setParticipation(partMap)
 
     const computed = sts.map(st => {
@@ -105,19 +109,28 @@ export default function NilaiAkhir() {
         tugasAvg = stSubs.reduce((sum,s) => sum + (s.grade / (aMap[s.assignment_id]||100) * 100), 0) / assignments.length
       }
 
-      // UTS / UAS from exams
+      // UTS / UAS from exams (Quizzes / Competency)
       const stRes = (results||[]).filter(r => r.student_id === st.id)
       const getExamAvg = (type) => {
-        const ids = (exams||[]).filter(e => e.type === type || e.title?.toLowerCase().includes(type)).map(e=>e.id)
+        const ids = (exams||[]).filter(e => {
+          const t = e.type?.toLowerCase() || ''
+          const title = e.title?.toLowerCase() || ''
+          if (type === 'uts') {
+            return t === 'uts' || t === 'kuis' || t === 'quiz' || title.includes('uts') || title.includes('kuis') || title.includes('quiz')
+          }
+          if (type === 'uas') {
+            return t === 'uas' || t === 'final' || t === 'competency' || title.includes('uas') || title.includes('final') || title.includes('kompetensi')
+          }
+          return t === type || title.includes(type)
+        }).map(e=>e.id)
         const rs  = stRes.filter(r => ids.includes(r.exam_id))
         if (!rs.length || !ids.length) return 0
-        // exam_answers.score is already 0-100
         return rs.reduce((s,r) => s + (r.score||0), 0) / ids.length
       }
       const utsAvg = getExamAvg('uts')
       const uasAvg = getExamAvg('uas')
 
-      // Keaktifan — manual input (stored in attendance_pct field)
+      // Keaktifan — otomatis dari progres materi
       const keaktifan = partMap[st.id] || 0
 
       // Final
@@ -230,10 +243,10 @@ export default function NilaiAkhir() {
           <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:14 }}>
             {[
               { key:'tugas_weight',      label:'Tugas (%)',       color:'#f59e0b' },
-              { key:'uts_weight',        label:'UTS (%)',         color:'#6366f1' },
-              { key:'uas_weight',        label:'UAS (%)',         color:'#ef4444' },
-              { key:'attendance_weight', label:'Keaktifan (%)',   color:'#10b981' },
-              { key:'passing_score',     label:'KKM',             color:'#64748b' },
+              { key:'uts_weight',        label:'Kuis (%)',        color:'#6366f1' },
+              { key:'uas_weight',        label:'Ujian Akhir (%)',  color:'#ef4444' },
+              { key:'attendance_weight', label:'Progres Belajar (%)', color:'#10b981' },
+              { key:'passing_score',     label:'Batas Kelulusan',  color:'#64748b' },
             ].map(f=>(
               <div key={f.key}>
                 <label style={{ fontSize:11, fontWeight:700, color:f.color, display:'block', marginBottom:5 }}>{f.label}</label>
@@ -282,7 +295,7 @@ export default function NilaiAkhir() {
         <div className="card-header">
           <span style={{ fontWeight:700, fontSize:13 }}>Rekap Nilai Akhir</span>
           <span style={{ fontSize:11, color:'var(--gray-400)' }}>
-            Bobot: Tugas {config.tugas_weight}% · UTS {config.uts_weight}% · UAS {config.uas_weight}% · Keaktifan {config.attendance_weight}%
+            Bobot: Tugas {config.tugas_weight}% · Kuis {config.uts_weight}% · Ujian Akhir {config.uas_weight}% · Progres {config.attendance_weight}%
           </span>
         </div>
         {loading ? (
@@ -295,7 +308,7 @@ export default function NilaiAkhir() {
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
               <thead>
                 <tr style={{ background:'var(--gray-50)', borderBottom:'2px solid var(--gray-200)' }}>
-                  {['#','Mahasiswa','Tugas','UTS','UAS','Keaktifan (0-100)','Nilai Akhir','Grade','Status'].map(h=>(
+                  {['#','Mahasiswa','Tugas','Kuis','Ujian Akhir','Progres Belajar','Nilai Akhir','Grade','Status'].map(h=>(
                     <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11, fontWeight:700, color:'var(--gray-500)', textTransform:'uppercase', letterSpacing:'.4px', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -320,11 +333,12 @@ export default function NilaiAkhir() {
                         </td>
                       ))}
                       <td style={{ padding:'10px 14px' }}>
-                        <input type="number" min={0} max={100}
-                          value={participation[c.id] ?? ''}
-                          onChange={e => setParticipation(p => ({ ...p, [c.id]: Math.min(100, Math.max(0, +e.target.value)) }))}
-                          style={{ width:70, padding:'4px 8px', borderRadius:6, border:'1px solid var(--gray-200)', fontSize:12, fontWeight:600, background:'var(--surface)', color:'var(--gray-700)', textAlign:'center' }}
-                          placeholder="0-100"/>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <span style={{ fontSize:13, fontWeight:700, color:'var(--gray-800)' }}>
+                            {(participation[c.id] ?? 0)}%
+                          </span>
+                          <span style={{ fontSize:9, color:'var(--gray-400)' }}>Otomatis Progres</span>
+                        </div>
                       </td>
                       <td style={{ padding:'10px 14px' }}>
                         <div style={{ fontSize:18, fontWeight:800, color: pass?'#065f46':'#991b1b' }}>
