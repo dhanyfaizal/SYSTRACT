@@ -3,6 +3,7 @@
  * Helper untuk menyusun berkas HTML WebSlide interaktif secara dinamis
  * berdasarkan data materi pertemuan hasil generate AI yang kaya visual.
  */
+import { sanitizeSlideData, sanitizeInline, escapeHtml } from './safeHtml.js'
 
 const PRODI_THEMES = {
   si: {
@@ -47,6 +48,11 @@ function getThemeByProdi(prodiName) {
 }
 
 export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData) {
+  // Semua teks disisipkan mentah ke HTML di bawah; saring dulu agar hanya format ringan yang lolos.
+  slideData = sanitizeSlideData(slideData);
+  courseName = sanitizeInline(courseName);
+  prodiName = sanitizeInline(prodiName);
+  meetingNo = escapeHtml(meetingNo);
   const theme = getThemeByProdi(prodiName);
   const title = slideData?.title || `Materi Pertemuan ${meetingNo}`;
   let slides = [...(slideData?.slides || [])];

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 
 const AI_KEY_STORAGE = 'edusys_gemini_api_key'
 const AI_BASE_URL_STORAGE = 'edusys_ai_base_url'
@@ -124,51 +125,36 @@ export function AIProvider({ children }) {
     const isCustomUrl = urlToUse !== 'https://generativelanguage.googleapis.com'
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 
-    // Gunakan proxy di produksi untuk custom URL guna mengatasi CORS
-    const useProxy = isCustomUrl && !isLocalhost
+    // Endpoint kompatibel OpenAI dengan URL sendiri: lewat /api/ai (mode byok) agar
+    // terhindar dari CORS. Server hanya meneruskan ke https://…/chat/completions publik
+    // dan hanya untuk pengguna yang sedang login.
+    const useProxy = isCustomUrl && !isLocalhost && typeToUse !== 'gemini'
 
     if (useProxy) {
-      const proxyBody = {
-        targetUrl: typeToUse === 'gemini'
-          ? `${normalizedBaseUrl}/v1beta/models/${modelToUse}:generateContent?key=${keyToUse}`
-          : `${normalizedBaseUrl}/chat/completions`,
-        method: 'POST',
-        headers: typeToUse === 'gemini'
-          ? { 'Content-Type': 'application/json' }
-          : {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${keyToUse}`
-            },
-        body: typeToUse === 'gemini'
-          ? {
-              system_instruction: systemPrompt
-                ? { parts: [{ text: systemPrompt }] }
-                : undefined,
-              contents: [{ role: 'user', parts: [{ text: prompt }] }],
-              generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
-            }
-          : {
-              model: modelToUse,
-              messages: [
-                ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-                { role: 'user', content: prompt }
-              ],
-              temperature: 0.7,
-              max_tokens: 2048
-            }
-      }
+      const { data: sesi } = await supabase.auth.getSession()
+      const token = sesi?.session?.access_token
+      if (!token) throw new Error('Sesi login berakhir. Silakan masuk kembali.')
 
-      const response = await fetch('/api/proxy', {
+      const response = await fetch('/api/ai', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(proxyBody)
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          byok: { url: normalizedBaseUrl, key: keyToUse },
+          model: modelToUse,
+          messages: [
+            ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.7,
+          max_tokens: 2048
+        })
       })
 
       if (!response.ok) {
-        let errMsg = 'Gagal menghubungi AI via Proxy'
+        let errMsg = 'Gagal menghubungi AI'
         try {
           const err = await response.json()
-          errMsg = err.error?.message || err.message || errMsg
+          errMsg = (typeof err.error === 'string' ? err.error : err.error?.message) || err.message || errMsg
         } catch (_) {
           errMsg = `${response.status} ${response.statusText}`
         }
@@ -176,11 +162,7 @@ export function AIProvider({ children }) {
       }
 
       const data = await response.json()
-      if (typeToUse === 'gemini') {
-        return data.candidates?.[0]?.content?.parts?.[0]?.text || '(Tidak ada respons)'
-      } else {
-        return data.choices?.[0]?.message?.content || '(Tidak ada respons)'
-      }
+      return data.choices?.[0]?.message?.content || '(Tidak ada respons)'
     }
 
     // Direct Browser Calls (for official Gemini or local development)
