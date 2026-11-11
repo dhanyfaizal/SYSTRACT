@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   BookOpen, Clock, HelpCircle, Info, ExternalLink, Menu, X, Check,
-  ChevronDown, AlertCircle, Sparkles, BookMarked, ArrowUp
+  ChevronDown, AlertCircle, BookMarked, ArrowUp
 } from 'lucide-react'
 
 // Prodi themes matching existing colors in webslideTemplate.js

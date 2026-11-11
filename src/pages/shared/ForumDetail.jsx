@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Send, Loader2, MessageSquare, Coins, Sparkles } from 'lucide-react'
+import { ArrowLeft, Send, Loader2, MessageSquare, Coins, Bot } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAI } from '@/contexts/AIContext'
 import { supabase } from '@/lib/supabase'
@@ -162,7 +162,7 @@ export default function ForumDetail() {
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--indigo-50)' }}
                 onClick={() => askWithContext(`Tolong jelaskan atau analisis topik diskusi forum berikut:\n\nJudul: "${forum.title}"\nIsi: "${forum.body || ''}"\nDibuat oleh: ${forum.author?.full_name || 'Pengguna'}\n\nBerikan rangkuman dan poin diskusi yang menarik dari topik ini.`)}
               >
-                <Sparkles size={11} /> Tanya AI
+                <Bot size={11} /> Tanya AI
               </button>
 
               <button
@@ -192,7 +192,7 @@ export default function ForumDetail() {
                   </>
                 ) : (
                   <>
-                    <Sparkles size={11} />
+                    <Bot size={11} />
                     <span>Rangkum Diskusi</span>
                   </>
                 )}
@@ -220,7 +220,7 @@ export default function ForumDetail() {
             justifyContent: 'space-between'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: 'var(--indigo-700)' }}>
-              <Sparkles size={14} color="var(--indigo-600)" />
+              <Bot size={14} color="var(--indigo-600)" />
               <span>Analisis & Rangkuman AI</span>
             </div>
             <button className="btn btn-ghost btn-sm" onClick={() => setShowAnalysis(false)} style={{ padding: 4 }}>

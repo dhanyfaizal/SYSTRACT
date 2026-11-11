@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, BookOpen, ClipboardList, MessageSquare, FileText,
-  ExternalLink, Calendar, User, Star, CheckCircle2, Sparkles,
+  ExternalLink, Calendar, User, Star, CheckCircle2,
   PlayCircle, FileDown, BookMarked, Eye, Send, Loader2, Award, Clock,
   Info, RefreshCw, ChevronUp, ChevronDown, ChevronRight, Lock
 } from 'lucide-react'

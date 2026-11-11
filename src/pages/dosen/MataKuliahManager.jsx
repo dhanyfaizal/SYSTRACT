@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import {
   Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy,
   CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown,
-  PlusCircle, Search, Sparkles, RefreshCw, FileText, Download,
+  PlusCircle, Search, Bot, RefreshCw, FileText, Download,
   Share2, ArrowLeft, PenTool, CheckCircle, ChevronUp, Info, HelpCircle,
   Award, Clock, Link, Check
 } from 'lucide-react'
@@ -1825,7 +1825,7 @@ export default function DosenMataKuliah() {
                       gap: 6
                     }}
                   >
-                    <Sparkles size={14} color="var(--indigo-600)"/> AI RPS & Slide Generator
+                    <Bot size={14} color="var(--indigo-600)"/> AI RPS & Slide Generator
                   </button>
                   <button
                     onClick={() => setActiveTab('enrollments')}
@@ -2088,7 +2088,7 @@ export default function DosenMataKuliah() {
                                           {/* AI slide availability */}
                                           {(m.slide_content || m.webslide_content) && (
                                             <div style={{ marginTop: 8, background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 8, padding: '8px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--indigo-700)', fontWeight: 600 }}>
-                                              <Sparkles size={11} color="var(--indigo-600)" /> 
+                                              <Bot size={11} color="var(--indigo-600)" /> 
                                               Slide AI Tersedia!
                                               {m.webslide_content && <span style={{ color: '#10b981' }}>(WebSlide Aktif)</span>}
                                             </div>
@@ -2132,7 +2132,7 @@ export default function DosenMataKuliah() {
                                               color: 'var(--indigo-700)'
                                             }}
                                           >
-                                            <Sparkles size={12} color="var(--indigo-600)" />
+                                            <Bot size={12} color="var(--indigo-600)" />
                                             {isExam ? 'Soal AI' : 'Slide AI'}
                                           </button>
                                           <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditMaterial(m)} title="Edit"><Edit2 size={13}/></button>
@@ -2255,7 +2255,7 @@ export default function DosenMataKuliah() {
                             }}
                             disabled={aiGeneratingDesc}
                           >
-                            <Sparkles size={13} color="var(--indigo-600)"/> Generate AI
+                            <Bot size={13} color="var(--indigo-600)"/> Generate AI
                           </button>
                         </div>
                         <textarea
@@ -2292,7 +2292,7 @@ export default function DosenMataKuliah() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 2: Keterampilan & Capaian (CPL & CPMK)</span>
                           <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateCplCpmk} disabled={aiGeneratingCplCpmk || !tempDesc}>
-                            <Sparkles size={13} color="var(--indigo-600)"/> Generate CPL & CPMK
+                            <Bot size={13} color="var(--indigo-600)"/> Generate CPL & CPMK
                           </button>
                         </div>
 
@@ -2473,7 +2473,7 @@ export default function DosenMataKuliah() {
                             onClick={handleAiGenerateRefs} 
                             disabled={aiGeneratingRefs || tempCpmk.length === 0}
                           >
-                            <Sparkles size={13}/> {aiGeneratingRefs ? 'Generating...' : 'Rekomendasi Referensi AI'}
+                            <Bot size={13}/> {aiGeneratingRefs ? 'Generating...' : 'Rekomendasi Referensi AI'}
                           </button>
                         </div>
 
@@ -2686,7 +2686,7 @@ export default function DosenMataKuliah() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Langkah 4: Struktur Silabus (16 Pertemuan)</span>
                           <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleAiGenerateWeekly} disabled={aiGeneratingWeekly || tempCpmk.length === 0}>
-                            <Sparkles size={13} color="var(--indigo-600)"/> Generate 16 Pertemuan
+                            <Bot size={13} color="var(--indigo-600)"/> Generate 16 Pertemuan
                           </button>
                         </div>
 
@@ -3175,7 +3175,7 @@ export default function DosenMataKuliah() {
             <div className="modal-header" style={{ padding: '16px 20px', background: 'var(--surface)', borderBottom: '1px solid var(--gray-100)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--indigo-50)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Sparkles size={16} color="var(--indigo-600)"/>
+                  <Bot size={16} color="var(--indigo-600)"/>
                 </div>
                 <div>
                   <span className="modal-title" style={{ fontSize: 15, fontWeight: 700 }}>Fokus Materi Pengembangan</span>
@@ -3225,7 +3225,7 @@ export default function DosenMataKuliah() {
                 {aiGeneratingDesc ? (
                   <Loader2 size={13} style={{ animation: 'spin .7s linear infinite' }}/>
                 ) : (
-                  <Sparkles size={13}/>
+                  <Bot size={13}/>
                 )}
                 Rumuskan Deskripsi
               </button>
@@ -3240,7 +3240,7 @@ export default function DosenMataKuliah() {
           <div className="modal" style={{ maxWidth: 800, maxHeight: '85vh', overflow: 'auto' }}>
             <div className="modal-header" style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 2 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Sparkles size={16} color="var(--indigo-600)" />
+                <Bot size={16} color="var(--indigo-600)" />
                 <span className="modal-title">
                   {+activeMeeting.week_number === 8 || +activeMeeting.week_number === 16 ? 'AI MCQ Questions Generator' : 'AI Slide & WebSlide Generator'}
                 </span>
@@ -3272,7 +3272,7 @@ export default function DosenMataKuliah() {
                       <HelpCircle size={40} color="var(--indigo-300)" style={{ marginBottom: 12 }} />
                       <p style={{ fontSize: 13, color: 'var(--gray-500)' }}>Belum ada soal pilihan ganda yang dirumuskan AI untuk evaluasi ini.</p>
                       <button className="btn btn-primary btn-sm" style={{ marginTop: 12, gap: 6 }} onClick={handleGenerateMcqQuestions}>
-                        <Sparkles size={13} /> Susun Soal Evaluasi (Pilihan Ganda)
+                        <Bot size={13} /> Susun Soal Evaluasi (Pilihan Ganda)
                       </button>
                     </div>
                   )}
@@ -3327,7 +3327,7 @@ export default function DosenMataKuliah() {
                     <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>1. Outline Materi Slide</span>
                     {!slideOutline && !loadingSlide && (
                       <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={handleGenerateSlideOutline}>
-                        <Sparkles size={13} /> Generate Outline
+                        <Bot size={13} /> Generate Outline
                       </button>
                     )}
 
@@ -3355,7 +3355,7 @@ export default function DosenMataKuliah() {
                             >
                               {isOutlineEmpty ? (
                                 <>
-                                  <Sparkles size={11} color="var(--indigo-600)"/> <span style={{ color: 'var(--indigo-600)', fontWeight: 700 }}>Generate Outline</span>
+                                  <Bot size={11} color="var(--indigo-600)"/> <span style={{ color: 'var(--indigo-600)', fontWeight: 700 }}>Generate Outline</span>
                                 </>
                               ) : (
                                 <>
@@ -3380,7 +3380,7 @@ export default function DosenMataKuliah() {
                         }}>
                           {isOutlineEmpty ? (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 16px', color: 'var(--gray-400)', gap: 10 }}>
-                              <Sparkles size={24} style={{ color: 'var(--indigo-400)', opacity: 0.8 }} />
+                              <Bot size={24} style={{ color: 'var(--indigo-400)', opacity: 0.8 }} />
                               <span style={{ fontSize: 13, fontWeight: 500, textAlign: 'center' }}>
                                 Belum ada outline. Klik <strong>"Generate Outline"</strong> di atas untuk memulai.
                               </span>
@@ -3520,7 +3520,7 @@ export default function DosenMataKuliah() {
                                             disabled={loadingSlide || regeneratingSlideNo !== null || regeneratingLayoutSlideNo !== null}
                                             style={{ padding: '2px 6px', fontSize: 10, gap: 4, color: 'var(--indigo-600)', background: 'var(--indigo-50)', borderRadius: 6, display: 'flex', alignItems: 'center' }}
                                           >
-                                            <Sparkles size={10}/> Layout SPA
+                                            <Bot size={10}/> Layout SPA
                                           </button>
                                         )}
                                         <button 
@@ -3604,7 +3604,7 @@ export default function DosenMataKuliah() {
                           onClick={handleGenerateWebSlide}
                           disabled={isOutlineEmpty}
                         >
-                          <Sparkles size={13} /> Bangun SPA (Layout Dinamis AI)
+                          <Bot size={13} /> Bangun SPA (Layout Dinamis AI)
                         </button>
                       )}
 

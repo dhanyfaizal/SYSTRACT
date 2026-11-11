@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  BookOpen, Sparkles, ChevronRight,
+  BookOpen, Bot, ChevronRight,
   Clock, CheckCircle2, Users, Activity, FileText, X
 } from 'lucide-react'
 import { useAuth }   from '@/contexts/AuthContext'
@@ -182,7 +182,7 @@ export default function MahasiswaDashboard() {
         </div>
         {!hasKey && (
           <button className="btn btn-secondary btn-sm" onClick={() => setAiModal(true)} style={{ gap: 6 }}>
-            <Sparkles size={13} color="var(--indigo-600)" /> Aktifkan AI Assistant
+            <Bot size={13} color="var(--indigo-600)" /> Aktifkan AI Assistant
           </button>
         )}
       </div>
