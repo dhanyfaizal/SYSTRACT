@@ -29,8 +29,10 @@ export default function CoursePreview({ course, materials, enrollStatus, enrolli
   const tampil = semua ? silabus : silabus.slice(0, DAFTAR_AWAL)
   const cpmk = (course.cpmk || []).filter((c) => c?.deskripsi)
   const dosen = course.dosen
+  // Kalimat pertama jadi ringkasan di atas; "Tentang kursus" memuat sisanya agar tidak berulang.
   const ringkas = kalimatPertama(course.description)
-  const deskripsiPanjang = (course.description || '').length > 320
+  const sisaDeskripsi = (course.description || '').trim().slice(ringkas.length).trim()
+  const deskripsiPanjang = sisaDeskripsi.length > 320
   const menunggu = enrollStatus === 'pending'
 
   const fakta = [
@@ -54,18 +56,18 @@ export default function CoursePreview({ course, materials, enrollStatus, enrolli
             <h1 className="pv-title">{course.name}</h1>
             {ringkas && <p className="pv-lead">{ringkas}</p>}
             <p className="pv-facts">{fakta.join(' · ')}</p>
-            {/* Di ponsel kartu pendaftaran ada di paling bawah; beri tombol juga di atas. */}
+            {/* Di layar sempit kartu pendaftaran ada di paling bawah; beri tombol juga di atas. */}
             {!menunggu && (
-              <button type="button" className="btn btn-primary pv-enroll-btn shell-only-mobile" onClick={onEnroll} disabled={enrolling}>
+              <button type="button" className="btn btn-primary pv-enroll-btn pv-hero-cta" onClick={onEnroll} disabled={enrolling}>
                 {enrolling ? 'Mendaftar…' : 'Daftar kursus'}
               </button>
             )}
           </header>
 
-          {course.description && (
+          {sisaDeskripsi && (
             <section className="card pv-section" aria-labelledby="pv-tentang">
               <h2 id="pv-tentang" className="pv-h2">Tentang kursus</h2>
-              <p className={`pv-desc${descOpen || !deskripsiPanjang ? '' : ' is-clamped'}`}>{course.description}</p>
+              <p className={`pv-desc${descOpen || !deskripsiPanjang ? '' : ' is-clamped'}`}>{sisaDeskripsi}</p>
               {deskripsiPanjang && (
                 <button type="button" className="pv-more" onClick={() => setDescOpen((v) => !v)} aria-expanded={descOpen}>
                   {descOpen ? 'Tampilkan lebih sedikit' : 'Selengkapnya'}
