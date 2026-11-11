@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { MessageSquare, Plus, Trash2, X, Loader2, ChevronDown, Pin, MessageCircle, ExternalLink } from 'lucide-react'
+import CoursePicker from "@/components/dosen/CoursePicker"
+import { MessageSquare, Plus, Trash2, X, Loader2, Pin, MessageCircle, ExternalLink } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -98,19 +99,8 @@ export default function DosenForumManager() {
         </button>
       </div>
 
-      {/* Course Selector */}
-      <div className="card" style={{ padding:'12px 16px', marginBottom:20 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <label style={{ fontSize:12, fontWeight:600, color:'var(--gray-600)', flexShrink:0 }}>Mata Kuliah:</label>
-          <div style={{ position:'relative', flex:1, maxWidth:360 }}>
-            <select className="input" value={courseId} onChange={e => setCourseId(e.target.value)}>
-              {courses.length === 0 && <option value="">Belum ada mata kuliah</option>}
-              {courses.map(c => <option key={c.id} value={c.id}>{c.code} – {c.name}</option>)}
-            </select>
-            <ChevronDown size={13} style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'var(--gray-400)' }}/>
-          </div>
-        </div>
-      </div>
+      <CoursePicker courses={courses} courseId={courseId} onChange={setCourseId} />
+
 
       {loading ? (
         <div className="spinner" style={{ margin:'40px auto' }}/>
