@@ -694,6 +694,13 @@ img { display: block; max-width: 100%; }
   .home-row { padding: 12px 16px; }
 }
 
+/* ── Judul modul di sidebar (nama kursus) boleh dua baris, tidak terpotong ── */
+.shell .shell-module-title { white-space: normal; align-items: flex-start; line-height: 1.35; }
+.shell .shell-module-title svg { margin-top: 2px; }
+.shell .shell-module-title span {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+
 /* ── Mode ujian: sidebar & tombol menu disembunyikan (lihat AppLayout) ── */
 .exam-mode .shell-sidebar,
 .exam-mode .shell-overlay { display: none !important; }
