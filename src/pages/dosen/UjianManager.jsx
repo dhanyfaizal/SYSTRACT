@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { FileQuestion, Plus, Edit2, Trash2, X, Loader2, ChevronDown, Clock, Eye, EyeOff, Database, Users } from 'lucide-react'
+import { FileQuestion, Plus, Edit2, Trash2, X, Loader2, Clock, Eye, EyeOff, Database, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import CoursePicker from "@/components/dosen/CoursePicker"
 
 const EXAM_MODES = [
   { value:'ujian',   label:'Ujian',    desc:'1 kali percobaan, dosen input nilai',   color:'#4f46e5' },
@@ -199,19 +200,8 @@ export default function DosenUjianManager() {
         </button>
       </div>
 
-      {/* Course Selector */}
-      <div className="card" style={{ padding:'12px 16px', marginBottom:20 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <label style={{ fontSize:12, fontWeight:600, color:'var(--gray-600)', flexShrink:0 }}>Mata Kuliah:</label>
-          <div style={{ position:'relative', flex:1, maxWidth:360 }}>
-            <select className="input" value={courseId} onChange={e => setCourseId(e.target.value)}>
-              {courses.length === 0 && <option value="">Belum ada mata kuliah</option>}
-              {courses.map(c => <option key={c.id} value={c.id}>{c.code} – {c.name}</option>)}
-            </select>
-            <ChevronDown size={13} style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'var(--gray-400)' }}/>
-          </div>
-        </div>
-      </div>
+      <CoursePicker courses={courses} courseId={courseId} onChange={setCourseId} />
+
 
       {loading ? (
         <div className="spinner" style={{ margin:'40px auto' }}/>

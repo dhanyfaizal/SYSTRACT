@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import CoursePicker from "@/components/dosen/CoursePicker"
 import {
   QrCode, Plus, Users, Clock, CheckCircle2, X, Loader2,
   RefreshCw, Edit2, Save, BookOpen, ChevronDown, ChevronUp,
@@ -218,9 +219,7 @@ export default function AttendanceManager() {
           <p className="page-subtitle">Kelola sesi kehadiran per pertemuan</p>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-          <select className="input" style={{ maxWidth:260 }} value={courseId} onChange={e=>setCourseId(e.target.value)}>
-            {courses.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
-          </select>
+          <CoursePicker inline courses={courses} courseId={courseId} onChange={setCourseId} />
           {tab === 'sesi' && (
             <button className="btn btn-primary" onClick={() => setShowForm(true)}
               style={{ display:'flex', alignItems:'center', gap:6, whiteSpace:'nowrap' }}>
