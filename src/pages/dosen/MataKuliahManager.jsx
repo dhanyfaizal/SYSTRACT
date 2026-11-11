@@ -1031,7 +1031,7 @@ export default function DosenMataKuliah() {
     const steps = [
       "Menganalisis Kemampuan Akhir & Bahan Kajian...",
       "Mengintegrasikan Referensi Pustaka RPS...",
-      "Merancang Outline & Struktur Presentasi (Sampai dengan 45 Slide)...",
+      "Merancang 15–18 bagian materi yang ringkas...",
       "Mengembangkan Contoh Kasus & Penerapan Industri...",
       "Menyusun Perbandingan Konsep & Penjelasan Detail...",
       "Mempersiapkan Output Draft Slide..."
@@ -1074,7 +1074,15 @@ export default function DosenMataKuliah() {
         activeMeeting.title,
         activeMeeting.description,
         selectedCourse.referensi || [],
-        handleProgress
+        handleProgress,
+        {
+          // Judul pertemuan lain agar AI tidak mengambil alih materinya.
+          pertemuanLain: [...new Map(
+            materials
+              .filter(m => m.week_number && m.week_number !== activeMeeting.week_number)
+              .map(m => [m.week_number, `Pertemuan ${m.week_number}: ${m.title}`])
+          ).values()],
+        }
       )
       setSlideOutline(result)
       toast.success("Outline slide berhasil disusun AI! 🤖")

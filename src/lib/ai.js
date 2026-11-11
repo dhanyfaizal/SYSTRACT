@@ -19,7 +19,7 @@ async function aiHeaders() {
 }
 
 // Inti pemanggilan API dengan fallback otomatis
-export async function callAi(prompt, isJson = true, onProgress = null) {
+export async function callAi(prompt, isJson = true, onProgress = null, system = '') {
   let quotaError = null;
   let lastError = null;
 
@@ -48,6 +48,7 @@ export async function callAi(prompt, isJson = true, onProgress = null) {
         body: JSON.stringify({
           model,
           messages: [
+            ...(system ? [{ role: 'system', content: system }] : []),
             { role: 'user', content: prompt }
           ],
           response_format: isJson ? { type: "json_object" } : undefined,
@@ -419,51 +420,68 @@ export async function generateReferences(courseName, cpmkList, onProgress = null
   return res?.referensi || [];
 }
 
+// Aturan penulisan materi yang berlaku untuk outline, regenerate slide, dan SPA.
+// Dikirim sebagai pesan sistem agar tidak bercampur dengan data kursus.
+const ATURAN_MATERI = `
+Anda adalah penulis materi kursus daring (MOOC) berbahasa Indonesia untuk peserta yang belajar mandiri.
+
+Aturan isi (wajib):
+1. Tulis langsung sebagai materi untuk peserta. Jangan pernah menyebut "slide", "presentasi", "RPS", "outline", "dosen", "perkuliahan ini", "mahasiswa diharapkan", instruksi yang Anda terima, atau keterbatasan data yang diberikan.
+2. Jangan mengarang skema penilaian, tugas, jadwal, maupun isi pertemuan lain.
+3. Fakta dan angka: definisi, rumus, konversi satuan, dan istilah standar boleh dipakai. Persentase, biaya, besar penghematan, atau hasil studi hanya boleh bila angkanya dikenal luas dan stabil; bila ragu, tulis secara kualitatif (misalnya "dapat menurunkan konsumsi energi secara nyata"). Jangan mengaitkan angka dengan lembaga atau studi tertentu kecuali sumbernya ada di daftar pustaka.
+4. Rujukan: hanya boleh menyebut sumber dari daftar pustaka yang diberikan. Bila daftar pustaka kosong, jangan mencantumkan rujukan apa pun.
+5. Kalimat ringkas dan jelas dalam Bahasa Indonesia baku. Istilah asing yang lazim boleh dipakai, dengan penjelasan singkat saat pertama kali muncul.
+6. Keluarkan JSON murni tanpa teks lain.
+`;
+
+function daftarPustaka(references = []) {
+  const list = (references || [])
+    .map(r => (typeof r === 'object' && r !== null) ? (r.teks || '').trim() : String(r || '').trim())
+    .filter(Boolean);
+  return list.length ? list.map(r => '- ' + r).join('\n') : '(kosong — jangan mencantumkan rujukan)';
+}
+
 // 7. Generate Materi Slide untuk Pertemuan (Format Outline Sederhana)
-export async function generateSlideContent(courseName, meetingNo, topic, capability, references = [], onProgress = null) {
-  const formattedRefs = (references || []).map(r => {
-    if (typeof r === 'object' && r !== null) {
-      return `${r.teks || ''} [Link: ${r.url || ''}]`;
-    }
-    return r;
-  });
+/**
+ * @param {object} [konteks]
+ * @param {string[]} [konteks.pertemuanLain]  judul pertemuan lain, agar materinya tidak diambil alih
+ */
+export async function generateSlideContent(courseName, meetingNo, topic, capability, references = [], onProgress = null, konteks = {}) {
+  const lain = (konteks.pertemuanLain || []).filter(Boolean);
 
   const prompt = `
-    Anda adalah pakar akademis dan desainer instruksional senior. Tugas Anda adalah menyusun rancangan materi ajar dalam bentuk outline slide presentasi terstruktur untuk perkuliahan berikut:
-    Mata Kuliah: "${courseName}"
-    Pertemuan Ke: ${meetingNo}
-    Topik / Bahan Kajian: "${topic || '—'}"
-    Kemampuan Akhir Mahasiswa: "${capability || '—'}"
-    Referensi Pustaka Utama RPS: ${JSON.stringify(formattedRefs)}
+Susun materi untuk satu pertemuan kursus berikut.
 
-    Hasilkan outline slide presentasi yang sangat komprehensif, mendalam, dan kaya materi dengan ketentuan berikut:
-    1. Jumlah Slide: MINIMAL 30 DAN MAKSIMAL 45 SLIDE (slide 1 s.d. slide 45).
-    2. Integrasi Referensi: Hubungkan penjelasan materi dengan referensi pustaka utama RPS di atas yang relevan (cantumkan kutipan/rujukan buku atau artikel ilmiah tersebut pada slide yang relevan).
-    3. Kedalaman Konten: Berikan penjelasan yang mendalam dan bermakna pada setiap slide. Di dalam poin-poin materi, berikan CONTOH konkret, PENERAPAN praktis di industri/studi kasus nyata, PERBANDINGAN teori/konsep/metode, dan penjelasan pelengkap lainnya yang dapat mengembangkan wawasan materi ini secara maksimal. Poin penjelasan harus berupa kalimat informatif yang kaya konten (bukan frasa pendek atau ringkasan seadanya).
+Kursus: "${courseName}"
+Pertemuan: ${meetingNo}
+Topik pertemuan ini: "${topic || '—'}"
+Kemampuan akhir: "${capability || '—'}"
 
-    Format output harus berupa JSON OBJECT murni dengan struktur:
-    {
-      "title": "Judul Utama Presentasi",
-      "slides": [
-        {
-          "slide_no": 1,
-          "title": "Judul Slide 1 (contoh: Pendahuluan & Rujukan)",
-          "content": [
-            "Poin penjelasan mendalam tentang konsep dasar...",
-            "Rujukan pustaka dan perannya dalam bab ini...",
-            "Contoh kasus nyata..."
-          ]
-        },
-        ...
-      ]
-    }
+Topik pertemuan lain (JANGAN dibahas di sini; boleh disinggung paling banyak satu kalimat bila memang perlu):
+${lain.length ? lain.map(t => '- ' + t).join('\n') : '- (tidak ada data)'}
 
-    ATURAN:
-    - Gunakan Bahasa Indonesia formal akademik.
-    - Jangan berikan penjelasan tambahan apapun di luar JSON murni.
-  `;
+Daftar pustaka:
+${daftarPustaka(references)}
 
-  return callAi(prompt, true, onProgress);
+Catatan: bila kemampuan akhir tidak sejalan dengan topik pertemuan ini, utamakan TOPIK pertemuan ini dan jangan membahas materi milik pertemuan lain.
+
+Struktur:
+1. Buat 15 sampai 18 bagian. Setiap bagian membahas satu konsep; jangan mengulang isi bagian lain.
+2. Bagian 1 adalah pengantar: apa yang akan dipelajari dan mengapa penting (2–3 poin).
+3. Bagian inti: 3–4 poin per bagian. Setiap poin satu kalimat, paling banyak sekitar 30 kata. Sertakan contoh konkret atau penerapan nyata pada sebagian bagian (konteks Indonesia bila relevan), serta perbandingan bila membantu.
+4. Bagian kedua terakhir berjudul "Ringkasan" berisi 3–5 poin inti.
+5. Bagian terakhir berjudul "Latihan" berisi 3–4 soal untuk menguji pemahaman. Tulis setiap poin dengan format: "Soal: … Jawaban: …".
+
+Format JSON:
+{
+  "title": "Judul materi pertemuan ini",
+  "slides": [
+    { "slide_no": 1, "title": "Judul bagian", "content": ["Poin 1", "Poin 2", "Poin 3"] }
+  ]
+}
+`;
+
+  return callAi(prompt, true, onProgress, ATURAN_MATERI);
 }
 
 // 7.b. Generate/Regenerate Ulang Single Slide
@@ -479,10 +497,10 @@ export async function generateSingleSlide(courseName, meetingNo, topic, slideNo,
     Judul Slide Saat Ini: "${slideTitle}"
     Konten Saat Ini (sebagai referensi): ${JSON.stringify(currentContent)}
 
-    Hasilkan konten slide yang baru, sangat komprehensif, mendalam, dan kaya materi dengan ketentuan berikut:
-    1. Berikan penjelasan yang mendalam dan bermakna pada slide ini.
+    Hasilkan isi bagian yang baru, ringkas, dan jelas dengan ketentuan berikut:
+    1. Fokus pada satu konsep sesuai judul bagian ini.
     2. Berikan CONTOH konkret, PENERAPAN praktis di industri/studi kasus nyata, atau PERBANDINGAN konsep/metode/teori yang relevan.
-    3. Hasilkan minimal 3 dan maksimal 6 poin penjelasan (bullet points) yang berkualitas tinggi. Setiap poin harus berupa kalimat informatif yang kaya konten (bukan frasa pendek atau ringkasan seadanya).
+    3. Hasilkan 3–4 poin. Setiap poin satu kalimat, paling banyak sekitar 30 kata. Jangan mengulang isi bagian lain.
     
     Format output harus berupa JSON OBJECT murni dengan struktur:
     {
@@ -495,12 +513,9 @@ export async function generateSingleSlide(courseName, meetingNo, topic, slideNo,
       ]
     }
 
-    ATURAN:
-    - Gunakan Bahasa Indonesia formal akademik.
-    - Jangan berikan penjelasan tambahan apapun di luar JSON murni.
   `;
 
-  return callAi(prompt, true, onProgress);
+  return callAi(prompt, true, onProgress, ATURAN_MATERI);
 }
 
 // 8. Generate WebSlide Layouts
@@ -514,11 +529,11 @@ export async function generateWebSlideData(courseName, prodiName, meetingNo, out
     Data Outline Materi (JSON):
     ${JSON.stringify(outlineData)}
 
-    Berdasarkan data outline sederhana di atas, buatlah presentasi WebSlide/SPA lengkap yang memetakan SELURUH slide dari outline data yang diberikan (misalnya 30 sampai 45 slide sesuai jumlah slide di outline). Jangan kurangi atau potong jumlah slide dari outline data tersebut. Untuk setiap slide dari outline, analisis materinya secara mendalam dan tentukan tipe tata letak (layout) yang paling sesuai, variatif, dan profesional agar presentasi interaktif dan tidak monoton.
+    Berdasarkan data outline sederhana di atas, buatlah presentasi WebSlide/SPA yang memetakan SELURUH slide dari outline. Jumlah slide dan nilai "slide_no" harus sama persis dengan outline: jangan menambah, mengurangi, menggabung, atau mengubah urutan slide. Pertahankan keringkasan teks outline; jangan memperpanjangnya. Untuk setiap slide dari outline, analisis materinya secara mendalam dan tentukan tipe tata letak (layout) yang paling sesuai, variatif, dan profesional agar presentasi interaktif dan tidak monoton.
 
     ATURAN LAYOUT YANG HARUS DIPILIH:
     - PENTING: Hanya sertakan properti "image_url" pada slide jika objek slide di dalam data outline materi (JSON) memiliki properti "image_url" (atau berisi tautan gambar/video tertentu). Apabila objek slide di dalam data outline materi tidak memiliki properti "image_url" (bernilai kosong atau null), Anda DILARANG keras membuat/mengarang "image_url" baru.
-    - Setiap objek slide dapat memuat properti opsional "reference": "Nama Penulis & Tahun (contoh: Williams & Park, 2023)" apabila slide tersebut memuat kutipan/rujukan teoretis.
+    - Properti opsional "reference" hanya boleh diisi bila slide outline yang bersangkutan menyebut sumber secara eksplisit. Jangan mengarang nama penulis atau tahun.
 
     1. "cover": Hanya untuk Slide 1 (Cover utama perkuliahan).
        {
@@ -544,7 +559,7 @@ export async function generateWebSlideData(courseName, prodiName, meetingNo, out
            "Poin detail 3..."
          ]
        }
-    3. "grid": Layout grid kartu (2, 3, atau 4 kartu). Cocok untuk menguraikan beberapa kategori, pilar, atau komponen utama.
+    3. "grid": Layout grid kartu (tepat 2 atau 4 kartu). Cocok untuk menguraikan beberapa kategori, pilar, atau komponen utama.
        {
          "slide_no": X,
          "layout": "grid",
@@ -584,7 +599,7 @@ export async function generateWebSlideData(courseName, prodiName, meetingNo, out
        }
     6. "accordion": Layout akordion interaktif (Tanya Jawab / Diskusi Kelas / Sub-Materi).
        Dapat digunakan secara bebas di slide-slide tengah untuk memaparkan sub-konsep secara interaktif.
-       Catatan khusus: Slide kedua dari terakhir (Slide N-1) WAJIB berupa layout "accordion" dengan topik "Diskusi Kelas & Tanya Jawab" yang memicu interaksi aktif mahasiswa sebelum kuliah berakhir.
+       Catatan khusus: slide outline berjudul "Latihan" WAJIB memakai layout "accordion"; "header" berisi soal dan "content" berisi jawabannya. Jangan menambah slide diskusi baru.
        {
          "slide_no": X,
          "layout": "accordion",
@@ -605,14 +620,14 @@ export async function generateWebSlideData(courseName, prodiName, meetingNo, out
     }
 
     Aturan:
-    - Gunakan Bahasa Indonesia formal akademik yang kaya konten dan berwawasan ilmiah tinggi.
+    - Gunakan Bahasa Indonesia baku yang ringkas dan jelas.
     - HINDARI memberikan meta-instruksi, arahan presentasi, atau instruksi lisan bagi presenter/dosen (seperti "Ajak mahasiswa...", "Jelaskan...", "Tekankan...", "Tunjukkan contoh...", dll.). Konten harus langsung berupa penjelasan materi, pembahasan teoritis, jawaban konkret, atau data ilmiah yang ditujukan untuk audiens/mahasiswa.
-    - GLOSARIUM: Apabila sebuah slide memuat istilah asing, istilah ilmiah/teknis khusus yang mungkin tidak umum bagi mahasiswa (misalnya visual clutter, whitespace, grid system, hierarchy, dll.), wajib menyisipkan satu slide berikutnya yang secara khusus menjelaskan/mendefinisikan arti istilah tersebut menggunakan layout yang sesuai (seperti split, list, atau accordion).
+    - Istilah asing atau teknis cukup dijelaskan singkat di dalam slide yang sama. Jangan menambah slide glosarium.
     - FORMATTING: Gunakan tag HTML <strong> untuk mencetak tebal kata kunci atau poin-poin inti dari penjelasan agar memudahkan audiens menangkap poin penting dengan cepat. Gunakan tag HTML <em> untuk mencetak miring istilah asing, istilah teknis, atau istilah tidak umum.
     - Jangan berikan penjelasan tambahan apapun di luar JSON murni.
   `;
 
-  return callAi(prompt, true, onProgress);
+  return callAi(prompt, true, onProgress, ATURAN_MATERI);
 }
 
 // 8.b. Generate Single WebSlide Layout (Regenerate layout per slide)
@@ -653,7 +668,7 @@ export async function generateSingleWebSlideData(courseName, prodiName, meetingN
              "Poin detail 3..."
            ]
          }
-       - "grid" (grid kartu, cocok untuk menguraikan beberapa kategori/komponen):
+       - "grid" (grid kartu, tepat 2 atau 4 kartu, cocok untuk menguraikan kategori/komponen):
          {
            "slide_no": ${slideNo},
            "layout": "grid",
@@ -704,10 +719,12 @@ export async function generateSingleWebSlideData(courseName, prodiName, meetingN
     3. Hanya sertakan properti "image_url" di objek output jika objek slide di dalam data outline materi (JSON) memiliki properti "image_url". Apabila objek slide di dalam data outline materi tidak memiliki properti "image_url" (kosong atau null), Anda DILARANG keras menambahkan atau mengarang properti "image_url" baru.
     4. Gunakan tag HTML <strong> untuk kata kunci penting dan <em> untuk istilah asing di dalam teks konten.
 
+    5. Isi "reference" hanya bila slide outline menyebut sumber secara eksplisit; jangan mengarang. Bila judul slide "Latihan", pakai layout "accordion" dengan soal sebagai "header" dan jawaban sebagai "content".
+
     Format output harus berupa JSON OBJECT murni dengan struktur salah satu layout di atas, jangan tambahkan penjelasan apapun di luar JSON.
   `;
 
-  return callAi(prompt, true, onProgress);
+  return callAi(prompt, true, onProgress, ATURAN_MATERI);
 }
 
 // 9. Generate Soal Ujian Essay untuk UTS/UAS
