@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { ArrowLeft, Loader2, CheckCircle2, Clock } from 'lucide-react'
+import { ArrowLeft, Loader2, CheckCircle2, Clock, ChevronDown } from 'lucide-react'
+import { groupMaterialsIntoModules } from '@/lib/modules'
 
 // Pratinjau kursus untuk peserta yang belum terdaftar.
 // Hanya menampilkan data yang benar-benar tersimpan; bagian tanpa data tidak dirender.
-
-const DAFTAR_AWAL = 6 // jumlah pertemuan yang tampil sebelum "Tampilkan semua"
 
 function susunSilabus(course, materials) {
   // Peserta yang belum terdaftar biasanya tidak bisa membaca tabel materi (RLS),
@@ -22,11 +21,19 @@ function kalimatPertama(teks = '') {
 
 export default function CoursePreview({ course, materials, enrollStatus, enrolling, onEnroll, onBack }) {
   const [descOpen, setDescOpen] = useState(false)
-  const [semua, setSemua] = useState(false)
 
   const silabus = susunSilabus(course, materials)
   const jumlahPertemuan = new Set(silabus.map((s) => s.no)).size
-  const tampil = semua ? silabus : silabus.slice(0, DAFTAR_AWAL)
+  const modul = groupMaterialsIntoModules(silabus, 'no')
+  const jumlahModul = modul.filter((m) => m.no).length
+  // Modul pertama terbuka; sisanya dibuka sesuai kebutuhan.
+  const [terbuka, setTerbuka] = useState(() => new Set(modul[0] ? [modul[0].id] : []))
+  const toggleModul = (id) => setTerbuka((prev) => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return next
+  })
   const cpmk = (course.cpmk || []).filter((c) => c?.deskripsi)
   const dosen = course.dosen
   // Kalimat pertama jadi ringkasan di atas; "Tentang kursus" memuat sisanya agar tidak berulang.
@@ -36,6 +43,7 @@ export default function CoursePreview({ course, materials, enrollStatus, enrolli
   const menunggu = enrollStatus === 'pending'
 
   const fakta = [
+    jumlahModul > 0 && `${jumlahModul} modul`,
     jumlahPertemuan > 0 && `${jumlahPertemuan} pertemuan`,
     cpmk.length > 0 && `${cpmk.length} capaian pembelajaran`,
     'Sertifikat kompetensi',
@@ -90,29 +98,42 @@ export default function CoursePreview({ course, materials, enrollStatus, enrolli
           <section className="card pv-section" aria-labelledby="pv-silabus">
             <div className="pv-section-head">
               <h2 id="pv-silabus" className="pv-h2">Silabus</h2>
-              {jumlahPertemuan > 0 && <span className="pv-muted">{jumlahPertemuan} pertemuan</span>}
+              {jumlahPertemuan > 0 && (
+                <span className="pv-muted">{[jumlahModul > 0 && `${jumlahModul} modul`, `${jumlahPertemuan} pertemuan`].filter(Boolean).join(' · ')}</span>
+              )}
             </div>
             {silabus.length === 0 ? (
               <p className="pv-muted">Silabus belum disusun oleh instruktur.</p>
             ) : (
-              <>
-                <ol className="pv-syllabus">
-                  {tampil.map((s, i) => (
-                    <li key={i}>
-                      <span className="pv-week">{s.no ? `Pertemuan ${s.no}` : 'Pengantar'}</span>
-                      <div className="pv-week-body">
-                        <span className="pv-week-title">{s.title}</span>
-                        {s.desc && <span className="pv-week-desc">{s.desc}</span>}
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-                {silabus.length > DAFTAR_AWAL && (
-                  <button type="button" className="pv-more" onClick={() => setSemua((v) => !v)} aria-expanded={semua}>
-                    {semua ? 'Tampilkan lebih sedikit' : `Tampilkan semua (${silabus.length})`}
-                  </button>
-                )}
-              </>
+              <div className="pv-modules">
+                {modul.map((m) => {
+                  const buka = terbuka.has(m.id)
+                  return (
+                    <div key={m.id} className="pv-module">
+                      <button type="button" className="pv-module-head" aria-expanded={buka} onClick={() => toggleModul(m.id)}>
+                        <span className="pv-module-text">
+                          <span className="pv-module-name">{m.name}</span>
+                          <span className="pv-muted">{[m.range, `${m.items.length} topik`].filter(Boolean).join(' · ')}</span>
+                        </span>
+                        <ChevronDown size={18} aria-hidden="true" className={`pv-chev${buka ? ' is-open' : ''}`} />
+                      </button>
+                      {buka && (
+                        <ol className="pv-syllabus">
+                          {m.items.map((s, i) => (
+                            <li key={i}>
+                              <span className="pv-week">{s.no ? `Pertemuan ${s.no}` : 'Pengantar'}</span>
+                              <div className="pv-week-body">
+                                <span className="pv-week-title">{s.title}</span>
+                                {s.desc && <span className="pv-week-desc">{s.desc}</span>}
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             )}
           </section>
 

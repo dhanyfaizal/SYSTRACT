@@ -717,6 +717,20 @@ img { display: block; max-width: 100%; }
 .pv-checks { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px 20px; }
 .pv-checks li { display: flex; gap: 10px; font-size: 14px; line-height: 1.5; color: var(--gray-700); }
 .pv-checks svg { flex-shrink: 0; margin-top: 2px; color: var(--indigo-600); }
+.pv-modules { display: flex; flex-direction: column; border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; }
+.pv-module + .pv-module { border-top: 1px solid var(--border-color); }
+.pv-module-head {
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  background: var(--surface-alt); border: 0; text-align: left; font: inherit; cursor: pointer; color: var(--gray-900);
+}
+.pv-module-head:hover { background: var(--gray-100); }
+.pv-module-head:focus-visible { outline: 2px solid var(--indigo-500); outline-offset: -2px; }
+.pv-module-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pv-module-name { font-size: 15px; font-weight: 700; }
+.pv-chev { flex-shrink: 0; color: var(--gray-500); transition: transform .15s; }
+.pv-chev.is-open { transform: rotate(180deg); }
+.pv-module .pv-syllabus { padding: 4px 16px 8px; }
+.pv-module .pv-syllabus li:first-child { padding-top: 12px; }
 .pv-syllabus { list-style: none; }
 .pv-syllabus li { display: flex; gap: 16px; padding: 12px 0; border-top: 1px solid var(--gray-100); }
 .pv-syllabus li:first-child { border-top: 0; padding-top: 0; }

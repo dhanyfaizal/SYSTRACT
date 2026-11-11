@@ -18,36 +18,7 @@ import CoursePreview from '@/components/mahasiswa/CoursePreview'
 
 const COUNTDOWN_SEC = 180 // 3 Menit untuk membaca/menonton materi
 
-const MODULES = [
-  { id: 1, name: 'Module 1: Fondasi & Konsep Dasar (Topik 1 - 4)', weeks: [1, 2, 3, 4] },
-  { id: 2, name: 'Module 2: Penerapan & Analisis Praktis (Topik 5 - 7)', weeks: [5, 6, 7] },
-  { id: 3, name: 'Evaluasi (Topik 8)', weeks: [8] },
-  { id: 4, name: 'Module 3: Pengembangan Sistem & Desain Lanjut (Topik 9 - 12)', weeks: [9, 10, 11, 12] },
-  { id: 5, name: 'Module 4: Integrasi & Pengujian Akhir (Topik 13 - 15)', weeks: [13, 14, 15] },
-  { id: 6, name: 'Evaluasi (Topik 16)', weeks: [16] }
-]
-
-export function groupMaterialsIntoModules(items, weekKey = 'week_number') {
-  const bins = MODULES.map(m => ({ ...m, items: [] }))
-  const generalBin = { id: 0, name: '📢 Umum / Pengantar', weeks: [0], items: [] }
-  const extraBin = { id: 99, name: '➕ Materi Tambahan', weeks: [], items: [] }
-
-  items.forEach(m => {
-    const w = m[weekKey] || 0
-    if (w === 0) {
-      generalBin.items.push(m)
-    } else {
-      const target = bins.find(b => b.weeks.includes(w))
-      if (target) {
-        target.items.push(m)
-      } else {
-        extraBin.items.push(m)
-      }
-    }
-  })
-
-  return [generalBin, ...bins, extraBin].filter(b => b.items.length > 0)
-}
+import { groupMaterialsIntoModules } from '@/lib/modules'
 
 // Helper mapping untuk tipe materi
 const MATTYPE = {
@@ -1375,8 +1346,7 @@ export default function CourseDetail() {
                       return (
                         <div key={mod.id} style={{ borderBottom: '1px solid var(--gray-100)', paddingBottom: 12 }}>
                           <h4 style={{ fontSize: 12, fontWeight: 800, color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 8px 0' }}>
-                            <span>Module {mod.id === 0 ? 'Pengenalan' : mod.id === 99 ? 'Akhir' : mod.id}:</span>
-                            <span style={{ color: 'var(--gray-800)' }}>{mod.name}</span>
+                                                        <span style={{ color: 'var(--gray-800)' }}>{mod.name}</span>
                           </h4>
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 12 }}>
@@ -1857,7 +1827,7 @@ export default function CourseDetail() {
                                     {idx + 1}
                                   </td>
                                   <td style={{ padding: '6px 12px', borderBottom: '1px solid #e2e8f0', fontSize: '10px', color: '#0f172a', fontWeight: 700 }}>
-                                    {mod.name.replace(/Module \d+:\s*/i, '')}
+                                    {mod.title}
                                   </td>
                                   <td style={{ padding: '6px 12px', borderBottom: '1px solid #e2e8f0', fontSize: '9.5px', color: '#475569', lineHeight: 1.4 }}>
                                     {displayTitles}
