@@ -57,7 +57,10 @@ Legenda: 🔴 kritis (bisa dipakai sekarang oleh mahasiswa mana pun lewat API Su
 - **2026-11-11 — K1–K6 dan T5–T7 tertutup.** Migrasi `supabase/migrations/20261111120000_fase1_celah_kritis.sql`
   dijalankan di produksi; audit ulang: `enrollments_insert_status_bebas`, `security_definer_tanpa_search_path`,
   `tabel_lama_masih_bisa_diakses_api`, dan `fungsi_internal_bisa_dipanggil_rpc` semuanya kosong.
-- Belum: T1–T4, S1–S7, kebersihan.
+- **Fase 1b ditulis & diuji lokal** (`20261111150000_fase1b_celah_tinggi_sedang.sql`): T1–T4, S1–S8 dan
+  temuan baru T8 (semua tabel terbaca tanpa login), T9 (mahasiswa bisa membuat kursus),
+  T10 (dosen memasang pengumuman di kursus lain). Belum dijalankan di produksi.
+- Belum: kebersihan (hapus tabel lama, policy ganda).
 
 ## Urutan perbaikan (Fase 1)
 

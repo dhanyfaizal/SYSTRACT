@@ -104,9 +104,10 @@ export default function DosenDashboard() {
         .limit(15),
 
       // Post forum terbaru
-      supabase.from('forum_posts')
-        .select('id, created_at, content, topic:forum_topics(title, course_id), author:profiles(full_name, nim, avatar_url)')
-        .in('forum_topics.course_id', courseIds)
+      // Balasan forum terbaru (tabel forum_posts/forum_topics tidak ada; yang dipakai forums + forum_replies)
+      supabase.from('forum_replies')
+        .select('id, created_at, content:body, topic:forums!inner(title, course_id), author:profiles(full_name, nim, avatar_url)')
+        .in('topic.course_id', courseIds)
         .order('created_at', { ascending: false })
         .limit(10),
     ])

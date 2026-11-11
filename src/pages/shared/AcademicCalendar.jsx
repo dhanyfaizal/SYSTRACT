@@ -48,14 +48,20 @@ export default function AcademicCalendar() {
 
     if (!courseIds.length) { setLoading(false); return }
 
-    const [{ data: assignments }, { data: exams }, { data: sessions }] = await Promise.all([
+    // exams_peserta & sesi_presensi_peserta: view tanpa kunci jawaban / kode presensi.
+    // View tidak bisa di-embed ke courses, jadi nama kursus diambil dari courseMap.
+    const [{ data: assignments }, { data: examRows }, { data: sessionRows }, { data: courseRows }] = await Promise.all([
       supabase.from('assignments').select('id,title,due_date,course_id,course:courses(name,code)')
         .in('course_id', courseIds).not('due_date','is',null),
-      supabase.from('exams').select('id,title,start_time,end_time,course_id,course:courses(name,code)')
-        .in('course_id', courseIds).not('start_time','is',null),
-      supabase.from('attendance_sessions').select('id,title,meeting_number,created_at,course_id,course:courses(name,code)')
+      supabase.from('exams_peserta').select('id,title,start_at,end_at,course_id')
+        .in('course_id', courseIds).not('start_at','is',null),
+      supabase.from('sesi_presensi_peserta').select('id,title,meeting_number,created_at,course_id')
         .in('course_id', courseIds),
+      supabase.from('courses').select('id,name,code').in('id', courseIds),
     ])
+    const courseMap = Object.fromEntries((courseRows || []).map(c => [c.id, c]))
+    const exams    = (examRows || []).map(e => ({ ...e, start_time: e.start_at, course: courseMap[e.course_id] }))
+    const sessions = (sessionRows || []).map(s => ({ ...s, course: courseMap[s.course_id] }))
 
     const ev = [
       ...(assignments||[]).map(a => ({
