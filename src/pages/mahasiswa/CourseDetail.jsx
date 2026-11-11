@@ -325,8 +325,9 @@ export default function CourseDetail() {
       }
 
       // 4. Fetch exams
+      // exams_peserta: daftar ujian tanpa kolom soal/kunci jawaban
       const { data: exams } = await supabase
-        .from('exams')
+        .from('exams_peserta')
         .select('*')
         .eq('course_id', courseId)
         .eq('is_published', true)
@@ -529,26 +530,14 @@ export default function CourseDetail() {
 
     const toastId = toast.loading('Menyimpan progres...')
     try {
-      // 1. Simpan ke database points_log (+3 koin)
-      const { data: sem } = await supabase.from('semesters').select('id').eq('is_active', true).maybeSingle()
-      const { error: ptErr } = await supabase.from('points_log').insert({
-        user_id: user.id,
-        course_id: courseId,
-        semester_id: sem?.id || null,
-        points: 3,
-        source: 'materi',
-        reason: `Selesai lampiran ${subIdx + 1} materi ${materialId}`,
-        reference_id: materialId
+      // Server mencatat course_progress dan memberi +3 poin (sekali per lampiran).
+      const { error: ptErr } = await supabase.rpc('klaim_poin_materi', {
+        p_material_id: materialId,
+        p_sub_idx: subIdx,
       })
       if (ptErr) throw ptErr
 
-      // 2. Simpan ke course_progress
-      await supabase.from('course_progress').upsert(
-        { material_id: materialId, student_id: user.id, course_id: courseId },
-        { onConflict: 'material_id,student_id' }
-      )
-
-      // 3. Update local state
+      // Update local state
       const nextDone = new Set(completedRefs)
       nextDone.add(refId)
       setCompletedRefs(nextDone)
