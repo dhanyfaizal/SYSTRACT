@@ -1,13 +1,15 @@
 // Impor file HTML WebSlide (kerangka SYSTRACT, hasil "Unduh File HTML") kembali
 // menjadi data slide yang dipakai pemutar SPA peserta (materials.webslide_content).
 //
-// Hanya kerangka buatan src/lib/webslideTemplate.js yang dikenali. Semua isi dibaca
-// sebagai teks biasa (textContent), sehingga skrip atau markup di dalam file tidak
-// ikut tersimpan atau dijalankan di browser peserta.
+// Mengenali dua format: bagian bergaya Pitch Deck (src/lib/spaBlocks.js, atribut data-f/data-k)
+// dan deck slide lama. Teks melewati penyaring safeHtml: hanya <strong>/<em>/<b>/<i>/<br> yang
+// dipertahankan, skrip dan atribut lain dibuang, URL media hanya http(s).
+
+import { sanitizeInline } from './safeHtml.js'
 
 export class WebSlideImportError extends Error {}
 
-const LAYOUTS = ['cover', 'thank_you', 'split', 'grid', 'list', 'table', 'accordion', 'legacy']
+const LAYOUTS = ['cover', 'statement', 'list', 'grid', 'split', 'steps', 'stats', 'table', 'accordion', 'discussion', 'quiz', 'media', 'thank_you', 'legacy']
 const clean = (s) => (s || '').replace(/\s+/g, ' ').trim()
 const text = (el) => clean(el?.textContent)
 
@@ -118,17 +120,66 @@ function parseSlide(slideEl, idx) {
   return slide
 }
 
-// Poin teks per slide untuk outline (langkah 1 di modal instruktur).
-function outlinePoints(s) {
+// Poin teks per bagian untuk outline (langkah 1 di modal instruktur). Teks polos, tanpa tag.
+function outlinePoints(s, toPlain) {
+  const p = (v) => toPlain(v)
+  const pair = (a, b) => [p(a), p(b)].filter(Boolean).join(': ')
   switch (s.layout) {
-    case 'cover': case 'thank_you': return [s.description].filter(Boolean)
-    case 'split': return [s.split_left?.heading && `${s.split_left.heading}: ${s.split_left.description}`, ...(s.split_right || [])].filter(Boolean)
-    case 'grid': return (s.grid_items || []).map((g) => [g.title, g.desc].filter(Boolean).join(': '))
-    case 'list': return (s.list_items || []).map((l) => l.text)
-    case 'table': return (s.table_data?.rows || []).map((r) => r.join(' — '))
-    case 'accordion': return (s.accordion_items || []).map((a) => [a.header, a.content].filter(Boolean).join(': '))
-    default: return s.content || []
+    case 'cover': case 'thank_you': return [p(s.subtitle), p(s.description)].filter(Boolean)
+    case 'statement': return [p(s.body), ...(s.facts || []).map((f) => `${p(f.value)} — ${p(f.label)}`)].filter(Boolean)
+    case 'split': return [s.split_left?.heading && pair(s.split_left.heading, s.split_left.description), ...(s.split_right || []).map(p)].filter(Boolean)
+    case 'grid': return (s.grid_items || []).map((g) => pair(g.title, g.desc))
+    case 'list': return (s.list_items || []).map((l) => p(l.text))
+    case 'steps': return (s.steps || []).map((st) => pair(st.title, st.body))
+    case 'stats': return (s.stats || []).map((st) => [p(st.value), p(st.label), p(st.note)].filter(Boolean).join(' — '))
+    case 'table': return (s.table_data?.rows || []).map((r) => r.map(p).join(' — '))
+    case 'accordion': return (s.accordion_items || []).map((a) => pair(a.header, a.content))
+    case 'discussion': return (s.discussion_items || []).map((d) => `Pertanyaan: ${p(d.question)}${d.hint ? ` Petunjuk: ${p(d.hint)}` : ''}`)
+    case 'quiz': return (s.quiz_items || []).map((q) => `Soal: ${p(q.question)} Jawaban: ${p((q.options || [])[q.answer])}${q.explanation ? `. ${p(q.explanation)}` : ''}`)
+    case 'media': return [p(s.caption), p(s.description)].filter(Boolean)
+    default: return (s.content || []).map(p)
   }
+}
+
+// ── Format baru: bagian bergaya Pitch Deck dari src/lib/spaBlocks.js ──────────
+// Setiap teks ditandai data-f="path", nilai non-teks dengan data-k="path" data-v="nilai".
+
+function setPath(obj, path, value) {
+  const keys = path.split('.')
+  let cur = obj
+  keys.forEach((k, i) => {
+    const last = i === keys.length - 1
+    const nextIsIndex = !last && /^\d+$/.test(keys[i + 1])
+    if (last) { cur[k] = value; return }
+    if (cur[k] === undefined) cur[k] = nextIsIndex ? [] : {}
+    cur = cur[k]
+  })
+}
+
+const SAFE_PATH = /^[a-z_]+(\.(\d{1,3}|[a-z_]+)){0,3}$/
+
+function parseSxSection(sec, idx, Parser) {
+  const layoutAttr = sec.getAttribute('data-layout')
+  const slide = { slide_no: idx + 1, layout: LAYOUTS.includes(layoutAttr) ? layoutAttr : 'legacy' }
+  const own = (el) => el.closest('.sx-sec') === sec
+  sec.querySelectorAll('[data-f]').forEach((el) => {
+    const path = el.getAttribute('data-f')
+    if (!own(el) || !SAFE_PATH.test(path)) return
+    // Pertahankan format ringan (<strong>/<em>/…); penyaring membuang sisanya.
+    setPath(slide, path, sanitizeInline(el.innerHTML.replace(/\s+/g, ' ').trim(), Parser))
+  })
+  sec.querySelectorAll('[data-k]').forEach((el) => {
+    const path = el.getAttribute('data-k')
+    if (!own(el) || !SAFE_PATH.test(path)) return
+    const raw = el.getAttribute('data-v') || ''
+    setPath(slide, path, el.getAttribute('data-t') === 'n' ? Number(raw) : raw)
+  })
+  // Rapikan larik yang berlubang (mis. butir yang dihapus saat diedit).
+  for (const [k, v] of Object.entries(slide)) {
+    if (Array.isArray(v)) slide[k] = v.filter((x) => x !== undefined)
+  }
+  if (slide.table_data?.rows) slide.table_data.rows = slide.table_data.rows.filter(Boolean).map((r) => r.filter((c) => c !== undefined))
+  return slide
 }
 
 /**
@@ -140,30 +191,44 @@ export function parseWebSlideHtml(html, Parser = globalThis.DOMParser) {
   const doc = new Parser().parseFromString(html, 'text/html')
   // Isi skrip/gaya bukan konten materi; buang agar tidak terbaca sebagai teks.
   doc.querySelectorAll('script, style, noscript, template').forEach((el) => el.remove())
-  const slideEls = Array.from(doc.querySelectorAll('.slide'))
-    .filter((el) => /^slide\d+$/.test(el.getAttribute('id') || ''))
-
-  if (slideEls.length === 0) {
-    throw new WebSlideImportError('File ini tidak memakai kerangka WebSlide SYSTRACT. Gunakan file dari "Unduh File HTML" sebagai dasar.')
+  const toPlain = (v) => {
+    if (!v) return ''
+    return clean(new Parser().parseFromString(`<!doctype html><html><body>${v}</body></html>`, 'text/html').body.textContent)
   }
 
-  const slides = slideEls.map(parseSlide)
-  const docTitle = clean(doc.querySelector('title')?.textContent)
-  const cover = slides.find((s) => s.layout === 'cover')
-  const title = cover?.title || docTitle.replace(/^WebSlide\s*-\s*/i, '') || 'Materi'
+  let slides
+  let title
+  const sxSections = Array.from(doc.querySelectorAll('section.sx-sec'))
+  if (sxSections.length > 0) {
+    slides = sxSections.map((sec, i) => parseSxSection(sec, i, Parser))
+    const t = doc.querySelector('[data-f="deck.title"]')
+    title = t ? sanitizeInline(t.innerHTML.replace(/\s+/g, ' ').trim(), Parser) : ''
+  } else {
+    // Format lama (deck slide 16:9 sebelum gaya Pitch Deck).
+    const slideEls = Array.from(doc.querySelectorAll('.slide'))
+      .filter((el) => /^slide\d+$/.test(el.getAttribute('id') || ''))
+    if (slideEls.length === 0) {
+      throw new WebSlideImportError('File ini tidak memakai kerangka WebSlide SYSTRACT. Gunakan file dari "Unduh File HTML" sebagai dasar.')
+    }
+    // Slide penutup lama ditambahkan otomatis oleh template lama; jangan ikut disimpan.
+    slides = slideEls.map(parseSlide).filter((s) => s.layout !== 'thank_you')
+  }
 
-  // Slide penutup selalu ditambahkan otomatis oleh pemutar; jangan disimpan ganda.
-  const isi = slides.filter((s) => s.layout !== 'thank_you')
-  isi.forEach((s, i) => { s.slide_no = i + 1 })
+  if (!title) {
+    const cover = slides.find((s) => s.layout === 'cover')
+    const docTitle = clean(doc.querySelector('title')?.textContent)
+    title = cover?.title || docTitle.replace(/^WebSlide\s*-\s*/i, '').split(' - ')[0] || 'Materi'
+  }
+  slides.forEach((s, i) => { s.slide_no = i + 1 })
 
   return {
-    webslide: { title, slides: isi },
+    webslide: { title, slides },
     outline: {
-      title,
-      slides: isi.map((s) => ({
+      title: toPlain(title),
+      slides: slides.map((s) => ({
         slide_no: s.slide_no,
-        title: s.title || `Slide ${s.slide_no}`,
-        content: outlinePoints(s),
+        title: toPlain(s.title) || `Bagian ${s.slide_no}`,
+        content: outlinePoints(s, toPlain),
         ...(s.image_url ? { image_url: s.image_url } : {}),
       })),
     },

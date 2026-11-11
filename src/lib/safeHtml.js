@@ -55,7 +55,7 @@ export function sanitizeUrl(url) {
   return s.replace(/"/g, '%22').replace(/'/g, '%27').replace(/</g, '%3C').replace(/>/g, '%3E').replace(/\s/g, '%20')
 }
 
-const LAYOUTS = ['cover', 'thank_you', 'split', 'grid', 'list', 'table', 'accordion', 'legacy']
+const LAYOUTS = ['cover', 'statement', 'list', 'grid', 'split', 'steps', 'stats', 'table', 'accordion', 'discussion', 'quiz', 'media', 'thank_you', 'legacy']
 const COLORS = ['red', 'amber', 'green', 'blue']
 const ICON_RE = /^fa-[a-z0-9-]+( fa-[a-z0-9-]+){0,3}$/
 

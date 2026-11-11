@@ -20,6 +20,7 @@ import {
   generateSingleWebSlideData
 } from '@/lib/ai'
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
+import { SPA_LAYOUT_LABELS } from '@/lib/spaBlocks'
 import { parseWebSlideHtml, WebSlideImportError } from '@/lib/webslideImport'
 
 const COLORS   = ['#4f46e5','#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4']
@@ -3451,7 +3452,7 @@ export default function DosenMataKuliah() {
                                             if (layoutObj) {
                                               return (
                                                 <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', background: 'var(--gray-100)', color: 'var(--gray-600)', padding: '2px 6px', borderRadius: 4 }}>
-                                                  {layoutObj.layout}
+                                                  {SPA_LAYOUT_LABELS[layoutObj.layout] || layoutObj.layout}
                                                 </span>
                                               );
                                             }
@@ -3532,6 +3533,16 @@ export default function DosenMataKuliah() {
                                           {renderMediaPreview(s.image_url)}
                                         </div>
                                       )}
+                                      {/* Saran media dari AI (hanya untuk instruktur; tidak tampil ke peserta) */}
+                                      {(() => {
+                                        const hint = !s.image_url && webslideData?.slides?.find(ws => ws.slide_no === s.slide_no)?.media_hint
+                                        if (!hint) return null
+                                        return (
+                                          <p style={{ margin: 0, fontSize: 12, color: '#8A5E00', background: '#FFF7E6', border: '1px solid #F5DFA8', borderRadius: 6, padding: '6px 10px' }}>
+                                            <strong>Saran media:</strong> {hint}. Tambahkan lewat tombol edit slide (URL gambar/video), lalu generate ulang layout slide ini.
+                                          </p>
+                                        )
+                                      })()}
                                     </div>
                                   </>
                                 )}
