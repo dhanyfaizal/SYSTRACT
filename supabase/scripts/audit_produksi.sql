@@ -21,7 +21,7 @@ WITH
 expected_tables(name) AS (VALUES
   ('profiles'),('courses'),('enrollments'),('materials'),('assignments'),
   ('submissions'),('exams'),('questions'),('exam_answers'),('forums'),
-  ('forum_replies'),('forum_posts'),('announcements'),('semesters'),
+  ('forum_replies'),('announcements'),('semesters'),
   ('program_studi'),('attendance_sessions'),('attendances'),
   ('course_progress'),('material_views'),('final_grades'),('grade_configs'),
   ('course_grading_config'),('student_keaktifan'),('points_log'),
@@ -29,7 +29,7 @@ expected_tables(name) AS (VALUES
   ('course_leaderboard'),('exam_attempt_keys'),('exams_peserta')
 ),
 -- View yang sengaja tanpa security_invoker (menyaring baris sendiri lewat auth.uid()).
-intended_definer_views(name) AS (VALUES ('exams_peserta')),
+intended_definer_views(name) AS (VALUES ('exams_peserta'),('sesi_presensi_peserta')),
 -- Tabel sisa sistem lama: akses API anon/authenticated harus sudah dicabut (Fase 1, K6).
 legacy_tables(name) AS (VALUES
   ('users'),('institutions'),('classes'),('modules'),('sections'),('content_items'),
@@ -147,7 +147,7 @@ f_enroll_insert AS (
            'policy', p.policyname, 'cmd', p.cmd, 'with_check', p.with_check, 'qual', p.qual)), '[]') AS v
   FROM pols p
   WHERE p.schemaname = 'public' AND p.tablename = 'enrollments' AND p.cmd IN ('INSERT','ALL')
-    AND coalesce(p.with_check, p.qual, '') NOT ILIKE '%role%'
+    AND coalesce(p.with_check, p.qual, '') !~* '(role|is_admin|is_pengampu)'
     AND coalesce(p.with_check, '') NOT ILIKE '%status%'
 ),
 -- Policy UPDATE/ALL di enrollments yang tidak terbatas pada admin/dosen
@@ -157,7 +157,7 @@ f_enroll_update AS (
            'policy', p.policyname, 'cmd', p.cmd, 'qual', p.qual, 'with_check', p.with_check)), '[]') AS v
   FROM pols p
   WHERE p.schemaname = 'public' AND p.tablename = 'enrollments' AND p.cmd IN ('UPDATE','ALL')
-    AND coalesce(p.qual, '') NOT ILIKE '%role%'
+    AND coalesce(p.qual, '') !~* '(role|is_admin|is_pengampu)'
 ),
 f_public_buckets AS (
   SELECT coalesce(jsonb_agg(jsonb_build_object('id', b.id, 'file_size_limit', b.file_size_limit,
