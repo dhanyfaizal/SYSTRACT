@@ -10,8 +10,10 @@
 //               Hanya https, hanya ke /chat/completions, dan bukan alamat jaringan lokal.
 
 const DEFAULT_URL = 'https://ai.sumopod.com/v1'
-// Model server: SUMOPOD_MODEL (env) bila diisi, selain itu default di bawah.
+// Model server: utama SUMOPOD_MODEL, cadangan SUMOPOD_FALLBACK_MODEL (env); bila kosong, default di bawah.
+// Cadangan dipakai otomatis bila model utama gagal di sisi penyedia.
 const DEFAULT_MODEL = 'deepseek-v4-flash'
+const FALLBACK_MODEL = 'deepseek-flash'
 const MAX_BODY_CHARS = 400_000
 
 async function verifyUser(req) {
@@ -70,14 +72,14 @@ export default async function handler(req, res) {
 
     let baseUrl
     let apiKey
-    let modelToUse
+    let modelsToTry
     if (byok) {
       if (!byok.key || !isPublicHttpsUrl(byok.url)) {
         return res.status(400).json({ error: 'URL AI harus https dan bukan alamat lokal.' })
       }
       baseUrl = byok.url.replace(/\/+$/, '')
       apiKey = byok.key
-      modelToUse = model
+      modelsToTry = [model]
     } else {
       apiKey = process.env.SUMOPOD_API_KEY
       if (!apiKey) {
@@ -85,7 +87,10 @@ export default async function handler(req, res) {
       }
       baseUrl = (process.env.SUMOPOD_API_URL || DEFAULT_URL).replace(/\/+$/, '')
       // Pengguna tidak bisa memilih model lain dengan kunci SYSTRACT.
-      modelToUse = process.env.SUMOPOD_MODEL || DEFAULT_MODEL
+      modelsToTry = [...new Set([
+        process.env.SUMOPOD_MODEL || DEFAULT_MODEL,
+        process.env.SUMOPOD_FALLBACK_MODEL || FALLBACK_MODEL,
+      ])]
     }
 
     // Penyedia (LiteLLM di Sumopod) kadang memetakan model ke versi yang menolak parameter
@@ -100,25 +105,33 @@ export default async function handler(req, res) {
     ]
     let upstream
     let usedNoStream = false
-    for (let i = 0; i < attempts.length; i++) {
-      const a = attempts[i]
-      upstream = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model: modelToUse,
-          messages: a.messages,
-          ...(a.response_format ? { response_format: a.response_format } : {}),
-          ...(typeof a.temperature === 'number' ? { temperature: a.temperature } : {}),
-          ...(typeof a.max_tokens === 'number' ? { max_tokens: a.max_tokens } : {}),
-          stream: Boolean(stream) && !a.noStream,
-        }),
-      })
-      usedNoStream = Boolean(a.noStream)
-      if (upstream.status !== 400 || i === attempts.length - 1) break
-      const errText = await upstream.clone().text()
-      if (!/invalid param|not support|unsupported|unknown parameter/i.test(errText)) break
-      console.warn(`[api/ai] percobaan ${i + 1} ditolak (parameter), mencoba lebih sederhana`)
+    for (let m = 0; m < modelsToTry.length; m++) {
+      const modelToUse = modelsToTry[m]
+      for (let i = 0; i < attempts.length; i++) {
+        const a = attempts[i]
+        upstream = await fetch(`${baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: modelToUse,
+            messages: a.messages,
+            ...(a.response_format ? { response_format: a.response_format } : {}),
+            ...(typeof a.temperature === 'number' ? { temperature: a.temperature } : {}),
+            ...(typeof a.max_tokens === 'number' ? { max_tokens: a.max_tokens } : {}),
+            stream: Boolean(stream) && !a.noStream,
+          }),
+        })
+        usedNoStream = Boolean(a.noStream)
+        if (upstream.status !== 400 || i === attempts.length - 1) break
+        const errText = await upstream.clone().text()
+        if (!/invalid param|not support|unsupported|unknown parameter/i.test(errText)) break
+        console.warn(`[api/ai] ${modelToUse}: percobaan ${i + 1} ditolak (parameter), mencoba lebih sederhana`)
+      }
+      // Pindah ke model cadangan bila model ini gagal karena sisi penyedia
+      // (parameter ditolak, model tidak ada, kuota/limit, atau server error).
+      const gagalPenyedia = upstream.status === 400 || upstream.status === 404 || upstream.status === 429 || upstream.status >= 500
+      if (upstream.ok || !gagalPenyedia || m === modelsToTry.length - 1) break
+      console.warn(`[api/ai] ${modelToUse} gagal (HTTP ${upstream.status}), beralih ke ${modelsToTry[m + 1]}`)
     }
 
     // Cadangan terakhir dipanggil tanpa stream; kirim ulang ke browser sebagai satu potong SSE
