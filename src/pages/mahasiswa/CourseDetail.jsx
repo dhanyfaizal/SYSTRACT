@@ -688,17 +688,20 @@ export default function CourseDetail() {
   // Auto-submit certificate for validation
   useEffect(() => {
     if (isAllDone && enrollmentId && (certificateStatus === 'unvalidated' || certificateStatus === 'returned')) {
-      supabase.from('enrollments')
-        .update({ certificate_status: 'pending' })
-        .eq('id', enrollmentId)
-        .then(({ error }) => {
-          if (!error) {
+      // Server memeriksa ulang syaratnya (materi, ujian, tugas) sebelum mengubah status.
+      supabase.rpc('ajukan_sertifikat', { p_course_id: courseId })
+        .then(({ data, error }) => {
+          if (error) {
+            console.warn('[SYSTRACT] Pengajuan sertifikat ditolak server:', error.message)
+            return
+          }
+          if (data === 'pending') {
             setCertificateStatus('pending')
             toast.success('Persyaratan lengkap! Pengajuan sertifikasi otomatis dikirim ke Instruktur 📨')
           }
         })
     }
-  }, [isAllDone, enrollmentId, certificateStatus])
+  }, [isAllDone, enrollmentId, certificateStatus, courseId])
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}><div className="spinner" /></div>
   if (!course) return <div className="empty-state"><p>Kursus tidak ditemukan.</p></div>
