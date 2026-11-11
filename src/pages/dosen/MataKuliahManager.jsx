@@ -24,36 +24,7 @@ import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 const COLORS   = ['#4f46e5','#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4']
 const SEMESTERS = ['Ganjil 2025/2026','Genap 2025/2026','Ganjil 2026/2027']
 
-const MODULES = [
-  { id: 1, name: 'Module 1: Fondasi & Konsep Dasar (Topik 1 - 4)', weeks: [1, 2, 3, 4] },
-  { id: 2, name: 'Module 2: Penerapan & Analisis Praktis (Topik 5 - 7)', weeks: [5, 6, 7] },
-  { id: 3, name: 'Evaluasi (Topik 8)', weeks: [8] },
-  { id: 4, name: 'Module 3: Pengembangan Sistem & Desain Lanjut (Topik 9 - 12)', weeks: [9, 10, 11, 12] },
-  { id: 5, name: 'Module 4: Integrasi & Pengujian Akhir (Topik 13 - 15)', weeks: [13, 14, 15] },
-  { id: 6, name: 'Evaluasi (Topik 16)', weeks: [16] }
-]
-
-export function groupMaterialsIntoModules(materials) {
-  const bins = MODULES.map(m => ({ ...m, items: [] }))
-  const generalBin = { id: 0, name: '📢 Umum / Pengantar', weeks: [0], items: [] }
-  const extraBin = { id: 99, name: '➕ Materi Tambahan', weeks: [], items: [] }
-
-  materials.forEach(m => {
-    const w = m.week_number || 0
-    if (w === 0) {
-      generalBin.items.push(m)
-    } else {
-      const target = bins.find(b => b.weeks.includes(w))
-      if (target) {
-        target.items.push(m)
-      } else {
-        extraBin.items.push(m)
-      }
-    }
-  })
-
-  return [generalBin, ...bins, extraBin].filter(b => b.items.length > 0)
-}
+import { groupMaterialsIntoModules } from '@/lib/modules'
 
 const BLANK_COURSE_FORM = { code:'', name:'', description:'', credits:3, semester: SEMESTERS[0], cover_color:'#4f46e5', dosen_id:'' }
 
