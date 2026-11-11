@@ -471,8 +471,10 @@ Struktur:
 1. Buat 15 sampai 18 bagian. Setiap bagian membahas satu konsep; jangan mengulang isi bagian lain.
 2. Bagian 1 adalah pengantar yang menyapa peserta secara langsung (misalnya "Anda akan mempelajari …"): apa yang akan dipelajari dan mengapa penting (2–3 poin). Jangan memulai dengan "Bagian ini …".
 3. Bagian inti: 3–4 poin per bagian. Setiap poin satu kalimat, paling banyak sekitar 30 kata. Sertakan contoh konkret atau penerapan nyata pada sebagian bagian (konteks Indonesia bila relevan), serta perbandingan bila membantu. Bila topiknya memuat besaran atau rumus, sertakan minimal satu contoh perhitungan langkah demi langkah di bagian inti.
-4. Bagian kedua terakhir berjudul "Ringkasan" berisi 3–5 poin inti.
-5. Bagian terakhir berjudul "Latihan" berisi 3–4 soal untuk menguji pemahaman. Setiap soal hanya boleh menguji materi yang sudah dijelaskan di bagian sebelumnya; bila ada contoh perhitungan, sertakan satu soal hitungan serupa. Tulis setiap poin dengan format: "Soal: … Jawaban: …".
+4. Tiga bagian terakhir berurutan:
+   a. "Diskusi": 2–3 pertanyaan pemantik reflektif yang mengajak peserta menerapkan atau menimbang materi. Tulis setiap poin dengan format: "Pertanyaan: … Petunjuk: …" (petunjuk berupa arah berpikir, bukan jawaban).
+   b. "Ringkasan": 3–5 poin inti.
+   c. "Latihan" berisi 3–4 soal untuk menguji pemahaman. Setiap soal hanya boleh menguji materi yang sudah dijelaskan di bagian sebelumnya; bila ada contoh perhitungan, sertakan satu soal hitungan serupa. Tulis setiap poin dengan format: "Soal: … Jawaban: …".
 
 Format JSON:
 {
@@ -520,114 +522,68 @@ export async function generateSingleSlide(courseName, meetingNo, topic, slideNo,
   return callAi(prompt, true, onProgress, ATURAN_MATERI);
 }
 
+// Katalog layout SPA (gaya Pitch Deck) — harus sejalan dengan src/lib/spaBlocks.js.
+const KATALOG_LAYOUT = `
+Pilihan layout (pilih yang paling sesuai isi; variasikan agar tidak monoton):
+
+1. "cover" — HANYA untuk slide 1.
+   { "slide_no": 1, "layout": "cover", "title": "...", "subtitle": "...", "description": "..." }
+2. "statement" — satu gagasan kunci, opsional 1–3 angka atau fakta pendukung.
+   { "slide_no": X, "layout": "statement", "title": "...", "body": "1–2 kalimat inti", "facts": [ { "value": "3,517 kW", "label": "setara 1 TR" } ] }
+3. "list" — daftar poin bercentang.
+   { "slide_no": X, "layout": "list", "title": "...", "list_items": [ { "text": "...", "color": "green" } ] }
+   "color" salah satu dari "red", "amber", "green", "blue".
+4. "grid" — kartu konsep, TEPAT 2 atau 4 kartu.
+   { "slide_no": X, "layout": "grid", "title": "...", "grid_items": [ { "title": "...", "desc": "...", "icon": "fa-solid fa-snowflake" } ] }
+   "icon" berupa kelas Font Awesome 6 gratis (fa-solid ...).
+5. "split" — konsep/definisi di kiri, poin rinci di kanan.
+   { "slide_no": X, "layout": "split", "title": "...", "split_left": { "heading": "...", "description": "..." }, "split_right": ["...", "..."] }
+6. "steps" — proses atau prosedur berurutan, 3–6 langkah.
+   { "slide_no": X, "layout": "steps", "title": "...", "steps": [ { "title": "...", "body": "..." } ] }
+7. "stats" — 2–4 angka kunci (hanya angka baku: definisi, konversi, nilai standar, atau hasil contoh perhitungan).
+   { "slide_no": X, "layout": "stats", "title": "...", "stats": [ { "value": "1,5", "label": "PUE contoh", "note": "150 kW ÷ 100 kW" } ] }
+8. "table" — perbandingan. Sel boleh berisi "ya", "sebagian", atau "tidak" agar tampil sebagai ikon.
+   { "slide_no": X, "layout": "table", "title": "...", "table_data": { "headers": ["Aspek", "A", "B"], "rows": [["...", "...", "..."]] } }
+9. "accordion" — sub-konsep yang dibuka satu per satu.
+   { "slide_no": X, "layout": "accordion", "title": "...", "accordion_items": [ { "header": "...", "content": "..." } ] }
+10. "discussion" — WAJIB untuk slide outline berjudul "Diskusi": pertanyaan pemantik reflektif beserta petunjuk berpikir (bukan jawaban).
+   { "slide_no": X, "layout": "discussion", "title": "Diskusi", "discussion_items": [ { "question": "...?", "hint": "..." } ] }
+11. "quiz" — WAJIB untuk slide outline berjudul "Latihan": soal pilihan ganda untuk latihan mandiri.
+   { "slide_no": X, "layout": "quiz", "title": "Latihan", "quiz_items": [ { "question": "...", "options": ["...", "...", "...", "..."], "answer": 1, "explanation": "..." } ] }
+   Setiap soal 4 pilihan; "answer" adalah indeks pilihan benar (0–3); sebarkan posisi jawaban benar; pengecoh harus masuk akal; "explanation" menjelaskan mengapa jawaban itu benar. Soal diambil dari soal pada outline.
+12. "media" — gambar atau video sebagai fokus. HANYA bila slide outline punya "image_url".
+   { "slide_no": X, "layout": "media", "title": "...", "image_url": "(salin dari outline)", "caption": "...", "description": "..." }
+
+Properti opsional untuk semua layout:
+- "image_url": HANYA salin bila slide outline memilikinya; jangan pernah mengarang URL.
+- "reference": hanya bila slide outline menyebut sumber secara eksplisit; jangan mengarang nama atau tahun.
+- "media_hint": saran singkat gambar/diagram/video yang akan membantu bagian ini (mis. "Diagram tata letak hot aisle dan cold aisle"). Hanya untuk instruktur, tidak ditampilkan ke peserta. Isi hanya bila visual benar-benar membantu.
+`;
+
 // 8. Generate WebSlide Layouts
 export async function generateWebSlideData(courseName, prodiName, meetingNo, outlineData, onProgress = null) {
   const prompt = `
-    Anda adalah pakar akademis dan desainer instruksional senior. Tugas Anda adalah menerjemahkan outline materi perkuliahan berikut menjadi presentasi WebSlide terstruktur dan interaktif dengan tata letak (layout) dinamis:
-    Mata Kuliah: "${courseName}"
-    Program Studi: "${prodiName}"
-    Pertemuan Ke: ${meetingNo}
-    
-    Data Outline Materi (JSON):
-    ${JSON.stringify(outlineData)}
+Ubah outline materi berikut menjadi SPA (halaman materi interaktif) dengan layout yang sesuai untuk setiap slide.
 
-    Berdasarkan data outline sederhana di atas, buatlah presentasi WebSlide/SPA yang memetakan SELURUH slide dari outline. Jumlah slide dan nilai "slide_no" harus sama persis dengan outline: jangan menambah, mengurangi, menggabung, atau mengubah urutan slide. Pertahankan keringkasan teks outline; jangan memperpanjangnya. Untuk setiap slide dari outline, analisis materinya secara mendalam dan tentukan tipe tata letak (layout) yang paling sesuai, variatif, dan profesional agar presentasi interaktif dan tidak monoton.
+Kursus: "${courseName}"
+Program Studi: "${prodiName}"
+Pertemuan: ${meetingNo}
 
-    ATURAN LAYOUT YANG HARUS DIPILIH:
-    - PENTING: Hanya sertakan properti "image_url" pada slide jika objek slide di dalam data outline materi (JSON) memiliki properti "image_url" (atau berisi tautan gambar/video tertentu). Apabila objek slide di dalam data outline materi tidak memiliki properti "image_url" (bernilai kosong atau null), Anda DILARANG keras membuat/mengarang "image_url" baru.
-    - Properti opsional "reference" hanya boleh diisi bila slide outline yang bersangkutan menyebut sumber secara eksplisit. Jangan mengarang nama penulis atau tahun.
+Outline (JSON):
+${JSON.stringify(outlineData)}
 
-    1. "cover": Hanya untuk Slide 1 (Cover utama perkuliahan).
-       {
-         "slide_no": 1,
-         "layout": "cover",
-         "title": "Judul Cover",
-         "subtitle": "Subjudul cover",
-         "description": "Deskripsi singkat isi perkuliahan hari ini"
-       }
-    2. "split": Layout 2 kolom (kiri & kanan). Cth: konsep/masalah di kiri, poin detail di kanan.
-       {
-         "slide_no": X,
-         "layout": "split",
-         "title": "Judul Slide",
-         "reference": "...",
-         "split_left": {
-           "heading": "Judul kolom kiri (cth: Masalah/Definisi)",
-           "description": "Penjelasan teoritis mendalam atau kutipan besar di kolom kiri..."
-         },
-         "split_right": [
-           "Poin detail 1...",
-           "Poin detail 2...",
-           "Poin detail 3..."
-         ]
-       }
-    3. "grid": Layout grid kartu (tepat 2 atau 4 kartu). Cocok untuk menguraikan beberapa kategori, pilar, atau komponen utama.
-       {
-         "slide_no": X,
-         "layout": "grid",
-         "title": "Judul Slide",
-         "reference": "...",
-         "grid_items": [
-           { "title": "Nama Kategori 1", "desc": "Deskripsi...", "icon": "fa-solid fa-lightbulb" },
-           { "title": "Nama Kategori 2", "desc": "Deskripsi...", "icon": "fa-solid fa-code" }
-         ]
-       }
-       Gunakan FontAwesome class yang relevan untuk "icon" (cth: fa-solid fa-gears, fa-solid fa-shield-halved, fa-solid fa-database, fa-solid fa-book, dll.).
-    4. "list": Layout daftar kartu berurutan. Masing-masing item dibungkus dengan kartu beraksen tepi kiri berwarna.
-       {
-         "slide_no": X,
-         "layout": "list",
-         "title": "Judul Slide",
-         "reference": "...",
-         "list_items": [
-           { "text": "Pernyataan/langkah/poin penting 1...", "color": "red" },
-           { "text": "Pernyataan/langkah/poin penting 2...", "color": "amber" }
-         ]
-       }
-       Properti "color" wajib bernilai salah satu dari "red", "amber", "green", atau "blue".
-    5. "table": Layout tabel perbandingan. Sangat baik jika membandingkan dua teknologi, konsep, atau kelebihan & kekurangan.
-       {
-         "slide_no": X,
-         "layout": "table",
-         "title": "Judul Slide",
-         "reference": "...",
-         "table_data": {
-           "headers": ["Aspek Perbandingan", "Konsep A", "Konsep B"],
-           "rows": [
-             ["Definisi", "Penjelasan A...", "Penjelasan B..."],
-             ["Kelebihan", "Kelebihan A...", "Kelebihan B..."]
-           ]
-         }
-       }
-    6. "accordion": Layout akordion interaktif (Tanya Jawab / Diskusi Kelas / Sub-Materi).
-       Dapat digunakan secara bebas di slide-slide tengah untuk memaparkan sub-konsep secara interaktif.
-       Catatan khusus: slide outline berjudul "Latihan" WAJIB memakai layout "accordion"; "header" berisi soal dan "content" berisi jawabannya. Jangan menambah slide diskusi baru.
-       {
-         "slide_no": X,
-         "layout": "accordion",
-         "title": "Diskusi Kelas & Tanya Jawab",
-         "reference": "...",
-         "accordion_items": [
-           { "header": "Pertanyaan pemantik / Judul sub-konsep 1?", "content": "Pembahasan substantif / jawaban ilmiah yang komprehensif atas pertanyaan tersebut..." },
-           { "header": "Pertanyaan pemantik / Judul sub-konsep 2?", "content": "Analisis kasus / penjelasan mendalam..." }
-         ]
-       }
-
-    Format output harus berupa JSON OBJECT murni dengan struktur:
-    {
-      "title": "Judul Utama Presentasi",
-      "slides": [
-        // Daftar slide di sini sesuai skema di atas
-      ]
-    }
-
-    Aturan:
-    - Gunakan Bahasa Indonesia baku yang ringkas dan jelas.
-    - HINDARI memberikan meta-instruksi, arahan presentasi, atau instruksi lisan bagi presenter/dosen (seperti "Ajak mahasiswa...", "Jelaskan...", "Tekankan...", "Tunjukkan contoh...", dll.). Konten harus langsung berupa penjelasan materi, pembahasan teoritis, jawaban konkret, atau data ilmiah yang ditujukan untuk audiens/mahasiswa.
-    - Istilah asing atau teknis cukup dijelaskan singkat di dalam slide yang sama. Jangan menambah slide glosarium.
-    - FORMATTING: Gunakan tag HTML <strong> untuk mencetak tebal kata kunci atau poin-poin inti dari penjelasan agar memudahkan audiens menangkap poin penting dengan cepat. Gunakan tag HTML <em> untuk mencetak miring istilah asing, istilah teknis, atau istilah tidak umum.
-    - Jangan berikan penjelasan tambahan apapun di luar JSON murni.
-  `;
+Aturan pemetaan:
+- Petakan SELURUH slide. Jumlah slide dan nilai "slide_no" harus sama persis dengan outline: jangan menambah, mengurangi, menggabung, atau mengubah urutan.
+- Pertahankan keringkasan teks outline; jangan memperpanjangnya. Isi boleh disusun ulang agar cocok dengan layout.
+- Gunakan tag <strong> untuk kata kunci penting dan <em> untuk istilah asing. Jangan memakai tag HTML lain.
+- Istilah asing cukup dijelaskan singkat di dalam slide yang sama.
+${KATALOG_LAYOUT}
+Format output (JSON):
+{
+  "title": "Judul materi",
+  "slides": [ ... ]
+}
+`;
 
   return callAi(prompt, true, onProgress, ATURAN_MATERI);
 }
@@ -635,96 +591,21 @@ export async function generateWebSlideData(courseName, prodiName, meetingNo, out
 // 8.b. Generate Single WebSlide Layout (Regenerate layout per slide)
 export async function generateSingleWebSlideData(courseName, prodiName, meetingNo, slideNo, outlineSlide, onProgress = null) {
   const prompt = `
-    Anda adalah pakar akademis dan desainer instruksional senior. Tugas Anda adalah menerjemahkan SATU slide outline materi perkuliahan menjadi satu objek tata letak (layout) WebSlide terstruktur dan interaktif dengan layout yang bervariasi:
-    Mata Kuliah: "${courseName}"
-    Program Studi: "${prodiName}"
-    Pertemuan Ke: ${meetingNo}
-    
-    Data Slide Outline yang ingin diterjemahkan (JSON):
-    ${JSON.stringify(outlineSlide)}
+Ubah SATU slide outline berikut menjadi satu objek layout SPA.
 
-    Tugas Anda:
-    1. Analisis materi slide outline di atas.
-    2. Pilih dan buatlah salah satu tipe tata letak (layout) yang paling sesuai dari pilihan berikut:
-       - "cover" (hanya jika ini slide ke-1):
-         {
-           "slide_no": ${slideNo},
-           "layout": "cover",
-           "title": "Judul Cover",
-           "subtitle": "Subjudul cover",
-           "description": "Deskripsi singkat isi perkuliahan"
-         }
-       - "split" (layout 2 kolom, kiri & kanan):
-         {
-           "slide_no": ${slideNo},
-           "layout": "split",
-           "title": "Judul Slide",
-           "reference": "Kutipan jika ada (opsional)",
-           "split_left": {
-             "heading": "Judul kolom kiri (cth: Masalah/Definisi)",
-             "description": "Penjelasan mendalam di kolom kiri..."
-           },
-           "split_right": [
-             "Poin detail 1...",
-             "Poin detail 2...",
-             "Poin detail 3..."
-           ]
-         }
-       - "grid" (grid kartu, tepat 2 atau 4 kartu, cocok untuk menguraikan kategori/komponen):
-         {
-           "slide_no": ${slideNo},
-           "layout": "grid",
-           "title": "Judul Slide",
-           "reference": "Kutipan jika ada (opsional)",
-           "grid_items": [
-             { "title": "Kategori 1", "desc": "Deskripsi...", "icon": "fa-solid fa-lightbulb" },
-             { "title": "Kategori 2", "desc": "Deskripsi...", "icon": "fa-solid fa-code" }
-           ]
-         } (Gunakan FontAwesome class untuk "icon", cth: fa-solid fa-gears, fa-solid fa-shield-halved, fa-solid fa-database)
-       - "list" (daftar kartu berurutan, item dibungkus kartu tepi kiri berwarna):
-         {
-           "slide_no": ${slideNo},
-           "layout": "list",
-           "title": "Judul Slide",
-           "reference": "Kutipan jika ada (opsional)",
-           "list_items": [
-             { "text": "Poin penting 1...", "color": "blue" },
-             { "text": "Poin penting 2...", "color": "green" }
-           ]
-         } (Warna properti "color" harus: "red", "amber", "green", atau "blue")
-       - "table" (tabel perbandingan, membandingkan kelebihan/kekurangan/teknologi):
-         {
-           "slide_no": ${slideNo},
-           "layout": "table",
-           "title": "Judul Slide",
-           "reference": "Kutipan jika ada (opsional)",
-           "table_data": {
-             "headers": ["Aspek", "Konsep A", "Konsep B"],
-             "rows": [
-               ["Aspek 1", "Penjelasan A...", "Penjelasan B..."],
-               ["Aspek 2", "Penjelasan A...", "Penjelasan B..."]
-             ]
-           }
-         }
-       - "accordion" (akordion interaktif, tanya jawab / diskusi):
-         {
-           "slide_no": ${slideNo},
-           "layout": "accordion",
-           "title": "Judul Slide",
-           "reference": "Kutipan jika ada (opsional)",
-           "accordion_items": [
-             { "header": "Pertanyaan 1?", "content": "Jawaban mendalam..." },
-             { "header": "Pertanyaan 2?", "content": "Pembahasan..." }
-           ]
-         }
+Kursus: "${courseName}"
+Program Studi: "${prodiName}"
+Pertemuan: ${meetingNo}
 
-    3. Hanya sertakan properti "image_url" di objek output jika objek slide di dalam data outline materi (JSON) memiliki properti "image_url". Apabila objek slide di dalam data outline materi tidak memiliki properti "image_url" (kosong atau null), Anda DILARANG keras menambahkan atau mengarang properti "image_url" baru.
-    4. Gunakan tag HTML <strong> untuk kata kunci penting dan <em> untuk istilah asing di dalam teks konten.
+Slide outline (JSON):
+${JSON.stringify(outlineSlide)}
 
-    5. Isi "reference" hanya bila slide outline menyebut sumber secara eksplisit; jangan mengarang. Bila judul slide "Latihan", pakai layout "accordion" dengan soal sebagai "header" dan jawaban sebagai "content".
-
-    Format output harus berupa JSON OBJECT murni dengan struktur salah satu layout di atas, jangan tambahkan penjelasan apapun di luar JSON.
-  `;
+Aturan:
+- Gunakan "slide_no": ${slideNo}.
+- Pertahankan keringkasan teks; gunakan <strong> untuk kata kunci dan <em> untuk istilah asing, tanpa tag HTML lain.
+${KATALOG_LAYOUT}
+Format output: satu objek JSON sesuai salah satu layout di atas.
+`;
 
   return callAi(prompt, true, onProgress, ATURAN_MATERI);
 }
