@@ -10,7 +10,8 @@
 //               Hanya https, hanya ke /chat/completions, dan bukan alamat jaringan lokal.
 
 const DEFAULT_URL = 'https://ai.sumopod.com/v1'
-const SERVER_MODELS = ['deepseek-v4-flash']
+// Model server: SUMOPOD_MODEL (env) bila diisi, selain itu default di bawah.
+const DEFAULT_MODEL = 'deepseek-v4-flash'
 const MAX_BODY_CHARS = 400_000
 
 async function verifyUser(req) {
@@ -24,6 +25,15 @@ async function verifyUser(req) {
     headers: { apikey: anonKey, Authorization: `Bearer ${token}` },
   })
   return r.ok
+}
+
+// Gabungkan pesan sistem ke pesan pengguna untuk model yang tidak menerima peran "system".
+function mergeSystem(messages) {
+  const sys = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n')
+  const rest = messages.filter((m) => m.role !== 'system')
+  if (!sys || rest.length === 0) return rest.length ? rest : messages
+  const [first, ...others] = rest
+  return [{ ...first, content: `${sys}\n\n${first.content}` }, ...others]
 }
 
 function isPublicHttpsUrl(raw) {
@@ -74,21 +84,54 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Kunci AI server belum dikonfigurasi (SUMOPOD_API_KEY).' })
       }
       baseUrl = (process.env.SUMOPOD_API_URL || DEFAULT_URL).replace(/\/+$/, '')
-      modelToUse = SERVER_MODELS.includes(model) ? model : SERVER_MODELS[0]
+      // Pengguna tidak bisa memilih model lain dengan kunci SYSTRACT.
+      modelToUse = process.env.SUMOPOD_MODEL || DEFAULT_MODEL
     }
 
-    const upstream = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: modelToUse,
-        messages,
-        ...(response_format ? { response_format } : {}),
-        ...(typeof temperature === 'number' ? { temperature } : {}),
-        ...(typeof max_tokens === 'number' ? { max_tokens } : {}),
-        stream: Boolean(stream),
-      }),
-    })
+    // Penyedia (LiteLLM di Sumopod) kadang memetakan model ke versi yang menolak parameter
+    // tertentu ("Invalid param: not support for model"). Bila itu terjadi, coba ulang dengan
+    // permintaan yang makin sederhana. Respons tetap JSON karena prompt meminta JSON murni,
+    // dan klien sudah membuang pembungkus ```json.
+    const attempts = [
+      { response_format, temperature, max_tokens, messages },
+      { temperature, max_tokens, messages },
+      { messages: mergeSystem(messages) },
+      { messages: mergeSystem(messages), noStream: true },
+    ]
+    let upstream
+    let usedNoStream = false
+    for (let i = 0; i < attempts.length; i++) {
+      const a = attempts[i]
+      upstream = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: modelToUse,
+          messages: a.messages,
+          ...(a.response_format ? { response_format: a.response_format } : {}),
+          ...(typeof a.temperature === 'number' ? { temperature: a.temperature } : {}),
+          ...(typeof a.max_tokens === 'number' ? { max_tokens: a.max_tokens } : {}),
+          stream: Boolean(stream) && !a.noStream,
+        }),
+      })
+      usedNoStream = Boolean(a.noStream)
+      if (upstream.status !== 400 || i === attempts.length - 1) break
+      const errText = await upstream.clone().text()
+      if (!/invalid param|not support|unsupported|unknown parameter/i.test(errText)) break
+      console.warn(`[api/ai] percobaan ${i + 1} ditolak (parameter), mencoba lebih sederhana`)
+    }
+
+    // Cadangan terakhir dipanggil tanpa stream; kirim ulang ke browser sebagai satu potong SSE
+    // agar klien (yang membaca stream) tetap bekerja.
+    if (upstream.ok && stream && usedNoStream) {
+      const data = await upstream.json()
+      const content = data?.choices?.[0]?.message?.content || ''
+      res.status(200)
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`)
+      res.write('data: [DONE]\n\n')
+      return res.end()
+    }
 
     if (!upstream.ok || !stream || !upstream.body) {
       const text = await upstream.text()
