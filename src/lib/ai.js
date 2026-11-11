@@ -109,7 +109,7 @@ export async function callAi(prompt, isJson = true, onProgress = null, system = 
                   text: accumulatedText
                 });
               }
-            } catch (e) {
+            } catch {
               // Abaikan parsing error parsial pada stream
             }
           }
@@ -428,10 +428,12 @@ Anda adalah penulis materi kursus daring (MOOC) berbahasa Indonesia untuk pesert
 Aturan isi (wajib):
 1. Tulis langsung sebagai materi untuk peserta. Jangan pernah menyebut "slide", "presentasi", "RPS", "outline", "dosen", "perkuliahan ini", "mahasiswa diharapkan", instruksi yang Anda terima, atau keterbatasan data yang diberikan.
 2. Jangan mengarang skema penilaian, tugas, jadwal, maupun isi pertemuan lain.
-3. Fakta dan angka: definisi, rumus, konversi satuan, dan istilah standar boleh dipakai. Persentase, biaya, besar penghematan, atau hasil studi hanya boleh bila angkanya dikenal luas dan stabil; bila ragu, tulis secara kualitatif (misalnya "dapat menurunkan konsumsi energi secara nyata"). Jangan mengaitkan angka dengan lembaga atau studi tertentu kecuali sumbernya ada di daftar pustaka.
+3. Fakta dan angka: definisi, rumus, konversi satuan, dan nilai yang ditetapkan standar boleh dipakai. Nama standar dan lembaga yang menjadi bagian materi (misalnya ASHRAE, Uptime Institute, TIA-942, ISO) boleh dan sebaiknya disebut. Persentase, biaya, besar penghematan, atau hasil studi hanya boleh bila angkanya dikenal luas dan stabil; bila ragu, tulis secara kualitatif (misalnya "dapat menurunkan konsumsi energi secara nyata"). Jangan mengutip angka dari studi, survei, atau laporan tertentu kecuali sumbernya ada di daftar pustaka.
 4. Rujukan: hanya boleh menyebut sumber dari daftar pustaka yang diberikan. Bila daftar pustaka kosong, jangan mencantumkan rujukan apa pun.
 5. Kalimat ringkas dan jelas dalam Bahasa Indonesia baku. Istilah asing yang lazim boleh dipakai, dengan penjelasan singkat saat pertama kali muncul.
-6. Keluarkan JSON murni tanpa teks lain.
+6. Setiap konsep dijelaskan di satu bagian saja; bagian lain cukup merujuk singkat tanpa mendefinisikan ulang.
+7. Setiap kalimat harus akurat secara teknis. Jangan menggabungkan dua teknologi atau konsep yang berbeda seolah-olah sejenis, dan jangan membuat pernyataan yang bertentangan dengan bagian lain.
+8. Keluarkan JSON murni tanpa teks lain.
 `;
 
 function daftarPustaka(references = []) {
@@ -467,10 +469,10 @@ Catatan: bila kemampuan akhir tidak sejalan dengan topik pertemuan ini, utamakan
 
 Struktur:
 1. Buat 15 sampai 18 bagian. Setiap bagian membahas satu konsep; jangan mengulang isi bagian lain.
-2. Bagian 1 adalah pengantar: apa yang akan dipelajari dan mengapa penting (2–3 poin).
-3. Bagian inti: 3–4 poin per bagian. Setiap poin satu kalimat, paling banyak sekitar 30 kata. Sertakan contoh konkret atau penerapan nyata pada sebagian bagian (konteks Indonesia bila relevan), serta perbandingan bila membantu.
+2. Bagian 1 adalah pengantar yang menyapa peserta secara langsung (misalnya "Anda akan mempelajari …"): apa yang akan dipelajari dan mengapa penting (2–3 poin). Jangan memulai dengan "Bagian ini …".
+3. Bagian inti: 3–4 poin per bagian. Setiap poin satu kalimat, paling banyak sekitar 30 kata. Sertakan contoh konkret atau penerapan nyata pada sebagian bagian (konteks Indonesia bila relevan), serta perbandingan bila membantu. Bila topiknya memuat besaran atau rumus, sertakan minimal satu contoh perhitungan langkah demi langkah di bagian inti.
 4. Bagian kedua terakhir berjudul "Ringkasan" berisi 3–5 poin inti.
-5. Bagian terakhir berjudul "Latihan" berisi 3–4 soal untuk menguji pemahaman. Tulis setiap poin dengan format: "Soal: … Jawaban: …".
+5. Bagian terakhir berjudul "Latihan" berisi 3–4 soal untuk menguji pemahaman. Setiap soal hanya boleh menguji materi yang sudah dijelaskan di bagian sebelumnya; bila ada contoh perhitungan, sertakan satu soal hitungan serupa. Tulis setiap poin dengan format: "Soal: … Jawaban: …".
 
 Format JSON:
 {
