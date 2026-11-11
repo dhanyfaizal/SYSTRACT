@@ -701,6 +701,12 @@ img { display: block; max-width: 100%; }
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 
+/* ── Mode fokus ruang kelas: menu aplikasi disembunyikan (hanya layar lebar) ── */
+@media (min-width: 768px) {
+  .focus-mode .shell-sidebar { display: none !important; }
+  .focus-mode .shell-header > .shell-icon-btn { visibility: hidden; }
+}
+
 /* ── Mode ujian: sidebar & tombol menu disembunyikan (lihat AppLayout) ── */
 .exam-mode .shell-sidebar,
 .exam-mode .shell-overlay { display: none !important; }

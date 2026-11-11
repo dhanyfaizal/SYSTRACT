@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   BookOpen, Clock, HelpCircle, Info, ExternalLink, Menu, X, Check,
-  ChevronDown, AlertCircle, BookMarked, ArrowUp
+  ChevronDown, ChevronLeft, ChevronRight, AlertCircle, BookMarked, ArrowUp
 } from 'lucide-react'
 
 // Prodi themes matching existing colors in webslideTemplate.js
@@ -58,7 +58,8 @@ export default function WebSlidePlayer({
   meetingNo,
   slideData,
   onClose,
-  askWithContext
+  askWithContext,
+  onOpenNewTab
 }) {
   const theme = getThemeByProdi(prodiName)
   const title = slideData?.title || `Materi Topik ${meetingNo}`
@@ -99,7 +100,8 @@ export default function WebSlidePlayer({
   }, [rawSlides])
 
   const [activeIdx, setActiveIdx] = useState(0)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  // Daftar isi tertutup secara default agar konten mendapat ruang penuh.
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [expandedAccordions, setExpandedAccordions] = useState({})
   
   const rightPaneRef = useRef(null)
@@ -260,7 +262,7 @@ export default function WebSlidePlayer({
         color: '#334155',
         borderRadius: '12px',
         overflow: 'hidden',
-        height: '750px',
+        height: 'max(460px, calc(100vh - 270px))',
         border: '1px solid #e2e8f0',
         position: 'relative',
         fontFamily: "'Inter', sans-serif"
@@ -507,29 +509,46 @@ export default function WebSlidePlayer({
       `}</style>
 
       {/* 1. TOP HEADER BAR */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid #e2e8f0', background: '#ffffff', zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', padding: '10px 16px', borderBottom: '1px solid #e2e8f0', background: '#ffffff', zIndex: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: '1 1 260px' }}>
           <button
+            type="button"
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
-            title="Tampilkan Outline"
+            aria-expanded={sidebarOpen}
+            style={{ background: sidebarOpen ? '#f1f5f9' : '#ffffff', border: '1px solid #e2e8f0', color: '#334155', cursor: 'pointer', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 600, flexShrink: 0 }}
           >
-            <Menu size={16} />
+            <Menu size={15} /> Daftar isi
           </button>
           <div style={{ minWidth: 0 }}>
-            <span style={{ fontSize: '0.62rem', color: theme.accent, textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 800 }}>
-              Syllabus SPA Reader — Topik {meetingNo}
+            <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+              Pertemuan {meetingNo}
             </span>
-            <h4 style={{ fontSize: '0.85rem', color: '#0f172a', margin: '2px 0 0 0', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <h4 style={{ fontSize: '0.9rem', color: '#0f172a', margin: '1px 0 0 0', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {title}
             </h4>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '0.75rem', color: '#475569', fontWeight: 600, background: '#f1f5f9', padding: '3px 8px', borderRadius: '4px' }}>
-            Bagian {activeIdx + 1} / {slides.length} ({progressPercent}% Selesai)
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button type="button" aria-label="Bagian sebelumnya" disabled={activeIdx === 0}
+            onClick={() => scrollToSection(Math.max(0, activeIdx - 1))}
+            style={{ background: '#ffffff', border: '1px solid #e2e8f0', color: '#334155', borderRadius: '6px', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: activeIdx === 0 ? 'default' : 'pointer', opacity: activeIdx === 0 ? 0.4 : 1 }}>
+            <ChevronLeft size={16} />
+          </button>
+          <span style={{ fontSize: '0.8rem', color: '#475569', fontWeight: 600, minWidth: 52, textAlign: 'center' }} aria-live="polite">
+            {activeIdx + 1} / {slides.length}
           </span>
+          <button type="button" aria-label="Bagian berikutnya" disabled={activeIdx >= slides.length - 1}
+            onClick={() => scrollToSection(Math.min(slides.length - 1, activeIdx + 1))}
+            style={{ background: '#ffffff', border: '1px solid #e2e8f0', color: '#334155', borderRadius: '6px', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: activeIdx >= slides.length - 1 ? 'default' : 'pointer', opacity: activeIdx >= slides.length - 1 ? 0.4 : 1 }}>
+            <ChevronRight size={16} />
+          </button>
+          {onOpenNewTab && (
+            <button type="button" onClick={onOpenNewTab} title="Buka di tab baru" aria-label="Buka di tab baru"
+              style={{ background: '#ffffff', border: '1px solid #e2e8f0', color: '#334155', borderRadius: '6px', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: 4 }}>
+              <ExternalLink size={15} />
+            </button>
+          )}
           {onClose && (
             <button
               onClick={onClose}
@@ -594,13 +613,6 @@ export default function WebSlidePlayer({
                     <span className="section-number-badge">{idx + 1}</span>
                     {parseHtmlText(slide.title)}
                   </h3>
-                  
-                  {/* Section Tags */}
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.65rem', background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 700 }}>
-                      {layout}
-                    </span>
-                  </div>
                 </div>
 
                 {/* Section Body Layout */}
@@ -616,10 +628,6 @@ export default function WebSlidePlayer({
                       <p style={{ fontSize: '#475569', fontSize: '0.88rem', lineHeight: 1.5, marginBottom: '20px' }}>
                         {parseHtmlText(slide.description || 'Rancangan materi silabus pembelajaran komprehensif.')}
                       </p>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '0.7rem', padding: '3px 8px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', color: '#64748b', fontWeight: 600 }}>SPA Reader</span>
-                        <span style={{ fontSize: '0.7rem', padding: '3px 8px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', color: '#64748b', fontWeight: 600 }}>Topik Ke-{meetingNo}</span>
-                      </div>
                     </div>
                     {slide.image_url && (
                       <div className="netacad-image-wrapper">
