@@ -694,6 +694,51 @@ img { display: block; max-width: 100%; }
   .home-row { padding: 12px 16px; }
 }
 
+/* ── Pratinjau kursus (peserta belum terdaftar) ────────────── */
+.pv { max-width: 1120px; display: flex; flex-direction: column; gap: 12px; }
+.pv-back { align-self: flex-start; margin-left: -8px; color: var(--gray-600); }
+.pv-layout { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.pv-main { flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.pv-side { flex: 1 1 280px; max-width: 360px; position: sticky; top: 0; }
+.pv-hero { display: flex; flex-direction: column; gap: 8px; padding: 4px 0 8px; }
+.pv-eyebrow { font-size: 13px; font-weight: 600; color: var(--gray-500); }
+.pv-title { font-size: 28px; font-weight: 800; line-height: 1.2; letter-spacing: -.3px; color: var(--gray-900); }
+.pv-lead { font-size: 16px; line-height: 1.55; color: var(--gray-600); max-width: 680px; }
+.pv-facts { font-size: 14px; font-weight: 600; color: var(--gray-700); }
+.pv-section { padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; }
+.pv-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.pv-h2 { font-size: 16px; font-weight: 700; color: var(--gray-900); }
+.pv-h3 { font-size: 14px; font-weight: 700; color: var(--gray-900); }
+.pv-muted { font-size: 13px; color: var(--gray-500); }
+.pv-desc { font-size: 14px; line-height: 1.7; color: var(--gray-700); white-space: pre-wrap; }
+.pv-desc.is-clamped { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.pv-more { align-self: flex-start; background: none; border: 0; padding: 0; font: inherit; font-size: 14px; font-weight: 600; color: var(--indigo-600); cursor: pointer; }
+.pv-more:hover { text-decoration: underline; }
+.pv-checks { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px 20px; }
+.pv-checks li { display: flex; gap: 10px; font-size: 14px; line-height: 1.5; color: var(--gray-700); }
+.pv-checks svg { flex-shrink: 0; margin-top: 2px; color: var(--indigo-600); }
+.pv-syllabus { list-style: none; }
+.pv-syllabus li { display: flex; gap: 16px; padding: 12px 0; border-top: 1px solid var(--gray-100); }
+.pv-syllabus li:first-child { border-top: 0; padding-top: 0; }
+.pv-week { flex: 0 0 96px; font-size: 13px; font-weight: 600; color: var(--gray-500); padding-top: 1px; }
+.pv-week-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pv-week-title { font-size: 14px; font-weight: 600; color: var(--gray-900); line-height: 1.45; }
+.pv-week-desc { font-size: 13px; color: var(--gray-500); line-height: 1.5; }
+.pv-person { display: flex; align-items: center; gap: 12px; }
+.pv-avatar { width: 44px; height: 44px; font-size: 14px; }
+.pv-person-name { font-size: 15px; font-weight: 600; color: var(--gray-900); }
+.pv-enroll { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.pv-enroll-btn { width: 100%; justify-content: center; padding: 11px 16px; font-size: 15px; font-weight: 600; }
+.pv-note { font-size: 13px; line-height: 1.5; color: var(--gray-500); }
+.pv-divider { height: 1px; background: var(--gray-100); margin: 4px 0; }
+.pv-steps { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--gray-700); line-height: 1.45; }
+.pv-spin { animation: spin .7s linear infinite; }
+@media (max-width: 767px) {
+  .pv-title { font-size: 22px; }
+  .pv-side { position: static; max-width: none; }
+  .pv-week { flex-basis: 80px; }
+}
+
 /* ── Judul modul di sidebar (nama kursus) boleh dua baris, tidak terpotong ── */
 .shell .shell-module-title { white-space: normal; align-items: flex-start; line-height: 1.35; }
 .shell .shell-module-title svg { margin-top: 2px; }
