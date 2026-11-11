@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Sparkles, X, Send, Loader2, KeyRound } from 'lucide-react'
+import { Bot, X, Send, Loader2, KeyRound } from 'lucide-react'
 import { useAI }  from '@/contexts/AIContext'
 import { useAuth } from '@/contexts/AuthContext'
 import AISettingsModal from './AISettingsModal'
@@ -203,7 +203,7 @@ export default function AIAssistant() {
       {/* FAB */}
       {!chatOpen && (
         <button className="fab-ai" onClick={() => setChatOpen(true)} title="AI Assistant">
-          <Sparkles size={20} />
+          <Bot size={20} />
         </button>
       )}
 
@@ -212,7 +212,7 @@ export default function AIAssistant() {
         <div className="ai-panel">
           {/* Panel header */}
           <div className="ai-panel-header">
-            <Sparkles size={16} />
+            <Bot size={16} />
             <span className="ai-panel-title">AI Assistant</span>
             <button
               style={{ background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: 6, padding: '3px 6px', color: '#fff', cursor: 'pointer' }}

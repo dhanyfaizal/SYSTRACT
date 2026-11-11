@@ -1,0 +1,392 @@
+/* ============================================================
+   Shell bersama BAAKSYS & SIRENA
+   Sidebar drill-in (model Cloudflare), rail, drawer ponsel, skeleton.
+   File ini identik di kedua project: ubah di satu tempat, salin ke yang lain.
+   Memakai token yang sudah ada: --surface, --surface-alt, --border-color,
+   --gray-*, --indigo-*, --radius-*, --header-h, --sidebar-w, --sk-bg, --sk-shine.
+   ============================================================ */
+
+:root {
+  --shell-rail-w: 64px;
+  --shell-ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+html, body, #root { height: 100%; }
+
+.shell {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  background: var(--surface-alt);
+}
+
+/* ── Sidebar ──────────────────────────────────────────────── */
+.shell-sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border-color);
+  transition: width .2s var(--shell-ease), transform .22s var(--shell-ease);
+  overflow: hidden;
+  z-index: 40;
+}
+
+.shell-brand {
+  height: var(--header-h);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-color);
+  min-width: 0;
+}
+.shell-brand img { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; }
+.shell-brand-text { min-width: 0; }
+.shell-brand-name { font-size: 15px; font-weight: 800; color: var(--gray-900); letter-spacing: -.02em; white-space: nowrap; }
+.shell-brand-sub  { font-size: 10px; font-weight: 600; color: var(--gray-500); white-space: nowrap; }
+
+.shell-sidebar-top { padding: 10px 14px 2px; }
+
+.shell-nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 0 12px;
+  position: relative;
+}
+
+/* Panel geser: menu utama <-> sub-menu modul */
+.shell-panel { animation: shellIn .18s var(--shell-ease); }
+.shell-panel.from-left { animation-name: shellInLeft; }
+@keyframes shellIn     { from { opacity: 0; transform: translateX(14px); }  to { opacity: 1; transform: none; } }
+@keyframes shellInLeft { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+
+.shell-section {
+  padding: 14px 18px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+
+.shell-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 16px);
+  margin: 1px 8px;
+  padding: 8px 10px;
+  border: 0;
+  background: none;
+  border-radius: var(--radius-sm);
+  color: var(--gray-600);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+.shell-item:hover { background: var(--gray-100); color: var(--gray-900); }
+.shell-item:focus-visible { outline: 2px solid var(--indigo-500); outline-offset: -2px; }
+.shell-item.active { background: var(--indigo-50); color: var(--indigo-700); font-weight: 600; }
+.shell-item.active .shell-item-icon { color: var(--indigo-600); }
+.shell-item-icon { flex-shrink: 0; color: var(--gray-400); }
+.shell-item-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.shell-item-chev { flex-shrink: 0; color: var(--gray-400); }
+.shell-item-badge {
+  flex-shrink: 0;
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--indigo-600);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+.shell-sub .shell-item { padding-left: 14px; }
+
+.shell-back {
+  color: var(--gray-700);
+  font-weight: 600;
+  margin-top: 6px;
+}
+.shell-module-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-900);
+  white-space: nowrap;
+}
+.shell-module-title svg { color: var(--indigo-600); flex-shrink: 0; }
+
+.shell-sidebar-footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-color);
+  padding: 10px 16px;
+  font-size: 11px;
+  color: var(--gray-500);
+  min-width: 0;
+}
+
+/* ── Main column ──────────────────────────────────────────── */
+.shell-main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
+
+.shell-header {
+  height: var(--header-h);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 20;
+  min-width: 0;
+}
+.shell-header-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.shell-header-title span { color: var(--gray-400); font-weight: 500; }
+.shell-header-slot { display: flex; align-items: center; gap: 8px; margin-left: auto; min-width: 0; }
+
+.shell-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--gray-600);
+  cursor: pointer;
+}
+.shell-icon-btn:hover { background: var(--gray-100); color: var(--gray-900); }
+.shell-icon-btn:focus-visible { outline: 2px solid var(--indigo-500); }
+
+.shell-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 28px 32px;
+  background: var(--surface-alt);
+  min-width: 0;
+}
+
+.shell-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, .45);
+  z-index: 35;
+  animation: shellFade .18s ease;
+}
+@keyframes shellFade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Rail (sidebar dilipat jadi ikon) ─────────────────────── */
+.shell.is-rail .shell-sidebar { width: var(--shell-rail-w); }
+.shell.is-rail .shell-brand { justify-content: center; padding: 0; }
+.shell.is-rail .shell-brand-text,
+.shell.is-rail .shell-sidebar-top,
+.shell.is-rail .shell-section,
+.shell.is-rail .shell-item-label,
+.shell.is-rail .shell-item-chev,
+.shell.is-rail .shell-item-badge,
+.shell.is-rail .shell-sidebar-footer { display: none; }
+.shell.is-rail .shell-item { justify-content: center; padding: 10px 0; }
+.shell.is-rail .shell-nav { padding-top: 10px; }
+
+/* ── Tablet: default rail ─────────────────────────────────── */
+@media (max-width: 1100px) {
+  .shell-content { padding: 22px 22px; }
+}
+
+/* ── Ponsel: drawer off-canvas ────────────────────────────── */
+@media (max-width: 767px) {
+  .shell-sidebar,
+  .shell.is-rail .shell-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(300px, 86vw);
+    transform: translateX(-100%);
+    box-shadow: none;
+  }
+  .shell.is-drawer-open .shell-sidebar { transform: none; box-shadow: var(--shadow-lg); }
+  /* Di drawer selalu tampil lengkap, bukan rail */
+  .shell.is-rail .shell-brand { justify-content: flex-start; padding: 0 16px; }
+  .shell.is-rail .shell-brand-text,
+  .shell.is-rail .shell-sidebar-top,
+  .shell.is-rail .shell-section,
+  .shell.is-rail .shell-item-label,
+  .shell.is-rail .shell-item-chev,
+  .shell.is-rail .shell-item-badge,
+  .shell.is-rail .shell-sidebar-footer { display: revert; }
+  .shell.is-rail .shell-item { justify-content: flex-start; padding: 10px; }
+
+  .shell-header { padding: 0 10px 0 6px; gap: 6px; }
+  .shell-content { padding: 16px 14px 28px; }
+  .shell-item { padding: 10px; font-size: 14px; }
+  .shell-hide-mobile { display: none !important; }
+}
+@media (min-width: 768px) {
+  .shell-only-mobile { display: none !important; }
+}
+
+/* ── Skeleton ─────────────────────────────────────────────── */
+.sk {
+  display: block;
+  border-radius: var(--radius-sm);
+  background: var(--sk-shine);
+  animation: skPulse 1.2s ease-in-out infinite alternate;
+}
+@keyframes skPulse { from { opacity: .55; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
+
+.sk-page { display: flex; flex-direction: column; gap: 18px; }
+.sk-row  { display: flex; align-items: center; gap: 12px; }
+.sk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.sk-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sk-table {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.sk-table-row {
+  display: grid;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+.sk-table-row:last-child { border-bottom: 0; }
+.sk-table-row.is-head { background: var(--surface-alt); }
+
+/* Indikator kecil saat data diperbarui di latar belakang */
+.bg-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray-500);
+}
+.bg-sync::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--indigo-500);
+  animation: bgSync 1s ease-in-out infinite alternate;
+}
+@keyframes bgSync { from { opacity: .25; } to { opacity: 1; } }
+
+/* ── Utilitas responsif untuk migrasi inline style ────────── */
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+@media (max-width: 900px) {
+  .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .grid-2, .grid-3 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Judul halaman + penanda sinkron latar belakang */
+.page-title .bg-sync { margin-left: 10px; vertical-align: middle; }
+
+/* ── Cetak: hanya isi halaman ─────────────────────────────── */
+@media print {
+  .shell-sidebar, .shell-header, .shell-overlay { display: none !important; }
+  .shell, .shell-main, .shell-content {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+}
+
+/* ── Adaptasi ponsel untuk kelas & inline style yang sudah ada ──
+   Jembatan sementara selama inline style dipindah bertahap ke kelas.
+   Selektor [style*=...] menangkap gridTemplateColumns inline React. */
+@media (max-width: 900px) {
+  .shell-content [style*="grid-template-columns: 1fr 1fr 1fr"],
+  .shell-content [style*="grid-template-columns: repeat(3, 1fr)"],
+  .shell-content [style*="grid-template-columns: repeat(4, 1fr)"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 767px) {
+  .shell-content [style*="grid-template-columns: 1fr 1fr"],
+  .shell-content [style*="grid-template-columns: 1fr 2fr"],
+  .shell-content [style*="grid-template-columns: 2fr 1fr"],
+  .shell-content [style*="grid-template-columns: 1.2fr 0.8fr"],
+  .shell-content [style*="grid-template-columns: repeat(2, 1fr)"],
+  .shell-content [style*="grid-template-columns: 1fr 1fr 1fr"],
+  .shell-content [style*="grid-template-columns: repeat(3, 1fr)"],
+  .shell-content [style*="grid-template-columns: repeat(4, 1fr)"],
+  .shell-content [style*="minmax(300px"],
+  .shell-content [style*="minmax(320px"],
+  .shell-content [style*="minmax(360px"],
+  .shell-content [style*="minmax(400px"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .shell-content .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .shell-content .page-header > div:last-child:not(:first-child) { flex-wrap: wrap; }
+  .shell-content .page-title { font-size: 18px !important; line-height: 1.3; }
+  .shell-content .card-header { flex-wrap: wrap; gap: 10px; }
+  .shell-content .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .shell-content .stat-card { padding: 14px; }
+  .shell-content .stat-card-value { font-size: 22px; }
+  .shell-content .segmented-control { overflow-x: auto; max-width: 100%; }
+
+  /* Tabel lebar: gulir horizontal di dalam wadahnya, bukan seluruh halaman */
+  .shell-content *:has(> table) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .shell-content table { min-width: 560px; }
+
+  /* Modal penuh lebar di ponsel */
+  .modal-overlay { padding: 10px !important; align-items: flex-end !important; }
+  .modal { max-width: 100% !important; max-height: calc(100dvh - 20px) !important; }
+  .modal-footer { flex-wrap: wrap; }
+  .modal-footer .btn { flex: 1 1 auto; justify-content: center; }
+
+  /* Target sentuh minimal 40px */
+  .shell-content .btn { min-height: 38px; }
+}

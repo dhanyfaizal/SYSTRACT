@@ -1,18 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Search, Bell, Settings, LogOut, User,
-  ChevronDown, Sparkles, PanelLeftOpen, PanelLeftClose,
-  Sun, Moon, CheckCheck, Megaphone, BookOpen, ClipboardList
+  Bell, LogOut, User, ChevronDown, Bot,
+  Sun, Moon, Megaphone, BookOpen, ClipboardList
 } from 'lucide-react'
 import { useAuth }    from '@/contexts/AuthContext'
 import { useAI }      from '@/contexts/AIContext'
 import { useTheme }   from '@/contexts/ThemeContext'
-import { useSidebar } from './AppLayout'
 import GlobalSearch   from './GlobalSearch'
 import { supabase }   from '@/lib/supabase'
-
-const LOGO_URL = 'https://i.ibb.co.com/kgV7WDhF/Logo-SYS.png'
 
 function timeAgo(iso) {
   if (!iso) return ''
@@ -30,10 +26,10 @@ const NOTIF_ICON = {
   default:      { icon: Bell,          color: '#6b7280', bg: '#f9fafb' },
 }
 
-export default function Header() {
+// Isi sisi kanan header AppShell: pencarian, tema, asisten AI, notifikasi, menu akun.
+export default function HeaderActions() {
   const { profile, signOut, user } = useAuth()
   const { setChatOpen }            = useAI()
-  const { open, toggle, examMode }  = useSidebar()
   const { theme, toggleTheme }     = useTheme()
   const navigate                   = useNavigate()
 
@@ -158,20 +154,10 @@ export default function Header() {
 
   return (
     <>
-      <header className="app-header">
-        {/* Sidebar toggle — disabled during exam */}
-        <button onClick={examMode ? undefined : toggle}
-          className="btn btn-ghost btn-icon"
-          title={examMode ? 'Sidebar disembunyikan selama ujian' : (open ? 'Sembunyikan sidebar' : 'Tampilkan sidebar')}
-          style={{ opacity: examMode ? 0.3 : 1, cursor: examMode ? 'not-allowed' : 'pointer' }}
-        >
-          {open ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
-        </button>
-
-        <span className="header-sep" />
-
-        {/* Search */}
-        <GlobalSearch />
+        {/* Search (disembunyikan di ponsel agar header tidak sesak) */}
+        <div className="shell-hide-mobile" style={{ display: 'flex', width: 300, minWidth: 0 }}>
+          <GlobalSearch />
+        </div>
 
         <div className="header-actions">
           {/* Theme toggle */}
@@ -189,10 +175,11 @@ export default function Header() {
           {/* AI Assistant shortcut */}
           <button
             className="btn btn-ghost btn-icon"
-            title="AI Assistant"
+            title="Asisten AI"
+            aria-label="Buka asisten AI"
             onClick={() => setChatOpen(true)}
           >
-            <Sparkles size={16} color="var(--indigo-600)" />
+            <Bot size={16} />
           </button>
 
           {/* ── Notifications ───────────────────────────────── */}
@@ -309,9 +296,6 @@ export default function Header() {
                 <button className="dropdown-item" onClick={() => { navigate('/profile'); setDropOpen(false) }}>
                   <User size={14} /> Profil Saya
                 </button>
-                <button className="dropdown-item" onClick={() => { navigate('/settings'); setDropOpen(false) }}>
-                  <Settings size={14} /> Pengaturan
-                </button>
 
                 <div className="dropdown-sep" />
 
@@ -322,8 +306,6 @@ export default function Header() {
             )}
           </div>
         </div>
-      </header>
-
     </>
   )
 }

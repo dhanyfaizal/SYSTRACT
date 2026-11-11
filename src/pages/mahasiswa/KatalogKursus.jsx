@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Users, ChevronRight, Plus, Search, Check, Loader2, Sparkles } from 'lucide-react'
+import { BookOpen, Users, ChevronRight, Plus, Search, Check, Loader2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -91,7 +91,7 @@ export default function KatalogKursus() {
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Sparkles size={20} color="var(--indigo-600)" /> Jelajahi Kursus Terbuka
+            Jelajahi Kursus Terbuka
           </h1>
           <p className="page-subtitle">Daftarkan diri Anda secara mandiri di kursus pilihan Anda</p>
         </div>
@@ -165,7 +165,7 @@ export default function KatalogKursus() {
                       onClick={() => navigate(`/mata-kuliah/${c.id}`)}
                       style={{ width: '100%', justifyContent: 'center', fontWeight: 600 }}
                     >
-                      <Sparkles size={14} style={{ marginRight: 4 }} /> Detail & Daftar
+                      Detail & Daftar
                     </button>
                   )}
                 </div>

@@ -630,10 +630,13 @@ img { display: block; max-width: 100%; }
 .empty-state-text { font-size: 14px; font-weight: 500; color: var(--gray-500); }
 .empty-state-sub  { font-size: 12px; }
 
+/* ── Mode ujian: sidebar & tombol menu disembunyikan (lihat AppLayout) ── */
+.exam-mode .shell-sidebar,
+.exam-mode .shell-overlay { display: none !important; }
+.exam-mode .shell-header > .shell-icon-btn { visibility: hidden; }
+
 /* ── Responsive ────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .app-sidebar { display: none; }
-  .app-content { padding: 20px 16px; }
   .dashboard-grid { grid-template-columns: 1fr; }
   .dashboard-grid .span-2 { grid-column: span 1; }
   .form-grid-2 { grid-template-columns: 1fr; }

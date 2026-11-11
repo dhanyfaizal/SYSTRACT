@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ShoppingBag, Coins, Search, Filter, Check, Lock,
-  Sparkles, Star, Crown, Gem, ChevronRight, X, Loader2
+  Palette, Star, Crown, Gem, ChevronRight, X, Loader2
 } from 'lucide-react'
 import { useAuth }   from '@/contexts/AuthContext'
 import { supabase }  from '@/lib/supabase'
@@ -120,7 +120,7 @@ export default function AvatarShop() {
             </div>
           </div>
           <button className="btn btn-primary btn-sm" onClick={() => navigate('/avatar-editor')} style={{ gap: 6 }}>
-            <Sparkles size={13} /> Edit Avatar <ChevronRight size={12} />
+            <Palette size={13} /> Edit Avatar <ChevronRight size={12} />
           </button>
         </div>
       </div>
@@ -270,7 +270,7 @@ export default function AvatarShop() {
                       background: '#EEF2FF', color: 'var(--indigo-700)',
                       fontSize: 12, fontWeight: 700,
                     }}>
-                      <Sparkles size={13} /> Gratis!
+                      Gratis
                     </div>
                   ) : (
                     <div style={{

@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Save, ArrowLeft, Palette, RotateCcw, Check, Loader2, ShoppingBag, Sparkles
+  Save, ArrowLeft, Palette, RotateCcw, Check, Loader2, ShoppingBag
 } from 'lucide-react'
 import { useAuth }   from '@/contexts/AuthContext'
 import { supabase }  from '@/lib/supabase'
@@ -207,7 +207,7 @@ export default function AvatarEditor() {
           <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)}><ArrowLeft size={16} /></button>
           <div>
             <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Sparkles size={20} color="#7C3AED" /> Avatar Editor
+              <Palette size={20} color="#7C3AED" /> Avatar Editor
             </h1>
             <p className="page-subtitle">Pasang item dari inventory ke avatar kamu</p>
           </div>
