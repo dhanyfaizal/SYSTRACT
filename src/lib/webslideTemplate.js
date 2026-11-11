@@ -123,9 +123,9 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
             <h2 class="animate-item animate-delay-1" style="color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 2.5px; font-weight: 700; margin-bottom: 12px; font-size: calc(18px * var(--fs-mult));">
               Pertemuan ${meetingNo}
             </h2>
-            <h1 class="animate-item animate-delay-1" style="line-height: 1.15; margin-bottom: 24px; font-weight: 800; font-size: calc(42px * var(--fs-mult)); color: #FFFFFF; text-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-              ${subtitle.toUpperCase()}<br>
-              <span style="color: var(--accent-cyan);">${coverTitle.toUpperCase()}</span>
+            <h1 class="animate-item animate-delay-1" style="line-height: 1.15; margin-bottom: 24px; font-weight: 800; font-size: calc(42px * var(--fs-mult)); color: #FFFFFF; text-shadow: 0 4px 12px rgba(0,0,0,0.15); text-transform: uppercase;">
+              ${subtitle}<br>
+              <span style="color: var(--accent-cyan);">${coverTitle}</span>
             </h1>
             <p class="animate-item animate-delay-2" style="max-width: 850px; font-weight: 500; font-size: calc(18px * var(--fs-mult)); color: #D8E7FF; line-height: 1.6; margin-bottom: 24px;">
               ${desc}
@@ -322,7 +322,7 @@ export function generateWebSlideHtml(courseName, prodiName, meetingNo, slideData
 
     return `
     <!-- Slide ${idx + 1} -->
-    <div class="slide ${slideClasses}" id="slide${idx + 1}">
+    <div class="slide ${slideClasses}" id="slide${idx + 1}" data-layout="${slide.layout || (idx === 0 ? 'cover' : 'legacy')}">
         ${slideTitle}
         <div class="content-area">
             ${renderSlideBody(slide, idx)}
