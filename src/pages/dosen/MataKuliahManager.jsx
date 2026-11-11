@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy,
   CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown,
   PlusCircle, Search, Bot, RefreshCw, FileText, Download,
   Share2, ArrowLeft, PenTool, CheckCircle, ChevronUp, Info, HelpCircle,
-  Award, Clock, Link, Check
+  Award, Clock, Link, Check, Upload
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -20,6 +20,7 @@ import {
   generateSingleWebSlideData
 } from '@/lib/ai'
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
+import { parseWebSlideHtml, WebSlideImportError } from '@/lib/webslideImport'
 
 const COLORS   = ['#4f46e5','#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4']
 const SEMESTERS = ['Ganjil 2025/2026','Genap 2025/2026','Ganjil 2026/2027']
@@ -176,6 +177,7 @@ export default function DosenMataKuliah() {
   const [generatingWebSlide, setGeneratingWebSlide] = useState(false)
   const [savingSlide, setSavingSlide] = useState(false)
   const [slideOutline, setSlideOutline] = useState(null)
+  const importHtmlRef = useRef(null)
   const [webslideData, setWebslideData] = useState(null)
   const [aiSlideProgressText, setAiSlideProgressText] = useState('')
   const [mcqData, setMcqData] = useState(null) // for UTS/UAS questions
@@ -1440,6 +1442,38 @@ export default function DosenMataKuliah() {
     } finally {
       setGeneratingWebSlide(false)
       setAiSlideProgressText('')
+    }
+  }
+
+  // Impor file HTML WebSlide (kerangka SYSTRACT) menjadi outline + SPA.
+  // Hasilnya belum tersimpan sampai instruktur menekan "Simpan Rancangan Slide ke Silabus".
+  async function handleImportHtml(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran file maksimal 5 MB.')
+      return
+    }
+    if (slideOutline || webslideData) {
+      const ok = await showConfirm({
+        title: 'Ganti slide yang ada?',
+        message: 'Outline dan tampilan SPA pertemuan ini akan diganti dengan isi file HTML. Perubahan baru tersimpan setelah Anda menekan Simpan.',
+        confirmLabel: 'Ya, impor',
+      })
+      if (!ok) return
+    }
+    try {
+      const { webslide, outline } = parseWebSlideHtml(await file.text())
+      setSlideOutline(outline)
+      setWebslideData(webslide)
+      toast.success(`${webslide.slides.length} bagian diimpor. Periksa lewat "Buka Preview Presentasi", lalu simpan.`, { duration: 6000 })
+    } catch (err) {
+      if (err instanceof WebSlideImportError) toast.error(err.message, { duration: 6000 })
+      else {
+        console.error('[SYSTRACT] Impor HTML gagal:', err)
+        toast.error('File HTML tidak dapat dibaca.')
+      }
     }
   }
 
@@ -3227,10 +3261,17 @@ export default function DosenMataKuliah() {
                   {/* Step A: Outline Slide */}
                   <div>
                     <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>1. Outline Materi Slide</span>
+                    <input ref={importHtmlRef} type="file" accept=".html,.htm,text/html" onChange={handleImportHtml} style={{ display: 'none' }} />
                     {!slideOutline && !loadingSlide && (
-                      <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={handleGenerateSlideOutline}>
-                        <Bot size={13} /> Generate Outline
-                      </button>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={handleGenerateSlideOutline}>
+                          <Bot size={13} /> Generate Outline
+                        </button>
+                        <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={() => importHtmlRef.current?.click()}>
+                          <Upload size={13} /> Impor HTML
+                        </button>
+                        <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>File dari "Unduh File HTML" yang sudah diedit.</span>
+                      </div>
                     )}
 
                     {slideOutline && (
@@ -3518,6 +3559,9 @@ export default function DosenMataKuliah() {
                             </button>
                             <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={handleDownloadWebSlide}>
                               <Download size={13}/> Unduh File HTML
+                            </button>
+                            <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={() => importHtmlRef.current?.click()}>
+                              <Upload size={13}/> Impor HTML
                             </button>
                           </div>
                           
