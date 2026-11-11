@@ -93,7 +93,7 @@ function parseSlide(slideEl, idx) {
     }).filter((g) => g.title || g.desc)
   } else if (layout === 'list') {
     slide.list_items = Array.from(slideEl.querySelectorAll('.content-list .accent-card')).map((c) => {
-      const color = (c.getAttribute('class') || '').match(/accent-(blue|green|orange|red|purple|cyan|yellow|pink)\b/)
+      const color = (c.getAttribute('class') || '').match(/accent-(blue|green|amber|red)\b/) // warna yang diizinkan prompt AI & template
       return { text: text(c.querySelector('p') || c), color: color ? color[1] : 'blue' }
     }).filter((l) => l.text)
   } else if (layout === 'table') {
