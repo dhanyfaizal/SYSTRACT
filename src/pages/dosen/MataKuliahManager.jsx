@@ -258,7 +258,9 @@ export default function DosenMataKuliah() {
   // Track search query parameter changes (for sidebar links compatibility)
   const courseIdParam = searchParams.get('courseId')
   useEffect(() => {
-    if (courseIdParam && courseIdParam !== selectedCourseId) {
+    if (!courseIdParam) {
+      if (selectedCourseId) setSelectedCourseId(null)
+    } else if (courseIdParam !== selectedCourseId) {
       const match = courses.find(c => c.id === courseIdParam)
       if (match) {
         setSelectedCourseId(courseIdParam)
@@ -385,10 +387,8 @@ export default function DosenMataKuliah() {
       if (searchParams.get('courseId') !== match.id) {
         setSearchParams({ courseId: match.id })
       }
-    } else if (data?.length > 0) {
-      setSelectedCourseId(data[0].id)
-      setSearchParams({ courseId: data[0].id })
     } else {
+      // Tanpa courseId: tampilkan daftar kursus (kursus dipilih lewat sidebar atau daftar).
       setSelectedCourseId(null)
     }
   }
@@ -470,8 +470,12 @@ export default function DosenMataKuliah() {
     } else {
       toast.success(editingCourseId ? 'Kursus diperbarui' : 'Kursus ditambahkan')
       setCourseModal(false)
-      const targetId = editingCourseId || returnedData?.id || null
+      // Kursus baru langsung dibuka; edit dari daftar tetap di daftar.
+      const targetId = editingCourseId
+        ? (searchParams.get('courseId') ? editingCourseId : null)
+        : (returnedData?.id || null)
       fetchCourses(targetId)
+      window.dispatchEvent(new Event('systract:courses-changed'))
     }
     setSavingCourse(false)
   }
@@ -497,16 +501,12 @@ export default function DosenMataKuliah() {
       toast.error('Tidak dapat menghapus. Pastikan kebijakan database mengizinkan operasi ini.')
     } else {
       toast.success('Kursus dihapus')
-      const remaining = courses.filter(c => c.id !== id)
-      const nextSelectId = remaining[0]?.id || null
-      setCourses(remaining)
-      if (nextSelectId) {
-        handleSelectCourse(nextSelectId)
-      } else {
-        setSelectedCourseId(null)
-        setSearchParams({})
-      }
-      fetchCourses(nextSelectId)
+      // Kembali ke daftar kursus.
+      setCourses(courses.filter(c => c.id !== id))
+      setSelectedCourseId(null)
+      setSearchParams({})
+      fetchCourses(null)
+      window.dispatchEvent(new Event('systract:courses-changed'))
     }
   }
 
@@ -1629,18 +1629,25 @@ export default function DosenMataKuliah() {
     return acc
   }, {})
 
-  const pageTitle = isAdmin ? 'Semua Kursus & Silabus' : 'Manajemen Kursus & Silabus (SPA)'
+  const pageTitle = isAdmin ? 'Semua kursus' : 'Kursus yang diampu'
 
   return (
     <>
     {confirmDialog}
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      
-      {/* Page Header */}
-      <div>
-        <h1 className="page-title">{pageTitle}</h1>
-        <p className="page-subtitle">Kelola kelas kursus, rancangan silabus modul, dan material ajar secara interaktif dalam satu layar terpadu.</p>
-      </div>
+
+      {/* Page Header (hanya di daftar; di dalam kursus judulnya nama kursus) */}
+      {!selectedCourse && (
+        <div className="page-header" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 0 }}>
+          <div>
+            <h1 className="page-title">{pageTitle}</h1>
+            <p className="page-subtitle">Pilih kursus untuk mengelola deskripsi, silabus, materi, dan pendaftar.</p>
+          </div>
+          <button className="btn btn-primary" onClick={openNewCourse}>
+            <Plus size={14}/> Tambah kursus
+          </button>
+        </div>
+      )}
 
       {loadingCourses ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '100px 0' }}>
@@ -1655,52 +1662,41 @@ export default function DosenMataKuliah() {
           flexWrap: 'wrap'
         }}>
           
-          {/* ── LEFT PANEL: Courses Sidebar ── */}
+          {/* ── DAFTAR KURSUS (tampil bila belum ada kursus yang dipilih) ── */}
+          {!selectedCourse && (
           <div className="courses-sidebar-pane" style={{
-            width: 320,
+            width: '100%',
             display: 'flex',
             flexDirection: 'column',
-            gap: 12,
-            borderRight: '1px solid var(--gray-200)',
-            paddingRight: 20,
-            flexShrink: 0
+            gap: 12
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Kursus Saya ({filteredCourses.length})
-              </span>
-              <button className="btn btn-primary btn-sm" onClick={openNewCourse} style={{ padding: '4px 10px', fontSize: 11, gap: 4 }}>
-                <Plus size={12}/> Tambah Kursus
-              </button>
-            </div>
-
             {/* Search filter */}
-            <div style={{ position: 'relative' }}>
+            <label style={{ position: 'relative', maxWidth: 360, display: 'block' }}>
+              <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>Cari kursus</span>
               <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)' }} />
               <input
                 className="input"
-                placeholder="Cari kode atau nama..."
+                placeholder="Cari kode atau nama kursus"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                style={{ paddingLeft: 30, fontSize: 12, height: 34 }}
+                style={{ paddingLeft: 30, height: 38 }}
               />
-            </div>
+            </label>
 
-            {/* Courses List scroll area */}
+            <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>{filteredCourses.length} kursus</span>
+
+            {/* Courses grid */}
             <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              overflowY: 'auto',
-              maxHeight: 'calc(100vh - 270px)',
-              paddingRight: 4
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+              gap: 12
             }}>
               {filteredCourses.length === 0 ? (
                 <div className="card" style={{ padding: '24px 12px', textAlign: 'center', border: '1px dashed var(--gray-200)' }}>
                   <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Kursus tidak ditemukan</span>
                 </div>
               ) : (
-                filteredCourses.map((c, i) => {
+                filteredCourses.map((c) => {
                   const isSelected = selectedCourseId === c.id
                   return (
                     <div
@@ -1721,19 +1717,15 @@ export default function DosenMataKuliah() {
                       onMouseEnter={e => { if(!isSelected) e.currentTarget.style.borderColor = 'var(--gray-300)' }}
                       onMouseLeave={e => { if(!isSelected) e.currentTarget.style.borderColor = 'var(--gray-200)' }}
                     >
-                      <div style={{ width: 5, background: c.cover_color || COLORS[i % COLORS.length], flexShrink: 0 }} />
-                      <div style={{ flex: 1, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase' }}>{c.code}</span>
-                          <span className="badge-pill badge-slate" style={{ fontSize: 9, padding: '2px 6px' }}>{c.credits} SKS</span>
-                        </div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: isSelected ? 'var(--indigo-950)' : 'var(--gray-800)', lineHeight: 1.3 }}>
+                      <div style={{ flex: 1, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--gray-500)' }}>{c.code}</span>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--gray-900)', lineHeight: 1.35 }}>
                           {c.name}
                         </div>
-                        
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, gap: 8 }}>
-                          <span style={{ fontSize: 11, color: 'var(--gray-400)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <Users size={11}/> {c.enrollments?.[0]?.count || 0} mhs
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 6, gap: 8 }}>
+                          <span style={{ fontSize: 12, color: 'var(--gray-500)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Users size={12}/> {c.enrollments?.[0]?.count || 0} peserta
                           </span>
                           
                           <div style={{ display: 'flex', gap: 2 }} onClick={e => e.stopPropagation()}>
@@ -1751,26 +1743,34 @@ export default function DosenMataKuliah() {
               )}
             </div>
           </div>
+          )}
 
-          {/* ── RIGHT PANEL: Active Course Workspace & Materials ── */}
+          {/* ── KURSUS TERPILIH ── */}
+          {selectedCourse && (
           <div className="course-workspace-pane" style={{
             flex: 1,
-            minWidth: 320,
+            minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
             gap: 16
           }}>
-              {selectedCourse ? (
                 <>
                  {/* Course Header Info */}
-                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 4px 12px 4px' }}>
-                   <div>
-                     <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                       PENGELOLAAN KURSUS
+                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                   <div style={{ minWidth: 0 }}>
+                     <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--gray-500)' }}>
+                       {selectedCourse.code} · {selectedCourse.enrollments?.[0]?.count || 0} peserta
                      </span>
-                     <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--gray-900)', margin: '2px 0 0 0' }}>
-                       {selectedCourse.name} ({selectedCourse.code})
-                     </h2>
+                     <h1 className="page-title" style={{ marginTop: 2 }}>
+                       {selectedCourse.name}
+                     </h1>
+                   </div>
+                   <div style={{ display: 'flex', gap: 8 }}>
+                     <button className="btn btn-secondary btn-sm" onClick={() => openEditCourse(selectedCourse)}><Edit2 size={13}/> Edit kursus</button>
+                     {isAdmin && (
+                       <button className="btn btn-secondary btn-sm" onClick={() => openCopy(selectedCourse)}><Copy size={13}/> Salin</button>
+                     )}
+                     <button className="btn btn-secondary btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteCourse(selectedCourse.id)}><Trash2 size={13}/> Hapus</button>
                    </div>
                  </div>
 
@@ -1790,7 +1790,7 @@ export default function DosenMataKuliah() {
                       transition: 'all 0.15s'
                     }}
                   >
-                    📂 Overview
+                    Ringkasan
                   </button>
                   <button
                     onClick={() => setActiveTab('curriculum')}
@@ -1806,7 +1806,7 @@ export default function DosenMataKuliah() {
                       transition: 'all 0.15s'
                     }}
                   >
-                    📖 Curriculum
+                    Silabus & materi
                   </button>
                   <button
                     onClick={() => setActiveTab('ai_assistant')}
@@ -1825,7 +1825,7 @@ export default function DosenMataKuliah() {
                       gap: 6
                     }}
                   >
-                    <Bot size={14} color="var(--indigo-600)"/> AI RPS & Slide Generator
+                    Generator RPS & slide (AI)
                   </button>
                   <button
                     onClick={() => setActiveTab('enrollments')}
@@ -1844,7 +1844,7 @@ export default function DosenMataKuliah() {
                       gap: 6
                     }}
                   >
-                    👥 Persetujuan
+                    Pendaftar
                   </button>
                 </div>
 
@@ -1859,49 +1859,34 @@ export default function DosenMataKuliah() {
                       <div className="card" style={{ padding: 20 }}>
                         <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 12 }}>Deskripsi Kursus</h3>
                         <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--gray-600)', whiteSpace: 'pre-wrap', margin: 0 }}>
-                          {selectedCourse.description || 'Deskripsi belum dirumuskan untuk kursus ini. Silakan gunakan tab "AI RPS & Slide Generator" untuk merancang konten dengan asisten AI.'}
+                          {selectedCourse.description || 'Deskripsi belum dirumuskan untuk kursus ini. Gunakan tab "Generator RPS & slide (AI)" untuk menyusunnya.'}
                         </p>
                       </div>
 
-                      {/* Here's what you will learn */}
+                      {/* Yang akan dipelajari: ringkasan materi per pertemuan */}
                       <div className="card" style={{ padding: 20 }}>
-                        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 16 }}>Here's what you will learn.</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                          {materials.length === 0 ? (
-                            <div style={{ padding: '20px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
-                              <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Rencana silabus modul belum diterapkan. Gunakan generator AI di tab sebelah untuk membuat rencana 16 pertemuan secara instan.</span>
-                            </div>
-                          ) : (
-                            materials.sort((a,b) => a.week_number - b.week_number).map((m, index) => (
-                              <div key={m.id || index} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid var(--gray-100)' }}>
-                                <div style={{ 
-                                  width: 24, 
-                                  height: 24, 
-                                  borderRadius: '50%', 
-                                  background: '#dcfce7', 
-                                  color: '#15803d', 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center', 
-                                  flexShrink: 0,
-                                  fontWeight: 700,
-                                  fontSize: 12,
-                                  border: '1px solid #bbf7d0'
-                                }}>
-                                  ✓
+                        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 12 }}>Yang akan dipelajari</h3>
+                        {materials.length === 0 ? (
+                          <p style={{ fontSize: 13, color: 'var(--gray-500)', margin: 0 }}>
+                            Belum ada materi. Tambahkan di tab "Silabus & materi".
+                          </p>
+                        ) : (
+                          <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                            {[...materials].sort((a,b) => a.week_number - b.week_number).map((m, index) => (
+                              <li key={m.id || index} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '10px 0', borderTop: index ? '1px solid var(--gray-100)' : 'none' }}>
+                                <span style={{ flex: '0 0 92px', fontSize: 12, fontWeight: 600, color: 'var(--gray-500)', paddingTop: 1 }}>
+                                  Pertemuan {m.week_number}
+                                </span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--gray-800)', lineHeight: 1.4 }}>{m.title}</div>
+                                  {m.description && (
+                                    <div style={{ fontSize: 13, color: 'var(--gray-500)', marginTop: 2, lineHeight: 1.5 }}>{m.description}</div>
+                                  )}
                                 </div>
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-800)' }}>
-                                    Modul {m.week_number}: {m.title}
-                                  </div>
-                                  <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 2 }}>
-                                    {m.description || 'Fokus penguasaan materi dan latihan mandiri.'}
-                                  </div>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
+                              </li>
+                            ))}
+                          </ol>
+                        )}
                       </div>
 
                     </div>
@@ -1909,61 +1894,27 @@ export default function DosenMataKuliah() {
                     {/* Right Column (Sidebar Widgets) */}
                     <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: 20 }}>
                       
-                      {/* Ringkasan Metrik Kursus */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-                        {[
-                          { label: 'GRATIS', sub: 'Biaya Kursus', icon: <Award size={16} color="var(--indigo-600)"/> },
-                          { label: `${selectedCourse.credits * 16} JAM`, sub: 'Durasi Total', icon: <Clock size={16} color="var(--indigo-600)"/> },
-                          { label: 'PEMULA', sub: 'Tingkat Materi', icon: <Info size={16} color="var(--indigo-600)"/> },
-                          { label: 'MANDIRI', sub: 'Metode Belajar', icon: <RefreshCw size={16} color="var(--indigo-600)"/> }
-                        ].map((item, idx) => (
-                          <div key={idx} className="card" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', textAlign: 'center', background: '#f8fafc' }}>
-                            {item.icon}
-                            <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--gray-800)' }}>{item.label}</span>
-                            <span style={{ fontSize: 9, color: 'var(--gray-400)', fontWeight: 600 }}>{item.sub}</span>
-                          </div>
-                        ))}
+                      {/* Data kursus yang benar-benar tersimpan */}
+                      <div className="card" style={{ padding: 18 }}>
+                        <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 10 }}>Info kursus</h3>
+                        <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', margin: 0, fontSize: 13 }}>
+                          <dt style={{ color: 'var(--gray-500)' }}>Kode</dt><dd style={{ margin: 0, color: 'var(--gray-800)', fontWeight: 600 }}>{selectedCourse.code}</dd>
+                          <dt style={{ color: 'var(--gray-500)' }}>Periode</dt><dd style={{ margin: 0, color: 'var(--gray-800)', fontWeight: 600 }}>{selectedCourse.semester || '–'}</dd>
+                          <dt style={{ color: 'var(--gray-500)' }}>Materi</dt><dd style={{ margin: 0, color: 'var(--gray-800)', fontWeight: 600 }}>{materials.length}</dd>
+                          <dt style={{ color: 'var(--gray-500)' }}>Peserta</dt><dd style={{ margin: 0, color: 'var(--gray-800)', fontWeight: 600 }}>{selectedCourse.enrollments?.[0]?.count || 0}</dd>
+                        </dl>
                       </div>
 
-                      {/* Achievements */}
-                      <div className="card" style={{ padding: 15, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', textAlign: 'center', background: '#f8fafc' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Achievements</span>
-                        <div style={{ 
-                          width: 70, 
-                          height: 70, 
-                          borderRadius: '50%', 
-                          background: 'linear-gradient(135deg, #22c55e 0%, #15803d 100%)', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          border: '4px solid #bbf7d0',
-                          boxShadow: '0 4px 10px rgba(34, 197, 94, 0.2)'
-                        }}>
-                          <Award size={32} color="#fff"/>
-                        </div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-700)' }}>
-                          Lencana Kelulusan {selectedCourse.code}
-                        </div>
-                        <p style={{ fontSize: 9, color: 'var(--gray-400)', margin: 0 }}>
-                          Dapatkan sertifikat resmi dari SYSTRACT Academy setelah menyelesaikan ujian akhir modul ini.
-                        </p>
-                      </div>
-
-                      {/* Skills You Will Learn (Maps CPMK & CPL) */}
-                      <div className="card" style={{ padding: 15, background: '#f8fafc' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>Skills You Will Learn</span>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {selectedCourse.cpmk && selectedCourse.cpmk.length > 0 ? (
-                            selectedCourse.cpmk.map((c, idx) => (
-                              <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', fontSize: 11, color: 'var(--gray-600)' }}>
-                                <CheckCircle2 size={12} color="#22c55e" style={{ flexShrink: 0, marginTop: 2 }}/>
-                                <span>{c.deskripsi}</span>
-                              </div>
-                            ))
-                          ) : (
-                            <span style={{ fontSize: 11, color: 'var(--gray-400)' }}>Belum ada capaian keterampilan terdaftar.</span>
-                          )}
-                        </div>
+                      {/* Capaian pembelajaran (CPMK) */}
+                      <div className="card" style={{ padding: 18 }}>
+                        <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 10 }}>Capaian pembelajaran (CPMK)</h3>
+                        {selectedCourse.cpmk && selectedCourse.cpmk.length > 0 ? (
+                          <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: 'var(--gray-600)', lineHeight: 1.5 }}>
+                            {selectedCourse.cpmk.map((c, idx) => <li key={idx}>{c.deskripsi}</li>)}
+                          </ul>
+                        ) : (
+                          <p style={{ fontSize: 13, color: 'var(--gray-500)', margin: 0 }}>Belum ada CPMK.</p>
+                        )}
                       </div>
 
                     </div>
@@ -2922,27 +2873,8 @@ export default function DosenMataKuliah() {
                   </div>
                 )}
               </>
-            ) : (
-              <div className="card" style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px dashed var(--gray-200)',
-                background: 'var(--gray-50)',
-                padding: '80px 24px',
-                textAlign: 'center',
-                borderRadius: 12
-              }}>
-                <BookOpen size={48} color="var(--indigo-300)" style={{ marginBottom: 16 }} />
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-700)', margin: 0 }}>Pilih Kursus</h3>
-                <p style={{ fontSize: 12, color: 'var(--gray-400)', maxWidth: 360, marginTop: 6, lineHeight: 1.4 }}>
-                  Silakan pilih salah satu kelas di panel sebelah kiri untuk mulai mengelola silabus pertemuan, mengunggah materi, dan menyusun kurikulum Kursus interaktif.
-                </p>
-              </div>
-            )}
           </div>
+          )}
         </div>
       )}
 

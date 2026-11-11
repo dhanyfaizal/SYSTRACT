@@ -46,9 +46,17 @@ class ErrorBoundary extends Component {
 }
 
 // Kursus yang tampil di sidebar: yang diampu (instruktur) atau yang diikuti (peserta).
+// Halaman yang menambah/menghapus kursus atau pendaftaran mengirim event
+// 'systract:courses-changed' agar daftar ini dimuat ulang.
 function useSidebarCourses(role, userId) {
   const [courses, setCourses] = useState([])
+  const [versi, setVersi] = useState(0)
   const aktif = Boolean(userId) && (role === 'dosen' || role === 'mahasiswa')
+  useEffect(() => {
+    const muatUlang = () => setVersi((v) => v + 1)
+    window.addEventListener('systract:courses-changed', muatUlang)
+    return () => window.removeEventListener('systract:courses-changed', muatUlang)
+  }, [])
   useEffect(() => {
     if (!aktif) return
     let batal = false
@@ -59,7 +67,7 @@ function useSidebarCourses(role, userId) {
           .then(({ data }) => (data || []).map((e) => e.course).filter(Boolean).sort((a, b) => a.code.localeCompare(b.code)))
     req.then((list) => { if (!batal) setCourses(list) })
     return () => { batal = true }
-  }, [aktif, role, userId])
+  }, [aktif, role, userId, versi])
   return aktif ? courses : TANPA_KURSUS
 }
 const TANPA_KURSUS = []

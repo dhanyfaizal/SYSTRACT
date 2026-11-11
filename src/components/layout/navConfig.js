@@ -5,7 +5,7 @@
 import {
   LayoutDashboard, Search, BookOpen, BookMarked, BarChart2, UserRound,
   ClipboardList, MessageSquare, FileText, Database, UserCheck, Award,
-  Megaphone, Users, GraduationCap, CalendarDays,
+  Megaphone, Users, GraduationCap, CalendarDays, LayoutGrid,
 } from 'lucide-react'
 
 const courseLabel = (c) => `${c.code} · ${c.name}`
@@ -44,8 +44,9 @@ function dosenNav(courses) {
     { section: 'Beranda' },
     { id: 'beranda', label: 'Beranda', icon: LayoutDashboard, to: '/dashboard' },
     { section: 'Kursus yang diampu' },
+    { id: 'semua-kursus', label: 'Semua kursus', icon: LayoutGrid, to: '/materi' },
     ...courses.map((c) => ({
-      id: `kursus-${c.id}`, label: courseLabel(c), icon: BookOpen,
+      id: `kursus-${c.id}`, label: c.name, icon: BookOpen,
       children: DOSEN_COURSE_SUBS.map((s) => ({ to: `${s.path}?courseId=${c.id}`, label: s.label, icon: s.icon })),
     })),
     { section: 'Penilaian' },

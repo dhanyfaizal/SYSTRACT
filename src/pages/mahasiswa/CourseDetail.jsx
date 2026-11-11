@@ -523,6 +523,7 @@ export default function CourseDetail() {
 
       toast.success('Pendaftaran dikirim! Menunggu konfirmasi instruktur. ⏳', { id: toastId })
       setEnrollStatus('pending')
+      window.dispatchEvent(new Event('systract:courses-changed'))
       setIsEnrolled(false)
     } catch (err) {
       console.error('[SYSTRACT] Enroll error:', err)
