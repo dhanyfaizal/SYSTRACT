@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   ArrowLeft, BookOpen, ClipboardList, MessageSquare, FileText,
   ExternalLink, Calendar, User, Star, CheckCircle2,
@@ -12,9 +12,9 @@ import { useSidebar } from '@/components/layout/AppLayout'
 import { useAI } from '@/contexts/AIContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
-import courseBanner from '@/assets/course_banner.png'
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 import WebSlidePlayer from '@/components/mahasiswa/WebSlidePlayer'
+import CoursePreview from '@/components/mahasiswa/CoursePreview'
 
 const COUNTDOWN_SEC = 180 // 3 Menit untuk membaca/menonton materi
 
@@ -221,14 +221,23 @@ export default function CourseDetail() {
   const [certificateStatus, setCertificateStatus] = useState('unvalidated')
   const [certificateNotes, setCertificateNotes] = useState('')
   const [enrollmentId, setEnrollmentId] = useState(null)
-  const [expandedPreviewModules, setExpandedPreviewModules] = useState({
-    0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 99: true
-  })
   const [expandedSidebarModules, setExpandedSidebarModules] = useState({
     0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 99: true
   })
   const [materials, setMaterials] = useState([])
   const [enrolling, setEnrolling] = useState(false)
+
+  // Pratinjau dibuka lewat /katalog/:id. Bila ternyata sudah terdaftar, pindah ke
+  // alamat kursus agar menu "Kursus Saya" yang aktif di sidebar.
+  const location = useLocation()
+  useEffect(() => {
+    if (isEnrolled && location.pathname.startsWith('/katalog/')) {
+      navigate(`/mata-kuliah/${courseId}`, { replace: true })
+    } else if (!loading && course && !enrollStatus && location.pathname.startsWith('/mata-kuliah/')) {
+      // Belum mendaftar sama sekali: tampilkan sebagai pratinjau katalog.
+      navigate(`/katalog/${courseId}`, { replace: true })
+    }
+  }, [isEnrolled, enrollStatus, loading, course, location.pathname, courseId, navigate])
 
   // Countdown timer state untuk materi aktif
   const [elapsed, setElapsed] = useState(0)
@@ -736,305 +745,14 @@ export default function CourseDetail() {
 
   if (!isEnrolled) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Top Header Row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 16, borderBottom: '1px solid var(--gray-200)', flexShrink: 0, gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => navigate('/katalog')} title="Kembali ke Katalog">
-              <ArrowLeft size={16} />
-            </button>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--indigo-600)', textTransform: 'uppercase', letterSpacing: '.4px' }}>
-                Pratinjau Kursus
-              </div>
-              <h1 style={{ fontSize: 16, fontWeight: 800, color: 'var(--gray-900)', marginTop: 2 }}>{course.name}</h1>
-            </div>
-          </div>
-        </div>
-
-        {/* Cisco Netacad Style Course Header Banner */}
-        <div style={{
-          background: '#f8fafc',
-          border: '1px solid var(--gray-200)',
-          borderRadius: 12,
-          display: 'flex',
-          gap: 24,
-          alignItems: 'center',
-          padding: '24px 28px',
-          color: 'var(--gray-800)',
-          boxShadow: '0 4px 15px rgba(0, 0, 0, 0.02)',
-          position: 'relative',
-          overflow: 'hidden',
-          flexWrap: 'wrap',
-          marginTop: 14
-        }}>
-          {/* Left Column (Details) */}
-          <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>
-                Katalog &gt; Kursus Mandiri
-              </span>
-              <span className="badge-pill badge-green" style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', height: 'auto', background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' }}>
-                Cisco Academy Style
-              </span>
-              <span className="badge-pill badge-indigo" style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', height: 'auto', background: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0' }}>
-                KURSUS
-              </span>
-            </div>
-
-            <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--gray-950)', margin: 0, fontFamily: 'Outfit, sans-serif' }}>
-              {course.name}
-            </h2>
-            
-
-
-            <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#fff', border: '1px solid var(--gray-200)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
-                💻 Self-Paced Online
-              </div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#fff', border: '1px solid var(--gray-200)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600 }}>
-                🎓 Dipandu Instruktur
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-              {enrollStatus === 'pending' ? (
-                <button 
-                  className="btn btn-secondary btn-sm" 
-                  disabled
-                  style={{ background: '#f59e0b', borderColor: '#d97706', color: '#fff', fontWeight: 700, padding: '8px 18px', fontSize: 13, gap: 6, cursor: 'not-allowed' }}
-                >
-                  Pendaftaran Menunggu Konfirmasi ⏳
-                </button>
-              ) : (
-                <button 
-                  className="btn btn-primary btn-sm" 
-                  onClick={handleEnroll} 
-                  disabled={enrolling}
-                  style={{ background: '#22c55e', borderColor: '#22c55e', color: '#fff', fontWeight: 700, padding: '8px 18px', fontSize: 13, gap: 6, boxShadow: '0 4px 10px rgba(34, 197, 94, 0.2)' }}
-                >
-                  {enrolling ? (
-                    <>
-                      <Loader2 size={14} className="spinner" style={{ animation: 'spin .7s linear infinite', borderTopColor: '#fff', marginRight: 4 }} />
-                      Mendaftar...
-                    </>
-                  ) : (
-                    <>
-                      Ikuti Kursus (Self-Paced)
-                    </>
-                  )}
-                </button>
-              )}
-              <span style={{ fontSize: 11, color: 'var(--gray-400)', fontWeight: 600 }}>
-                ⚡ 14.869.338 terdaftar
-              </span>
-            </div>
-          </div>
-
-          {/* Right Column (Banner Illustration) */}
-          <div style={{ flex: '1 1 200px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <img 
-              src={courseBanner} 
-              alt="Student Learning" 
-              style={{ 
-                maxWidth: '100%', 
-                maxHeight: 180, 
-                objectFit: 'cover', 
-                borderRadius: 10,
-                border: '1px solid var(--gray-200)',
-                boxShadow: '0 6px 20px rgba(0, 0, 0, 0.05)'
-              }} 
-            />
-          </div>
-        </div>
-
-        {/* Overview Layout */}
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 20, paddingBottom: 40 }}>
-          {/* Left Column (Main Content) */}
-          <div style={{ flex: '2 1 500px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-            
-            {/* Deskripsi Kursus */}
-            <div className="card" style={{ padding: 20 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 12 }}>Deskripsi Kursus</h3>
-              <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--gray-600)', whiteSpace: 'pre-wrap', margin: 0 }}>
-                {course.description || 'Deskripsi belum dirumuskan untuk kursus ini.'}
-              </p>
-            </div>
-
-            {/* Here's what you will learn */}
-            <div className="card" style={{ padding: 20 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 16 }}>Here's what you will learn.</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {(() => {
-                  const displayModules = materials.length > 0 
-                    ? materials.map(m => ({ week_number: m.week_number, title: m.title, description: m.description }))
-                    : (course?.weekly_plan || []).map(w => ({ week_number: w.no, title: w.bahan_kajian, description: w.kemampuan_akhir }))
-
-                  if (displayModules.length === 0) {
-                    return (
-                      <div style={{ padding: '20px 0', textAlign: 'center', background: '#f8fafc', border: '1px dashed var(--gray-200)', borderRadius: 8 }}>
-                        <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Rencana silabus modul belum tersedia.</span>
-                      </div>
-                    )
-                  }
-
-                  const grouped = groupMaterialsIntoModules(displayModules, 'week_number')
-
-                  return grouped.map((mod) => {
-                    const isExpanded = !!expandedPreviewModules[mod.id]
-                    return (
-                      <div key={mod.id} className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--gray-200)', borderRadius: 10, background: '#fff' }}>
-                        {/* Module Header Toggle */}
-                        <div 
-                          onClick={() => setExpandedPreviewModules(prev => ({ ...prev, [mod.id]: !prev[mod.id] }))}
-                          style={{ 
-                            background: 'var(--gray-50)', 
-                            padding: '12px 18px', 
-                            borderBottom: isExpanded ? '1px solid var(--gray-200)' : 'none', 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
-                            alignItems: 'center',
-                            cursor: 'pointer',
-                            userSelect: 'none'
-                          }}
-                        >
-                          <span style={{ fontWeight: 750, fontSize: 13, color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{
-                              width: 20, 
-                              height: 20, 
-                              borderRadius: '50%', 
-                              background: '#dcfce7', 
-                              color: '#15803d', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center',
-                              border: '1px solid #bbf7d0',
-                              fontSize: 10,
-                              fontWeight: 800
-                            }}>
-                              ✓
-                            </div>
-                            {mod.name}
-                          </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <span className="badge-pill badge-slate" style={{ fontSize: 10, padding: '2px 8px' }}>
-                              {mod.items.length} Topik
-                            </span>
-                            {isExpanded ? <ChevronUp size={16} color="var(--gray-400)"/> : <ChevronDown size={16} color="var(--gray-400)"/>}
-                          </div>
-                        </div>
-                        
-                        {/* Module Items */}
-                        {isExpanded && (
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            {mod.items.sort((a,b) => (a.week_number || 0) - (b.week_number || 0)).map((m, idx) => {
-                              const prefix = mod.id === 0 ? '0' : mod.id === 99 ? '+' : `${mod.id}.${idx}`
-                              return (
-                                <div key={idx} style={{
-                                  padding: '12px 18px',
-                                  borderTop: idx > 0 ? '1px solid var(--gray-100)' : 'none',
-                                  display: 'flex',
-                                  alignItems: 'flex-start',
-                                  gap: 16
-                                }}>
-                                  <div style={{
-                                    fontSize: 11, 
-                                    fontWeight: 800, 
-                                    color: 'var(--gray-400)', 
-                                    marginTop: 2, 
-                                    width: 32, 
-                                    textAlign: 'right', 
-                                    flexShrink: 0 
-                                  }}>
-                                    {prefix}
-                                  </div>
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-800)' }}>
-                                      {m.title}
-                                    </div>
-                                    {m.description && (
-                                      <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4, lineHeight: 1.4 }}>
-                                        {m.description}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })
-                })()}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Right Column (Sidebar Widgets) */}
-          <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-            
-            {/* Ringkasan Metrik Kursus */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-              {[
-                { label: 'GRATIS', sub: 'Biaya Kursus', icon: <Award size={16} color="var(--indigo-600)"/> },
-                { label: `${course.credits * 16} JAM`, sub: 'Durasi Total', icon: <Clock size={16} color="var(--indigo-600)"/> },
-                { label: 'PEMULA', sub: 'Tingkat Materi', icon: <Info size={16} color="var(--indigo-600)"/> },
-                { label: 'MANDIRI', sub: 'Metode Belajar', icon: <RefreshCw size={16} color="var(--indigo-600)"/> }
-              ].map((item, idx) => (
-                <div key={idx} className="card" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', textAlign: 'center', background: '#f8fafc' }}>
-                  {item.icon}
-                  <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--gray-800)' }}>{item.label}</span>
-                  <span style={{ fontSize: 9, color: 'var(--gray-400)', fontWeight: 600 }}>{item.sub}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Achievements */}
-            <div className="card" style={{ padding: 15, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', textAlign: 'center', background: '#f8fafc' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Achievements</span>
-              <div style={{ 
-                width: 70, 
-                height: 70, 
-                borderRadius: '50%', 
-                background: 'linear-gradient(135deg, #22c55e 0%, #15803d 100%)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                border: '4px solid #bbf7d0',
-                boxShadow: '0 4px 10px rgba(34, 197, 94, 0.2)'
-              }}>
-                <Award size={32} color="#fff"/>
-              </div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-700)' }}>
-                Lencana Kelulusan {course.code}
-              </div>
-              <p style={{ fontSize: 9, color: 'var(--gray-400)', margin: 0 }}>
-                Dapatkan sertifikat resmi dari SYSTRACT Academy setelah menyelesaikan ujian akhir modul ini.
-              </p>
-            </div>
-
-            {/* Skills You Will Learn */}
-            <div className="card" style={{ padding: 15, background: '#f8fafc' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>Skills You Will Learn</span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {course.cpmk && course.cpmk.length > 0 ? (
-                  course.cpmk.map((c, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', fontSize: 11, color: 'var(--gray-600)' }}>
-                      <CheckCircle2 size={12} color="#22c55e" style={{ flexShrink: 0, marginTop: 2 }}/>
-                      <span>{c.deskripsi}</span>
-                    </div>
-                  ))
-                ) : (
-                  <span style={{ fontSize: 11, color: 'var(--gray-400)' }}>Belum ada capaian keterampilan terdaftar.</span>
-                )}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
+      <CoursePreview
+        course={course}
+        materials={materials}
+        enrollStatus={enrollStatus}
+        enrolling={enrolling}
+        onEnroll={handleEnroll}
+        onBack={() => navigate('/katalog')}
+      />
     )
   }
 

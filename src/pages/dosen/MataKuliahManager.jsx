@@ -11,7 +11,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
-import courseBanner from '@/assets/course_banner.png'
 
 // AI & Template Imports
 import {

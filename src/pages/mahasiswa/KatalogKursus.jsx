@@ -162,7 +162,7 @@ export default function KatalogKursus() {
                   ) : (
                     <button 
                       className="btn btn-primary btn-sm" 
-                      onClick={() => navigate(`/mata-kuliah/${c.id}`)}
+                      onClick={() => navigate(`/katalog/${c.id}`)}
                       style={{ width: '100%', justifyContent: 'center', fontWeight: 600 }}
                     >
                       Detail & Daftar

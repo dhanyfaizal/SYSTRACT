@@ -143,6 +143,7 @@ export default function AppRouter() {
             <Route path="/forum/:id"           element={<ForumDetail />} />
             <Route path="/nilai"               element={<Nilai />} />
             <Route path="/katalog"             element={<KatalogKursus />} />
+            <Route path="/katalog/:id"         element={<CourseDetail />} />
             <Route path="/kalender"            element={<AcademicCalendar />} />
 
             {/* Dosen + Admin */}
