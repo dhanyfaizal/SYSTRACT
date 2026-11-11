@@ -76,35 +76,13 @@ export default function ForumDetail() {
   async function sendReply() {
     if (!body.trim()) return
     setSending(true)
-    const { data: inserted, error } = await supabase
+    const { error } = await supabase
       .from('forum_replies')
       .insert({ forum_id: id, author_id: user.id, body: body.trim() })
-      .select('id')
-      .single()
     if (error) { toast.error('Gagal mengirim balasan'); setSending(false); return }
 
-    // Award +3 poin untuk mahasiswa yang membalas forum
-    if (forum?.course_id) {
-      const { data: semData } = await supabase
-        .from('semesters').select('id').eq('is_active', true).single()
-      if (semData) {
-        // Cek apakah sudah pernah dapat poin dari reply ini (idempotent)
-        await supabase.from('points_log').insert({
-          user_id:     user.id,
-          course_id:   forum.course_id,
-          semester_id: semData.id,
-          points:      3,
-          source:      'forum',
-          reason:      'Balas forum: ' + id,
-          reference_id: inserted?.id,
-        })
-        toast.success('Balasan terkirim! +3 pts 💬', { icon: '💬' })
-      } else {
-        toast.success('Balasan terkirim')
-      }
-    } else {
-      toast.success('Balasan terkirim')
-    }
+    // Poin balasan (+3, maks. 10 per hari) diberikan server lewat trigger trg_poin_balas_forum.
+    toast.success('Balasan terkirim', { icon: '💬' })
 
     setBody(''); fetchData(); setSending(false)
   }

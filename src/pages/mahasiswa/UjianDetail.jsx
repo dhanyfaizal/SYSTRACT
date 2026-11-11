@@ -36,12 +36,17 @@ export default function UjianDetail() {
   useEffect(() => { fetchExam() }, [id])
 
   async function fetchExam() {
+    // exams_peserta: data ujian tanpa soal/kunci jawaban. Soal datang dari snapshot percobaan.
     const [{ data: e }, { data: aList }] = await Promise.all([
-      supabase.from('exams').select('*, course:courses(name,code)').eq('id', id).single(),
+      supabase.from('exams_peserta').select('*').eq('id', id).maybeSingle(),
       supabase.from('exam_answers')
         .select('*').eq('exam_id', id).eq('student_id', user.id)
         .order('attempt_number', { ascending: true }),
     ])
+    if (e) {
+      const { data: course } = await supabase.from('courses').select('name,code').eq('id', e.course_id).maybeSingle()
+      e.course = course
+    }
     setExam(e)
     const attempts = aList || []
     setAllAttempts(attempts)
@@ -132,58 +137,6 @@ export default function UjianDetail() {
     }
   }, [phase, exam])
 
-  function shuffle(arr) {
-    const a = [...arr]
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]]
-    }
-    return a
-  }
-
-  async function buildQuestionsFromBank(exam) {
-    const cfg = exam.question_config
-    const topicConfigs = Array.isArray(cfg)
-      ? cfg
-      : [{ topic: null, mudah: cfg?.mudah||0, sedang: cfg?.sedang||0, sulit: cfg?.sulit||0 }]
-    const allPicked = []
-    const shortages = []   // track kekurangan soal
-
-    for (const tc of topicConfigs) {
-      const diffs = ['mudah','sedang','sulit'].filter(d => (tc[d]||0) > 0)
-      if (!diffs.length) continue
-      let query = supabase.from('questions')
-        .select('id,question_text,options,correct_answer,difficulty,explanation')
-        .eq('course_id', exam.course_id).in('difficulty', diffs)
-      if (tc.topic) query = query.eq('category', tc.topic)
-      const { data: qPool } = await query
-      const byDiff = { mudah:[], sedang:[], sulit:[] }
-      ;(qPool || []).forEach(q => byDiff[q.difficulty]?.push(q))
-      for (const d of ['mudah','sedang','sulit']) {
-        const need = tc[d] || 0; if (!need) continue
-        const available = byDiff[d].length
-        if (available < need) {
-          shortages.push(`"${tc.topic||'Umum'}" ${d}: butuh ${need}, tersedia ${available}`)
-        }
-        shuffle(byDiff[d]).slice(0, need).forEach(q => {
-          const idxMap = q.options.map((_, i) => i)
-          const shuffledIdx = shuffle(idxMap)
-          allPicked.push({
-            id: q.id, type: 'multiple_choice', text: q.question_text,
-            options: shuffledIdx.map(i => q.options[i]),
-            answer: String.fromCharCode(65 + shuffledIdx.indexOf(q.correct_answer)),
-            difficulty: q.difficulty, topic: tc.topic || null,
-            explanation: q.explanation || null,
-          })
-        })
-      }
-    }
-    if (shortages.length) {
-      toast(`⚠️ Soal kurang di bank: ${shortages.join(' | ')}. Menampilkan ${allPicked.length} soal yang tersedia.`, { duration: 6000 })
-    }
-    return shuffle(allPicked)
-  }
-
   async function handleStart() {
     const mode = exam.exam_mode || 'ujian'
     const maxAtt = exam.max_attempts || 1
@@ -193,23 +146,13 @@ export default function UjianDetail() {
       toast.error(`Batas percobaan (${maxAtt}×) sudah tercapai`); return
     }
 
-    let snapshot = []
-    if (exam.use_question_bank) {
-      snapshot = await buildQuestionsFromBank(exam)
-      if (!snapshot.length) { toast.error('Bank soal kosong atau tidak cukup soal'); return }
-    }
-
-    const nextAttempt = allAttempts.length + 1
-    const { data, error } = await supabase.from('exam_answers').insert({
-      exam_id: id, student_id: user.id, answers: {},
-      started_at: new Date().toISOString(),
-      questions_snapshot: snapshot,
-      attempt_number: nextAttempt,
-    }).select().single()
+    // Soal disusun & diacak di server; kunci jawaban tidak pernah dikirim ke browser.
+    // Bila ada percobaan yang belum dikumpulkan, server mengembalikan percobaan itu.
+    const { data, error } = await supabase.rpc('mulai_ujian', { p_exam_id: id })
     if (error) { toast.error('Gagal memulai: ' + error.message); return }
     setMyAnswer(data)
-    setAllAttempts(prev => [...prev, data])
-    setAnswers({})
+    setAllAttempts(prev => prev.some(a => a.id === data.id) ? prev : [...prev, data])
+    setAnswers(data.answers || {})
     // Reset violation counters for new attempt
     violationsRef.current = 0
     lastViolationRef.current = 0
@@ -228,29 +171,22 @@ export default function UjianDetail() {
     if (phase !== 'active') return
     clearInterval(timerRef.current)
     if (document.fullscreenElement) { try { await document.exitFullscreen() } catch (_) {} }
-    const now = new Date().toISOString()
-    const qs = (myAnswer?.questions_snapshot?.length ? myAnswer.questions_snapshot : exam?.questions) || []
-    let score = 0, total = 0
-    qs.forEach(q => {
-      if (q.type === 'multiple_choice') { total++; if (answers[q.id] === q.answer) score += q.points || 1 }
-    })
-    const finalScore = myAnswer?.questions_snapshot?.length && total > 0
-      ? Math.round((score / total) * 100) : score
     // Include violation metadata in answers for teacher review
     const vcount = violationsRef.current
     const savedAnswers = vcount > 0 ? { ...answers, _violations: vcount } : answers
-    const { error } = await supabase.from('exam_answers')
-      .update({ answers: savedAnswers, score: finalScore, submitted_at: now })
-      .eq('id', myAnswer.id)
-    if (error) { toast.error('Gagal mengumpulkan ujian'); return }
-    const updated = { ...myAnswer, answers: savedAnswers, score: finalScore, submitted_at: now }
+    // Skor dihitung server dari kunci jawaban (exam_attempt_keys).
+    const { data: updated, error } = await supabase.rpc('kumpulkan_ujian', {
+      p_attempt_id: myAnswer.id,
+      p_answers: savedAnswers,
+    })
+    if (error) { toast.error('Gagal mengumpulkan ujian: ' + error.message); return }
     setMyAnswer(updated)
     setAllAttempts(prev => prev.map(a => a.id === myAnswer.id ? updated : a))
     setPhase('submitted')
     if (!auto) toast.success('Berhasil dikumpulkan! 🎉')
     else if (vcount >= MAX_VIOLATIONS) { /* already toasted */ }
     else toast('Waktu habis — dikumpulkan otomatis', { icon: '⏰' })
-  }, [phase, exam, myAnswer, answers, id])
+  }, [phase, myAnswer, answers])
 
   function formatTime(s) {
     if (s === null) return '--:--'
@@ -267,17 +203,16 @@ export default function UjianDetail() {
   const maxAtt     = exam.max_attempts || 1
   const submitted  = allAttempts.filter(a => a.submitted_at)
   const doneCount  = submitted.length
-  const questions  = (myAnswer?.questions_snapshot?.length ? myAnswer.questions_snapshot : exam.questions) || []
+  const questions  = myAnswer?.questions_snapshot || []
   const answered   = Object.keys(answers).length
   const typeLabel  = { uts:'Evaluasi', uas:'Evaluasi', kuis:'Kuis' }
   const canRetry   = mode === 'quiz' || (mode === 'tryout' && doneCount < maxAtt) || (mode === 'ujian' && myAnswer?.score !== null && myAnswer?.score !== undefined && myAnswer.score < (exam.passing_grade ?? 70))
 
   /* ── Submitted view ─────────────────────────────────── */
   if (phase === 'submitted') {
-    const isBank     = myAnswer?.questions_snapshot?.length > 0
-    const qs         = isBank ? myAnswer.questions_snapshot : (exam.questions || [])
-    const mcTotal    = qs.filter(q => q.type === 'multiple_choice').length
-    const mcCorrect  = qs.filter(q => q.type === 'multiple_choice' && (myAnswer?.answers||{})[q.id] === q.answer).length
+    const isBank     = !!exam.use_question_bank
+    const mcTotal    = myAnswer?.mc_total ?? 0
+    const mcCorrect  = myAnswer?.mc_correct ?? 0
     const finalScore = myAnswer?.score ?? null
     const bestScore  = submitted.length ? Math.max(...submitted.map(a => a.score ?? 0)) : null
 
@@ -383,7 +318,7 @@ export default function UjianDetail() {
       ? (Array.isArray(exam.question_config)
           ? exam.question_config.reduce((s,r) => s+(r.mudah||0)+(r.sedang||0)+(r.sulit||0), 0)
           : (exam.question_config.mudah||0)+(exam.question_config.sedang||0)+(exam.question_config.sulit||0))
-      : questions.length
+      : (exam.jumlah_soal ?? 0)
     const blockedTryout = mode === 'tryout' && doneCount >= maxAtt
     const isMonitored = MONITOR_MODES.includes(mode)
     return (
