@@ -13,7 +13,7 @@ const BRAND = { name: 'SYSTRACT', sub: 'STIKOM Yos Sudarso', logo: LOGO_URL }
 
 // Dipakai halaman ujian untuk menyembunyikan sidebar selama ujian berlangsung.
 // `open`/`setOpen` dipertahankan agar pemanggil lama tetap berjalan.
-export const SidebarContext = createContext({ open: true, toggle: () => {}, setOpen: () => {}, examMode: false, setExamMode: () => {} })
+export const SidebarContext = createContext({ open: true, toggle: () => {}, setOpen: () => {}, examMode: false, setExamMode: () => {}, focusMode: false, setFocusMode: () => {} })
 export const useSidebar = () => useContext(SidebarContext)
 
 /** Error Boundary */
@@ -75,12 +75,16 @@ const TANPA_KURSUS = []
 export default function AppLayout() {
   const { role, user, profile } = useAuth()
   const [examMode, setExamMode] = useState(false)
+  // Mode fokus (ruang kelas): menu aplikasi disembunyikan di layar lebar.
+  const [focusMode, setFocusMode] = useState(false)
   const courses = useSidebarCourses(role, user?.id)
   const nav = useMemo(() => filterNav(buildNav(role, courses), { role }), [role, courses])
 
   const ctx = useMemo(() => ({
-    open: !examMode, toggle: () => {}, setOpen: () => {}, examMode, setExamMode,
-  }), [examMode])
+    open: !examMode, toggle: () => {}, setOpen: () => {}, examMode, setExamMode, focusMode, setFocusMode,
+  }), [examMode, focusMode])
+
+  const shellClass = [examMode && 'exam-mode', focusMode && 'focus-mode'].filter(Boolean).join(' ') || undefined
 
   const footer = profile ? (
     <div style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -90,7 +94,7 @@ export default function AppLayout() {
 
   return (
     <SidebarContext.Provider value={ctx}>
-      <div className={examMode ? 'exam-mode' : undefined} style={{ height: '100%' }}>
+      <div className={shellClass} style={{ height: '100%' }}>
         <AppShell
           nav={nav}
           brand={BRAND}

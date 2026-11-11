@@ -4,9 +4,11 @@ import {
   ArrowLeft, BookOpen, ClipboardList, MessageSquare, FileText,
   ExternalLink, Calendar, User, Star, CheckCircle2,
   PlayCircle, FileDown, BookMarked, Eye, Send, Loader2, Award, Clock,
-  Info, RefreshCw, ChevronUp, ChevronDown, ChevronRight, Lock
+  Info, RefreshCw, ChevronUp, ChevronDown, ChevronRight, Lock,
+  PanelLeftClose, PanelLeftOpen, Maximize2, Minimize2
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useSidebar } from '@/components/layout/AppLayout'
 import { useAI } from '@/contexts/AIContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -170,6 +172,10 @@ export default function CourseDetail() {
   const [activeTugas, setActiveTugas] = useState(null)
   
   const [subTab, setSubTab] = useState('belajar') // 'belajar' | 'diskusi'
+  const [syllabusOpen, setSyllabusOpen] = useState(true)
+  const { focusMode, setFocusMode } = useSidebar()
+  // Mode fokus hanya berlaku di halaman ini; matikan saat keluar.
+  useEffect(() => () => setFocusMode(false), [setFocusMode])
   const [loading, setLoading] = useState(true)
 
   const groupedModules = groupMaterialsIntoModules(syllabusItems, 'week')
@@ -1033,10 +1039,10 @@ export default function CourseDetail() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', minHeight: 520 }}>
       {/* Top Header Row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 16, borderBottom: '1px solid var(--gray-200)', flexShrink: 0, gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 16, borderBottom: '1px solid var(--gray-200)', flexShrink: 0, gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           <button className="btn btn-ghost btn-icon btn-sm" onClick={() => navigate('/dashboard')} title="Kembali ke Beranda">
             <ArrowLeft size={16} />
           </button>
@@ -1047,6 +1053,21 @@ export default function CourseDetail() {
             <h1 style={{ fontSize: 16, fontWeight: 800, color: 'var(--gray-900)', marginTop: 2 }}>{course.name}</h1>
           </div>
         </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {/* Tampilan: sembunyikan silabus / mode fokus (menyembunyikan menu aplikasi) */}
+        {subTab === 'belajar' && (
+          <button type="button" className="btn btn-secondary btn-sm" aria-pressed={!syllabusOpen}
+            onClick={() => setSyllabusOpen(v => !v)}>
+            {syllabusOpen ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
+            {syllabusOpen ? 'Sembunyikan silabus' : 'Tampilkan silabus'}
+          </button>
+        )}
+        <button type="button" className="btn btn-secondary btn-sm shell-hide-mobile" aria-pressed={focusMode}
+          onClick={() => setFocusMode(!focusMode)}>
+          {focusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+          {focusMode ? 'Keluar mode fokus' : 'Mode fokus'}
+        </button>
 
         {/* Tab switcher */}
         <div style={{ display: 'flex', background: 'var(--gray-100)', padding: 3, borderRadius: 8 }}>
@@ -1087,13 +1108,14 @@ export default function CourseDetail() {
             <MessageSquare size={13} style={{ marginRight: 4, display: 'inline' }} /> Diskusi ({forumItems.length})
           </button>
         </div>
+        </div>
       </div>
 
       {/* Main Body */}
       {subTab === 'belajar' && (
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden', marginTop: 14 }}>
           {/* LEFT: Sidebar Syllabus */}
-          <div style={{ width: 280, borderRight: '1px solid var(--gray-200)', display: 'flex', flexDirection: 'column', paddingRight: 16, overflowY: 'auto' }}>
+          <div style={{ width: 280, flexShrink: 0, borderRight: '1px solid var(--gray-200)', display: syllabusOpen ? 'flex' : 'none', flexDirection: 'column', paddingRight: 16, overflowY: 'auto' }}>
             
             {/* Overall progress bar */}
             <div className="card" style={{ padding: 14, marginBottom: 16, background: 'linear-gradient(135deg, var(--indigo-50), #fff)', borderColor: '#c7d2fe' }}>
@@ -1305,34 +1327,22 @@ export default function CourseDetail() {
                 {/* WebSlide Integration */}
                 {activeItem.data.webslide_content && (
                   <div style={{ marginBottom: 16 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase' }}>Presentasi Slide Terintegrasi (SPA)</span>
-                      <div style={{ display: 'flex', gap: 10 }}>
-                        <button
-                          onClick={() => {
-                            const htmlContent = generateWebSlideHtml(
-                              course.name,
-                              profile?.program_studi || 'Teknik Informatika',
-                              activeItem.data.week_number || 1,
-                              activeItem.data.webslide_content
-                            );
-                            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-                            const blobUrl = URL.createObjectURL(blob);
-                            window.open(blobUrl, '_blank');
-                          }}
-                          className="btn btn-link btn-xs"
-                          style={{ padding: 0, fontSize: 11, color: 'var(--indigo-600)', display: 'inline-flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}
-                        >
-                          <ExternalLink size={11} /> Buka di Tab Baru
-                        </button>
-                      </div>
-                    </div>
                     <WebSlidePlayer
                       courseName={course.name}
                       prodiName={profile?.program_studi || 'Teknik Informatika'}
                       meetingNo={activeItem.data.week_number || 1}
                       slideData={activeItem.data.webslide_content}
                       askWithContext={askWithContext}
+                      onOpenNewTab={() => {
+                        const htmlContent = generateWebSlideHtml(
+                          course.name,
+                          profile?.program_studi || 'Teknik Informatika',
+                          activeItem.data.week_number || 1,
+                          activeItem.data.webslide_content
+                        );
+                        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+                        window.open(URL.createObjectURL(blob), '_blank');
+                      }}
                     />
                   </div>
                 )}
