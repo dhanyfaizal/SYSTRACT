@@ -26,7 +26,15 @@ expected_tables(name) AS (VALUES
   ('course_progress'),('material_views'),('final_grades'),('grade_configs'),
   ('course_grading_config'),('student_keaktifan'),('points_log'),
   ('shop_items'),('user_inventory'),('user_avatar_config'),
-  ('course_leaderboard')
+  ('course_leaderboard'),('exam_attempt_keys'),('exams_peserta')
+),
+-- View yang sengaja tanpa security_invoker (menyaring baris sendiri lewat auth.uid()).
+intended_definer_views(name) AS (VALUES ('exams_peserta')),
+-- Tabel sisa sistem lama: akses API anon/authenticated harus sudah dicabut (Fase 1, K6).
+legacy_tables(name) AS (VALUES
+  ('users'),('institutions'),('classes'),('modules'),('sections'),('content_items'),
+  ('final_exams'),('exam_attempts'),('formative_logs'),('learning_paths'),
+  ('portfolio_submissions'),('user_progress')
 ),
 expected_columns(tbl, col) AS (VALUES
   ('courses','cpl'),('courses','cpmk'),('courses','referensi'),('courses','weekly_plan'),
@@ -112,6 +120,21 @@ f_views_no_invoker AS (
   SELECT coalesce(jsonb_agg(r.name ORDER BY r.name), '[]') AS v
   FROM rels r WHERE r.relkind IN ('v','m')
     AND NOT coalesce(r.reloptions::text[] && ARRAY['security_invoker=on','security_invoker=true'], false)
+    AND NOT EXISTS (SELECT 1 FROM intended_definer_views d WHERE d.name = r.name)
+),
+f_legacy_grants AS (
+  SELECT coalesce(jsonb_agg(DISTINCT g.table_name || ':' || g.grantee || ':' || g.privilege_type), '[]') AS v
+  FROM information_schema.role_table_grants g
+  JOIN legacy_tables l ON l.name = g.table_name
+  WHERE g.table_schema = 'public' AND g.grantee IN ('anon','authenticated')
+),
+-- Fungsi yang hanya boleh dipanggil server, bukan lewat RPC oleh pengguna.
+f_internal_fn_exec AS (
+  SELECT coalesce(jsonb_agg(p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')'), '[]') AS v
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public' AND p.proname IN ('award_points_safe')
+    AND (has_function_privilege('authenticated', p.oid, 'EXECUTE')
+      OR has_function_privilege('anon', p.oid, 'EXECUTE'))
 ),
 f_secdef_no_search_path AS (
   SELECT coalesce(jsonb_agg(f.name || '(' || f.args || ')' ORDER BY f.name), '[]') AS v
@@ -167,6 +190,8 @@ SELECT
     'security_definer_tanpa_search_path', (SELECT v FROM f_secdef_no_search_path),
     'enrollments_insert_status_bebas',    (SELECT v FROM f_enroll_insert),
     'enrollments_update_non_admin',       (SELECT v FROM f_enroll_update),
+    'tabel_lama_masih_bisa_diakses_api', (SELECT v FROM f_legacy_grants),
+    'fungsi_internal_bisa_dipanggil_rpc', (SELECT v FROM f_internal_fn_exec),
     'bucket_publik',                (SELECT v FROM f_public_buckets),
     'jumlah_profil_per_peran',      (SELECT v FROM f_roles),
     'jumlah_enrollment_per_status', (SELECT v FROM f_enroll_status)
