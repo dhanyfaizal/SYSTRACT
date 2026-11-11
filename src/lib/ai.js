@@ -1,47 +1,25 @@
 /**
  * SIRA-SYS — AI Service Integration (Sumopod API)
- * Terkoneksi dengan API Key & URL dari Project WebSlide sebagai default,
- * dengan dukungan BYOK (Bring Your Own Key) via localStorage.
+ * Semua panggilan AI melalui fungsi server /api/ai; kunci API hanya ada di server.
  */
+import { supabase } from '@/lib/supabase'
 
 // Model fallback list untuk mengatasi quota exhaustion atau rate limit (HTTP 429)
 const MODELS = [
   "deepseek-v4-flash"
 ];
 
-// Mendapatkan konfigurasi API (dari localStorage jika ada, fallback ke env, atau default WebSlide)
-export function getAiConfig() {
-  const localKey = localStorage.getItem('sirasys_ai_key');
-  const localUrl = localStorage.getItem('sirasys_ai_url');
-
-  const apiKey = localKey || import.meta.env.VITE_SUMOPOD_API_KEY || 'sk-Ib5Rb4Y0zmh46OZgUVvN5g';
-  const apiUrl = localUrl || import.meta.env.VITE_SUMOPOD_API_URL || 'https://ai.sumopod.com/v1';
-
-  return {
-    apiKey,
-    apiUrl,
-    isCustom: !!(localKey || localUrl)
-  };
-}
-
-// Menyimpan konfigurasi API ke localStorage
-export function saveAiConfig(key, url) {
-  if (key) localStorage.setItem('sirasys_ai_key', key.trim());
-  else localStorage.removeItem('sirasys_ai_key');
-
-  if (url) localStorage.setItem('sirasys_ai_url', url.trim());
-  else localStorage.removeItem('sirasys_ai_url');
-}
-
-// Mereset konfigurasi AI ke default
-export function resetAiConfig() {
-  localStorage.removeItem('sirasys_ai_key');
-  localStorage.removeItem('sirasys_ai_url');
+// Kunci API AI tidak lagi disimpan di browser. Semua panggilan lewat fungsi server
+// /api/ai (lihat api/ai.js) yang memegang kunci dan memeriksa sesi login Supabase.
+async function aiHeaders() {
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  if (!token) throw new Error("Sesi login berakhir. Silakan masuk kembali.");
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 }
 
 // Inti pemanggilan API dengan fallback otomatis
 export async function callAi(prompt, isJson = true, onProgress = null) {
-  const { apiKey, apiUrl } = getAiConfig();
   let quotaError = null;
   let lastError = null;
 
@@ -64,12 +42,9 @@ export async function callAi(prompt, isJson = true, onProgress = null) {
         onProgress("AI sedang memikirkan materi & merumuskan konten (proses ini memakan waktu)...");
       }
 
-      const response = await fetch(`${apiUrl}/chat/completions`, {
+      const response = await fetch('/api/ai', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
+        headers: await aiHeaders(),
         body: JSON.stringify({
           model,
           messages: [

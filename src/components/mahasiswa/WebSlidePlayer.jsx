@@ -3,6 +3,7 @@ import {
   BookOpen, Clock, HelpCircle, Info, ExternalLink, Menu, X, Check,
   ChevronDown, ChevronLeft, ChevronRight, AlertCircle, BookMarked, ArrowUp
 } from 'lucide-react'
+import { sanitizeInline, sanitizeUrl } from '@/lib/safeHtml'
 
 // Prodi themes matching existing colors in webslideTemplate.js
 const PRODI_THEMES = {
@@ -184,10 +185,12 @@ export default function WebSlidePlayer({
   // helper to inject strong & em formatting
   const parseHtmlText = (text) => {
     if (!text) return ''
-    return <span dangerouslySetInnerHTML={{ __html: text }} />
+    // Hanya <strong>/<em>/<b>/<i>/<br> yang lolos; selebihnya jadi teks.
+    return <span dangerouslySetInnerHTML={{ __html: sanitizeInline(text) }} />
   }
 
-  const renderMedia = (url) => {
+  const renderMedia = (rawUrl) => {
+    const url = sanitizeUrl(rawUrl)
     if (!url) return null
 
     const getYoutubeEmbedUrl = (link) => {
