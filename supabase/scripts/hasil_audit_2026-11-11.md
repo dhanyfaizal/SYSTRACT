@@ -52,6 +52,13 @@ Legenda: 🔴 kritis (bisa dipakai sekarang oleh mahasiswa mana pun lewat API Su
 - Bucket `avatar-items` ada di produksi tapi tidak tercatat di file SQL repo.
 - Semua kolom yang diharapkan kode sudah ada — migrasi kolom (RPS, sertifikat, mode ujian, dll.) sudah dijalankan.
 
+## Status
+
+- **2026-11-11 — K1–K6 dan T5–T7 tertutup.** Migrasi `supabase/migrations/20261111120000_fase1_celah_kritis.sql`
+  dijalankan di produksi; audit ulang: `enrollments_insert_status_bebas`, `security_definer_tanpa_search_path`,
+  `tabel_lama_masih_bisa_diakses_api`, dan `fungsi_internal_bisa_dipanggil_rpc` semuanya kosong.
+- Belum: T1–T4, S1–S7, kebersihan.
+
 ## Urutan perbaikan (Fase 1)
 
 1. K1, K6 — kunci `profiles.role` (trigger tolak perubahan `role` oleh non-admin) dan tutup/hapus tabel `users` lama.
