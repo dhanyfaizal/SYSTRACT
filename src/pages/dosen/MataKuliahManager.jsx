@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy, CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown, PlusCircle, Search, Bot, RefreshCw, Download, ChevronUp, Info, HelpCircle, Award, Clock, Link, Check, Upload } from 'lucide-react'
+import { Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy, CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown, PlusCircle, Search, Bot, RefreshCw, Download, ChevronUp, Info, HelpCircle, Award, Clock, Link, Check, Upload, Video, FileText } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -9,6 +9,7 @@ import { generateCourseDescription, generateCplForCourse, generateCpmk, generate
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 import { SPA_LAYOUT_LABELS } from '@/lib/spaBlocks'
 import { parseWebSlideHtml, WebSlideImportError } from '@/lib/webslideImport'
+import { JENIS_SLIDE, sisipkanSlide, slideVideo, spaDariSlideVideo, terapkanSlideVideo, urlVideoValid } from '@/lib/sisipSlide'
 import { COLORS, SEMESTERS, BLANK_COURSE_FORM, ATTACH_TYPES, BLANK_ATTACH, BLANK_MATERIAL_FORM, typeOf, pecahKompetensi } from './mataKuliah/konstanta'
 import AttachRow from './mataKuliah/AttachRow'
 import { groupMaterialsIntoModules } from '@/lib/modules'
@@ -100,6 +101,8 @@ export default function DosenMataKuliah() {
   const [editImageUrl, setEditImageUrl] = useState('')
   const [regeneratingSlideNo, setRegeneratingSlideNo] = useState(null)
   const [regeneratingLayoutSlideNo, setRegeneratingLayoutSlideNo] = useState(null)
+  const [slideBaruNo, setSlideBaruNo] = useState(null) // slide sisipan yang belum pernah disimpan
+  const [menuSisip, setMenuSisip] = useState(null)     // posisi menu "Sisipkan slide" yang sedang terbuka
 
   const isOutlineEmpty = !slideOutline || !slideOutline.slides || slideOutline.slides.length === 0
 
@@ -1077,7 +1080,7 @@ export default function DosenMataKuliah() {
   }
 
   // ── Edit/Hapus/Regenerate Per Slide Actions ────────────────
-  function handleDeleteSlide(slideNo) {
+  function handleDeleteSlide(slideNo, { senyap = false } = {}) {
     if (!slideOutline) return
     const updatedSlides = slideOutline.slides
       .filter(s => s.slide_no !== slideNo)
@@ -1091,7 +1094,22 @@ export default function DosenMataKuliah() {
     // Sync deletion to webslideData (SPA Layout)
     syncWebSlideWithOutline(updatedSlides, slideNo, 'delete')
 
-    toast.success(`Slide ${slideNo} berhasil dihapus`)
+    if (!senyap) toast.success(`Slide ${slideNo} berhasil dihapus`)
+  }
+
+  // Sisipkan slide baru (konten atau video) setelah indeks `posisi`; -1 = paling awal.
+  // Slide langsung dibuka dalam mode edit; bila dibatalkan sebelum disimpan, slide dibuang lagi.
+  function handleSisipkanSlide(posisi, jenis) {
+    if (!slideOutline || editingSlideNo !== null) return
+    const { outline, spa, nomorBaru } = sisipkanSlide(slideOutline.slides || [], webslideData?.slides ?? null, posisi, jenis)
+    setSlideOutline({ ...slideOutline, slides: outline })
+    if (spa) setWebslideData({ ...webslideData, slides: spa })
+    setMenuSisip(null)
+    setSlideBaruNo(nomorBaru)
+    setEditingSlideNo(nomorBaru)
+    setEditTitle('')
+    setEditContent('')
+    setEditImageUrl('')
   }
 
   function handleStartEditSlide(slide) {
@@ -1103,13 +1121,22 @@ export default function DosenMataKuliah() {
 
   function handleSaveEditSlide(slideNo) {
     if (!slideOutline) return
+    const target = slideOutline.slides.find(s => s.slide_no === slideNo)
+    if (!editTitle.trim()) {
+      toast.error('Judul slide wajib diisi.')
+      return
+    }
+    if (target && slideVideo(target) && !urlVideoValid(editImageUrl)) {
+      toast.error('Isi tautan video YouTube (atau berkas video .mp4/.webm) yang valid.')
+      return
+    }
     const updatedSlides = slideOutline.slides.map(s => {
       if (s.slide_no === slideNo) {
         return {
           ...s,
-          title: editTitle,
+          title: editTitle.trim(),
           content: editContent.split('\n').map(line => line.trim()).filter(line => line.length > 0),
-          image_url: editImageUrl
+          image_url: editImageUrl.trim()
         }
       }
       return s
@@ -1124,11 +1151,14 @@ export default function DosenMataKuliah() {
     syncWebSlideWithOutline(updatedSlides, slideNo, 'update')
 
     setEditingSlideNo(null)
+    setSlideBaruNo(null)
     toast.success(`Slide ${slideNo} berhasil diperbarui`)
   }
 
   function handleCancelEdit() {
+    if (slideBaruNo !== null && slideBaruNo === editingSlideNo) handleDeleteSlide(slideBaruNo, { senyap: true })
     setEditingSlideNo(null)
+    setSlideBaruNo(null)
   }
 
   async function handleRegenerateSlide(slideNo, slideTitle, currentContent) {
@@ -1179,6 +1209,14 @@ export default function DosenMataKuliah() {
     if (!slideOutline) return
     const outlineSlide = slideOutline.slides.find(s => s.slide_no === slideNo)
     if (!outlineSlide) return
+    if (slideVideo(outlineSlide)) {
+      // Slide video selalu satu pemutar video satu layar; tidak perlu AI.
+      setWebslideData({
+        ...webslideData,
+        slides: (webslideData?.slides || []).map(s => s.slide_no === slideNo ? spaDariSlideVideo(outlineSlide) : s),
+      })
+      return
+    }
 
     setRegeneratingLayoutSlideNo(slideNo)
     try {
@@ -1232,6 +1270,7 @@ export default function DosenMataKuliah() {
       const outlineSlide = updatedOutlineSlides.find(s => s.slide_no === activeSlideNo)
       if (outlineSlide) {
         updatedWebslides = updatedWebslides.map(s => {
+          if (s.slide_no === activeSlideNo && slideVideo(outlineSlide)) return spaDariSlideVideo(outlineSlide)
           if (s.slide_no === activeSlideNo) {
             const newTitle = outlineSlide.title
             const newImgUrl = outlineSlide.image_url || s.image_url
@@ -1254,6 +1293,8 @@ export default function DosenMataKuliah() {
                 desc, 
                 icon: 'fa-solid fa-lightbulb' 
               }))
+            } else if (s.layout === 'media') {
+              updatedSlide.description = newContent.join(' ')
             } else if (s.layout === 'accordion') {
               updatedSlide.accordion_items = newContent.map((content, i) => ({ 
                 header: `Poin ${i + 1}`, 
@@ -1272,6 +1313,44 @@ export default function DosenMataKuliah() {
       ...webslideData,
       slides: updatedWebslides
     })
+  }
+
+  // Baris tipis di antara kartu outline untuk menyisipkan slide konten atau slide video.
+  function renderSisipBar(posisi) {
+    if (editingSlideNo !== null) return null
+    const terbuka = menuSisip === posisi
+    const sibuk = loadingSlide || regeneratingSlideNo !== null || regeneratingLayoutSlideNo !== null
+    const garis = <span aria-hidden="true" style={{ flex: 1, borderTop: '1px dashed var(--gray-300)' }} />
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '-4px 0' }}>
+        {garis}
+        {terbuka ? (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button type="button" className="btn btn-secondary btn-xs" style={{ gap: 4 }} onClick={() => handleSisipkanSlide(posisi, JENIS_SLIDE.konten)}>
+              <FileText size={11} /> Slide konten
+            </button>
+            <button type="button" className="btn btn-secondary btn-xs" style={{ gap: 4, color: '#DC2626' }} onClick={() => handleSisipkanSlide(posisi, JENIS_SLIDE.video)}>
+              <Video size={11} /> Slide video
+            </button>
+            <button type="button" className="btn btn-ghost btn-icon btn-xs" title="Tutup" aria-label="Tutup" onClick={() => setMenuSisip(null)}>
+              <X size={11} />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-ghost btn-xs"
+            style={{ gap: 4, fontSize: 11, color: 'var(--gray-500)', padding: '2px 8px' }}
+            onClick={() => setMenuSisip(posisi)}
+            disabled={sibuk}
+            title={posisi < 0 ? 'Sisipkan slide di awal' : `Sisipkan slide setelah slide ${posisi + 1}`}
+          >
+            <Plus size={11} /> Sisipkan slide
+          </button>
+        )}
+        {garis}
+      </div>
+    )
   }
 
   function renderMediaPreview(url) {
@@ -1361,6 +1440,7 @@ export default function DosenMataKuliah() {
         })
       }
 
+      if (result?.slides) result.slides = terapkanSlideVideo(slideOutline.slides, result.slides)
       setWebslideData(result)
       toast.success("Aplikasi SPA Slide berhasil dibangun! 🎬")
     } catch (err) {
@@ -3271,13 +3351,17 @@ export default function DosenMataKuliah() {
                               </span>
                             </div>
                           ) : (
-                            slideOutline.slides?.map(s => {
+                            <>
+                            {renderSisipBar(-1)}
+                            {slideOutline.slides?.map((s, i) => {
                             const isEditing = editingSlideNo === s.slide_no;
                             const isRegenerating = regeneratingSlideNo === s.slide_no;
                             const isRegeneratingLayout = regeneratingLayoutSlideNo === s.slide_no;
+                            const isVideo = slideVideo(s);
 
                             return (
-                              <div key={s.slide_no} style={{ 
+                              <Fragment key={s.slide_no}>
+                              <div style={{
                                 background: '#ffffff', 
                                 border: '1px solid var(--gray-200)', 
                                 borderRadius: 10, 
@@ -3328,20 +3412,42 @@ export default function DosenMataKuliah() {
                                   /* EDITING MODE */
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                      <span style={{ fontSize: 11, fontWeight: 800, background: 'var(--indigo-50)', color: 'var(--indigo-600)', padding: '2px 8px', borderRadius: 99 }}>
-                                        SLIDE {s.slide_no}
+                                      <span style={{ fontSize: 11, fontWeight: 800, background: isVideo ? '#FEF2F2' : 'var(--indigo-50)', color: isVideo ? '#DC2626' : 'var(--indigo-600)', padding: '2px 8px', borderRadius: 99, whiteSpace: 'nowrap' }}>
+                                        {isVideo ? 'VIDEO' : 'SLIDE'} {s.slide_no}
                                       </span>
-                                      <input 
-                                        type="text" 
-                                        className="input" 
-                                        style={{ flex: 1, padding: '6px 10px', fontSize: 13, borderRadius: 6 }} 
+                                      <input
+                                        type="text"
+                                        className="input"
+                                        style={{ flex: 1, padding: '6px 10px', fontSize: 13, borderRadius: 6 }}
                                         value={editTitle}
                                         onChange={e => setEditTitle(e.target.value)}
-                                        placeholder="Judul Slide"
+                                        placeholder={isVideo ? 'Judul video, mis. Cara Kerja Sistem Pendingin' : 'Judul Slide'}
+                                        autoFocus={slideBaruNo === s.slide_no}
                                       />
                                     </div>
+                                    {isVideo && (
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray-500)' }}>Tautan video YouTube (wajib):</label>
+                                        <input
+                                          type="url"
+                                          className="input"
+                                          style={{ padding: '6px 10px', fontSize: 12, borderRadius: 6 }}
+                                          value={editImageUrl}
+                                          onChange={e => setEditImageUrl(e.target.value)}
+                                          placeholder="https://www.youtube.com/watch?v=..."
+                                        />
+                                        {editImageUrl.trim() && !urlVideoValid(editImageUrl) && (
+                                          <span style={{ fontSize: 11, color: 'var(--red-600)' }}>Tautan belum dikenali sebagai video YouTube atau berkas .mp4/.webm.</span>
+                                        )}
+                                        {urlVideoValid(editImageUrl) && (
+                                          <div style={{ width: 240, aspectRatio: '16 / 9', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--gray-200)', background: '#000' }}>
+                                            {renderMediaPreview(editImageUrl.trim())}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray-500)' }}>Poin Slide (Satu baris untuk setiap poin):</label>
+                                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray-500)' }}>{isVideo ? 'Pengantar singkat di bawah video (opsional, satu baris per poin):' : 'Poin Slide (Satu baris untuk setiap poin):'}</label>
                                       <textarea 
                                         className="input"
                                         rows={4}
@@ -3351,7 +3457,7 @@ export default function DosenMataKuliah() {
                                         placeholder="Masukkan poin slide..."
                                       />
                                     </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    {!isVideo && <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                       <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray-500)' }}>URL Gambar atau Video (Internet):</label>
                                       <input 
                                         type="text" 
@@ -3361,7 +3467,7 @@ export default function DosenMataKuliah() {
                                         onChange={e => setEditImageUrl(e.target.value)}
                                         placeholder="Contoh: https://images.unsplash.com/photo-... atau https://www.youtube.com/watch?v=..."
                                       />
-                                    </div>
+                                    </div>}
                                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 4 }}>
                                       <button className="btn btn-ghost btn-xs" style={{ gap: 4 }} onClick={handleCancelEdit}>
                                         <X size={12}/> Batal
@@ -3376,8 +3482,8 @@ export default function DosenMataKuliah() {
                                   <>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <span style={{ fontSize: 10, fontWeight: 800, background: 'var(--indigo-50)', color: 'var(--indigo-600)', padding: '2px 8px', borderRadius: 99 }}>
-                                          SLIDE {s.slide_no}
+                                        <span style={{ fontSize: 10, fontWeight: 800, background: isVideo ? '#FEF2F2' : 'var(--indigo-50)', color: isVideo ? '#DC2626' : 'var(--indigo-600)', padding: '2px 8px', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+                                          {isVideo && <Video size={10} />}{isVideo ? 'VIDEO' : 'SLIDE'} {s.slide_no}
                                         </span>
                                         {webslideData && webslideData.slides && (
                                           (() => {
@@ -3397,9 +3503,9 @@ export default function DosenMataKuliah() {
                                       
                                       {/* Slide Actions Toolbar */}
                                       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                                        {webslideData && webslideData.slides && (
-                                          <button 
-                                            className="btn btn-ghost btn-xs" 
+                                        {!isVideo && webslideData && webslideData.slides && (
+                                          <button
+                                            className="btn btn-ghost btn-xs"
                                             title="Generate Ulang Layout SPA Slide Ini"
                                             onClick={() => handleRegenerateSlideLayout(s.slide_no)}
                                             disabled={loadingSlide || regeneratingSlideNo !== null || regeneratingLayoutSlideNo !== null}
@@ -3417,15 +3523,15 @@ export default function DosenMataKuliah() {
                                         >
                                           <Edit2 size={12} color="var(--gray-500)"/>
                                         </button>
-                                        <button 
-                                          className="btn btn-ghost btn-icon btn-xs" 
+                                        {!isVideo && <button
+                                          className="btn btn-ghost btn-icon btn-xs"
                                           title="Generate Ulang Konten Slide Ini"
                                           onClick={() => handleRegenerateSlide(s.slide_no, s.title, s.content)}
                                           disabled={loadingSlide || regeneratingSlideNo !== null || regeneratingLayoutSlideNo !== null}
                                           style={{ padding: 4, borderRadius: 6 }}
                                         >
                                           <RefreshCw size={12} color="var(--indigo-600)"/>
-                                        </button>
+                                        </button>}
                                         <button 
                                           className="btn btn-ghost btn-icon btn-xs text-danger" 
                                           title="Hapus Slide"
@@ -3480,8 +3586,11 @@ export default function DosenMataKuliah() {
                                   </>
                                 )}
                               </div>
+                              {renderSisipBar(i)}
+                              </Fragment>
                             );
-                            })
+                            })}
+                            </>
                           )}
                         </div>
                       </div>

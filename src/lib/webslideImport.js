@@ -6,6 +6,7 @@
 // dipertahankan, skrip dan atribut lain dibuang, URL media hanya http(s).
 
 import { sanitizeInline } from './safeHtml.js'
+import { JENIS_SLIDE, urlVideoValid } from './sisipSlide.js'
 
 export class WebSlideImportError extends Error {}
 
@@ -230,6 +231,8 @@ export function parseWebSlideHtml(html, Parser = globalThis.DOMParser) {
         title: toPlain(s.title) || `Bagian ${s.slide_no}`,
         content: outlinePoints(s, toPlain),
         ...(s.image_url ? { image_url: s.image_url } : {}),
+        // Bagian "media" yang berisi video dikembalikan sebagai slide video.
+        ...(s.layout === 'media' && urlVideoValid(s.image_url) ? { jenis: JENIS_SLIDE.video } : {}),
       })),
     },
   }
