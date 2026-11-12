@@ -30,8 +30,9 @@
 |---|---|---|
 | `20261111120000_fase1_celah_kritis.sql` | Peran, ujian & kunci jawaban di server, poin, pendaftaran, tabel lama dikunci | 2026-11-11 |
 | `20261111150000_fase1b_celah_tinggi_sedang.sql` | Presensi, enrollment per pengampu, nilai akhir, forum, storage, akses anon dicabut | 2026-11-11 |
-| `20261112090000_fase2_arsip_tabel_lama.sql` | 12 tabel sistem lama dipindah ke skema `arsip`, policy ganda dibuang | (cek) |
-| `20261112100000_ujian_skor_persen.sql` | Skor ujian selalu persen 0–100; skor ujian soal manual lama dihitung ulang | belum |
+| `20261112090000_fase2_arsip_tabel_lama.sql` | 12 tabel sistem lama dipindah ke skema `arsip`, policy ganda dibuang | 2026-11-12 |
+| `20261112100000_ujian_skor_persen.sql` | Skor ujian selalu persen 0–100; skor ujian soal manual lama dihitung ulang | 2026-11-12 |
+| `20261112140000_sertifikat_bernomor.sql` | Sertifikat bernomor unik terbit otomatis saat divalidasi; dicabut saat validasi dibatalkan; RPC `verifikasi_sertifikat` publik | belum |
 
 Uji otomatis: `bash supabase/tests/terapkan_semua.sh` (butuh `psql` dan variabel `PG*`) membangun
 database dari nol, menerapkan semua migrasi dua kali, lalu menjalankan audit. CI menjalankannya di tiap push.

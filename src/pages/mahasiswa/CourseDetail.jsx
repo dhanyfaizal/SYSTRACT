@@ -11,6 +11,7 @@ import WebSlidePlayer from '@/components/mahasiswa/WebSlidePlayer'
 import CoursePreview from '@/components/mahasiswa/CoursePreview'
 import { COUNTDOWN_SEC, getMatType, getEmbedUrl, getCompetencies } from './courseDetail/materiHelpers'
 import CountdownRing from './courseDetail/CountdownRing'
+import { urlVerifikasi, buatQrDataUrl, unduhSertifikatPdf } from '@/lib/sertifikat'
 import { groupMaterialsIntoModules } from '@/lib/modules'
 
 
@@ -78,6 +79,10 @@ export default function CourseDetail() {
   const [enrollStatus, setEnrollStatus] = useState(null)
   const [certificateStatus, setCertificateStatus] = useState('unvalidated')
   const [certificateNotes, setCertificateNotes] = useState('')
+  const [sertifikat, setSertifikat] = useState(null)        // baris certificates (nomor resmi)
+  const [qrSertifikat, setQrSertifikat] = useState('')
+  const [mengunduhPdf, setMengunduhPdf] = useState(false)
+  const sertifikatRef = useRef(null)
   const [enrollmentId, setEnrollmentId] = useState(null)
   const [expandedSidebarModules, setExpandedSidebarModules] = useState({
     0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 99: true
@@ -589,6 +594,37 @@ export default function CourseDetail() {
         })
     }
   }, [isAllDone, enrollmentId, certificateStatus, courseId])
+
+  // Nomor sertifikat resmi diterbitkan server saat instruktur memvalidasi (trg_terbitkan_sertifikat).
+  useEffect(() => {
+    if (certificateStatus !== 'validated' || !courseId || !user?.id) return
+    let batal = false
+    supabase.from('certificates')
+      .select('certificate_code, issued_at, revoked_at, score')
+      .eq('student_id', user.id).eq('course_id', courseId).maybeSingle()
+      .then(async ({ data }) => {
+        if (batal || !data) return
+        setSertifikat(data)
+        try { setQrSertifikat(await buatQrDataUrl(urlVerifikasi(data.certificate_code))) } catch { /* QR opsional */ }
+      })
+    return () => { batal = true }
+  }, [certificateStatus, courseId, user?.id])
+
+  async function handleUnduhPdf() {
+    if (!sertifikatRef.current) return
+    setMengunduhPdf(true)
+    const toastId = toast.loading('Menyiapkan PDF sertifikat...')
+    try {
+      const nama = (profile?.full_name || 'Peserta').replace(/[^\p{L}\p{N}]+/gu, '-')
+      await unduhSertifikatPdf(sertifikatRef.current, `Sertifikat-${nama}-${sertifikat?.certificate_code || course?.code || 'SYSTRACT'}.pdf`)
+      toast.success('PDF sertifikat diunduh', { id: toastId })
+    } catch (err) {
+      console.error('[SYSTRACT] Gagal membuat PDF:', err)
+      toast.error('Gagal membuat PDF. Gunakan tombol Cetak lalu pilih "Simpan sebagai PDF".', { id: toastId, duration: 6000 })
+    } finally {
+      setMengunduhPdf(false)
+    }
+  }
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}><div className="spinner" /></div>
   if (!course) return <div className="empty-state"><p>Kursus tidak ditemukan.</p></div>
@@ -1120,13 +1156,19 @@ export default function CourseDetail() {
                   
                   {/* Cetak Button */}
                   {certificateStatus === 'validated' ? (
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => window.print()}
-                      style={{ gap: 6, fontWeight: 700, background: '#10b981', color: '#fff', borderColor: '#10b981' }}
-                    >
-                      <FileDown size={14} /> Cetak Sertifikat Kompetensi
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleUnduhPdf}
+                        disabled={mengunduhPdf}
+                        style={{ gap: 6, fontWeight: 700, background: '#10b981', color: '#fff', borderColor: '#10b981' }}
+                      >
+                        {mengunduhPdf ? <Loader2 size={14} style={{ animation: 'spin .8s linear infinite' }} /> : <FileDown size={14} />} Unduh PDF
+                      </button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => window.print()} style={{ gap: 6, fontWeight: 700 }}>
+                        Cetak
+                      </button>
+                    </div>
                   ) : (
                     <button
                       className="btn btn-secondary btn-sm"
@@ -1309,7 +1351,7 @@ export default function CourseDetail() {
                     <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--gray-950)', marginBottom: 16, fontFamily: 'Outfit, sans-serif' }}>Pratinjau Sertifikat</h3>
                     
                     {/* Printable container encompassing both pages */}
-                    <div className="printable-certificate-container" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+                    <div ref={sertifikatRef} className="printable-certificate-container" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
                   
                   {/* PAGE 1: Certificate design */}
                   <div className="printable-certificate" style={{
@@ -1550,6 +1592,14 @@ export default function CourseDetail() {
                       SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt &bull; SYSTraCt
                     </div>
 
+                    {/* QR verifikasi keaslian */}
+                    {qrSertifikat && (
+                      <div style={{ position: 'absolute', right: 24, bottom: 46, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <img src={qrSertifikat} alt="QR verifikasi sertifikat" style={{ width: 64, height: 64, background: '#fff', padding: 3, borderRadius: 4, border: '1px solid #e2e8f0' }} />
+                        <span style={{ fontSize: 7, color: '#64748b', fontFamily: 'sans-serif', fontWeight: 600 }}>Pindai untuk verifikasi</span>
+                      </div>
+                    )}
+
                     {/* Bottom Footer Bar */}
                     <div style={{
                       position: 'absolute',
@@ -1568,7 +1618,7 @@ export default function CourseDetail() {
                       fontWeight: 600,
                       letterSpacing: '0.5px'
                     }}>
-                      Certificate No. : SYSTRACT/CERT/{(course.code || 'CERT').toUpperCase()}/{user.id.slice(0, 8).toUpperCase()}
+                      Certificate No. : {sertifikat?.certificate_code || 'menunggu penerbitan'}
                     </div>
                   </div>
 
@@ -1674,7 +1724,7 @@ export default function CourseDetail() {
                       <div>
                         <span style={{ color: '#64748b', fontWeight: 600 }}>ID Sertifikat:</span>
                         <strong style={{ color: '#0f172a', marginLeft: 6, fontFamily: 'monospace' }}>
-                          SYSTRACT/CERT/{(course.code || 'CERT').toUpperCase()}/{user.id.slice(0, 8).toUpperCase()}
+                          {sertifikat?.certificate_code || 'menunggu penerbitan'}
                         </strong>
                       </div>
                     </div>

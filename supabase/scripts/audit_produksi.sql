@@ -26,7 +26,7 @@ expected_tables(name) AS (VALUES
   ('course_progress'),('material_views'),('final_grades'),('grade_configs'),
   ('course_grading_config'),('student_keaktifan'),('points_log'),
   ('shop_items'),('user_inventory'),('user_avatar_config'),
-  ('course_leaderboard'),('exam_attempt_keys'),('exams_peserta')
+  ('course_leaderboard'),('exam_attempt_keys'),('exams_peserta'),('certificates')
 ),
 -- View yang sengaja tanpa security_invoker (menyaring baris sendiri lewat auth.uid()).
 intended_definer_views(name) AS (VALUES ('exams_peserta'),('sesi_presensi_peserta')),
