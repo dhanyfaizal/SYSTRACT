@@ -1,110 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import {
-  Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy,
-  CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown,
-  PlusCircle, Search, Bot, RefreshCw, FileText, Download,
-  Share2, ArrowLeft, PenTool, CheckCircle, ChevronUp, Info, HelpCircle,
-  Award, Clock, Link, Check, Upload
-} from 'lucide-react'
+import { Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy, CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown, PlusCircle, Search, Bot, RefreshCw, Download, ChevronUp, Info, HelpCircle, Award, Clock, Link, Check, Upload } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
-
-// AI & Template Imports
-import {
-  generateCourseDescription, generateCplForCourse, generateCpmk,
-  generateWeeklyPlan, generateReferences, generateSlideContent,
-  generateWebSlideData, generateMcqQuestions, generateSingleSlide,
-  generateSingleWebSlideData
-} from '@/lib/ai'
+import { generateCourseDescription, generateCplForCourse, generateCpmk, generateWeeklyPlan, generateReferences, generateSlideContent, generateWebSlideData, generateMcqQuestions, generateSingleSlide, generateSingleWebSlideData } from '@/lib/ai'
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 import { SPA_LAYOUT_LABELS } from '@/lib/spaBlocks'
 import { parseWebSlideHtml, WebSlideImportError } from '@/lib/webslideImport'
-
-const COLORS   = ['#4f46e5','#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4']
-const SEMESTERS = ['Ganjil 2025/2026','Genap 2025/2026','Ganjil 2026/2027']
-
+import { COLORS, SEMESTERS, BLANK_COURSE_FORM, ATTACH_TYPES, BLANK_ATTACH, BLANK_MATERIAL_FORM, typeOf } from './mataKuliah/konstanta'
+import AttachRow from './mataKuliah/AttachRow'
 import { groupMaterialsIntoModules } from '@/lib/modules'
 
-const BLANK_COURSE_FORM = { code:'', name:'', description:'', credits:3, semester: SEMESTERS[0], cover_color:'#4f46e5', dosen_id:'' }
-
-// ── Attachment type definitions ────────────────────────────────
-const ATTACH_TYPES = [
-  { id: 'drive',   label: 'Google Drive',   icon: '📁', color: '#4285f4', bg: '#e8f0fe', mime: 'application/vnd.google-apps.document', placeholder: 'https://drive.google.com/file/d/...' },
-  { id: 'youtube', label: 'YouTube',         icon: '🎬', color: '#ff0000', bg: '#fff1f2', mime: 'video/youtube',                        placeholder: 'https://www.youtube.com/watch?v=...' },
-  { id: 'pdf',     label: 'PDF / Dokumen',   icon: '📄', color: '#ef4444', bg: '#fef2f2', mime: 'application/pdf',                      placeholder: 'https://example.com/file.pdf' },
-  { id: 'web',     label: 'Artikel / Web',   icon: '🌐', color: '#10b981', bg: '#f0fdf4', mime: 'text/html',                            placeholder: 'https://...' },
-]
-
-const BLANK_ATTACH = () => ({ mime: ATTACH_TYPES[0].mime, url: '', label: '' })
-const BLANK_MATERIAL_FORM = () => ({ title: '', description: '', week_number: 1, attachments: [BLANK_ATTACH()] })
-
-function typeOf(mime) { return ATTACH_TYPES.find(t => t.mime === mime) || ATTACH_TYPES[3] }
-
-function extractYouTubeId(url = '') {
-  const m = url.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/)
-  return m ? m[1] : null
-}
-
-// ── Row for one attachment ─────────────────────────────────────
-function AttachRow({ attach, idx, onChange, onRemove, canRemove }) {
-  const t = typeOf(attach.mime)
-  const ytId = attach.mime === 'video/youtube' ? extractYouTubeId(attach.url) : null
-
-  return (
-    <div style={{ border:'1px solid var(--gray-200)', borderRadius:10, padding:'12px 14px', marginBottom:10, background:'var(--gray-50)' }}>
-      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-        <span style={{ fontSize:18 }}>{t.icon}</span>
-        <div style={{ position:'relative', flex:'0 0 160px' }}>
-          <select
-            className="input"
-            value={attach.mime}
-            onChange={e => onChange(idx, 'mime', e.target.value)}
-            style={{ paddingRight:28, fontSize:12 }}
-          >
-            {ATTACH_TYPES.map(a => (
-              <option key={a.id} value={a.mime}>{a.icon} {a.label}</option>
-            ))}
-          </select>
-          <ChevronDown size={12} style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'var(--gray-400)' }}/>
-        </div>
-        <input
-          className="input"
-          placeholder="Label (opsional)"
-          value={attach.label}
-          onChange={e => onChange(idx, 'label', e.target.value)}
-          style={{ flex:1, fontSize:12 }}
-        />
-        {canRemove && (
-          <button className="btn btn-ghost btn-icon btn-sm" style={{ color:'var(--danger)', flexShrink:0 }} onClick={() => onRemove(idx)}>
-            <X size={14}/>
-          </button>
-        )}
-      </div>
-
-      <input
-        className="input"
-        placeholder={t.placeholder}
-        value={attach.url}
-        onChange={e => onChange(idx, 'url', e.target.value)}
-        style={{ fontSize:12 }}
-      />
-
-      {ytId && (
-        <div style={{ position:'relative', marginTop:8, borderRadius:8, overflow:'hidden', aspectRatio:'16/9', maxHeight:120, background:'#000' }}>
-          <img src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`} alt="thumbnail" style={{ width:'100%', height:'100%', objectFit:'cover', opacity:.85 }}/>
-          <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <div style={{ width:40, height:40, background:'#ff0000', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center' }}>
-              <span style={{ fontSize:16, color: '#fff' }}>▶</span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ── Main SPA component ─────────────────────────────────────────
 export default function DosenMataKuliah() {
