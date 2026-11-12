@@ -15,6 +15,8 @@ import AttachRow from './mataKuliah/AttachRow'
 import { groupMaterialsIntoModules } from '@/lib/modules'
 import BebanBelajarFields from '@/components/dosen/BebanBelajarFields'
 import PanelBebanBelajar from '@/components/dosen/PanelBebanBelajar'
+import EditorSoalVideo from '@/components/dosen/EditorSoalVideo'
+import { periksaSoal, rapikanSoal } from '@/lib/videoInteraktif'
 
 
 // ── Main SPA component ─────────────────────────────────────────
@@ -99,6 +101,7 @@ export default function DosenMataKuliah() {
   const [editTitle, setEditTitle] = useState('')
   const [editContent, setEditContent] = useState('')
   const [editImageUrl, setEditImageUrl] = useState('')
+  const [editSoal, setEditSoal] = useState([]) // soal di tengah video (slide video)
   const [regeneratingSlideNo, setRegeneratingSlideNo] = useState(null)
   const [regeneratingLayoutSlideNo, setRegeneratingLayoutSlideNo] = useState(null)
   const [slideBaruNo, setSlideBaruNo] = useState(null) // slide sisipan yang belum pernah disimpan
@@ -1110,6 +1113,7 @@ export default function DosenMataKuliah() {
     setEditTitle('')
     setEditContent('')
     setEditImageUrl('')
+    setEditSoal([])
   }
 
   function handleStartEditSlide(slide) {
@@ -1117,6 +1121,7 @@ export default function DosenMataKuliah() {
     setEditTitle(slide.title)
     setEditContent(slide.content ? slide.content.join('\n') : '')
     setEditImageUrl(slide.image_url || '')
+    setEditSoal(Array.isArray(slide.soal_video) ? slide.soal_video.map(s => ({ ...s, opsi: [...(s.opsi || []), '', '', '', ''].slice(0, 4) })) : [])
   }
 
   function handleSaveEditSlide(slideNo) {
@@ -1130,13 +1135,19 @@ export default function DosenMataKuliah() {
       toast.error('Isi tautan video YouTube (atau berkas video .mp4/.webm) yang valid.')
       return
     }
+    const isVideoTarget = target && slideVideo(target)
+    if (isVideoTarget) {
+      const galat = editSoal.map((q, i) => { const g = periksaSoal(q); return g ? `Pertanyaan ${i + 1}: ${g}` : '' }).find(Boolean)
+      if (galat) { toast.error(galat); return }
+    }
     const updatedSlides = slideOutline.slides.map(s => {
       if (s.slide_no === slideNo) {
         return {
           ...s,
           title: editTitle.trim(),
           content: editContent.split('\n').map(line => line.trim()).filter(line => line.length > 0),
-          image_url: editImageUrl.trim()
+          image_url: editImageUrl.trim(),
+          ...(isVideoTarget ? { soal_video: rapikanSoal(editSoal) } : {})
         }
       }
       return s
@@ -3440,9 +3451,7 @@ export default function DosenMataKuliah() {
                                           <span style={{ fontSize: 11, color: 'var(--red-600)' }}>Tautan belum dikenali sebagai video YouTube atau berkas .mp4/.webm.</span>
                                         )}
                                         {urlVideoValid(editImageUrl) && (
-                                          <div style={{ width: 240, aspectRatio: '16 / 9', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--gray-200)', background: '#000' }}>
-                                            {renderMediaPreview(editImageUrl.trim())}
-                                          </div>
+                                          <EditorSoalVideo url={editImageUrl.trim()} soal={editSoal} onChange={setEditSoal} />
                                         )}
                                       </div>
                                     )}
@@ -3485,6 +3494,11 @@ export default function DosenMataKuliah() {
                                         <span style={{ fontSize: 10, fontWeight: 800, background: isVideo ? '#FEF2F2' : 'var(--indigo-50)', color: isVideo ? '#DC2626' : 'var(--indigo-600)', padding: '2px 8px', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
                                           {isVideo && <Video size={10} />}{isVideo ? 'VIDEO' : 'SLIDE'} {s.slide_no}
                                         </span>
+                                        {isVideo && (
+                                          <span style={{ fontSize: 9, fontWeight: 700, background: s.soal_video?.length ? '#ECFDF3' : 'var(--gray-100)', color: s.soal_video?.length ? '#047857' : 'var(--gray-500)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+                                            {s.soal_video?.length ? `${s.soal_video.length} PERTANYAAN` : 'TANPA PERTANYAAN'}
+                                          </span>
+                                        )}
                                         {webslideData && webslideData.slides && (
                                           (() => {
                                             const layoutObj = webslideData.slides.find(ws => ws.slide_no === s.slide_no);

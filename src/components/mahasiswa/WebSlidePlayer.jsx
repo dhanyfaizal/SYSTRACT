@@ -1,6 +1,7 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { ExternalLink, Menu, X, ChevronLeft, ChevronRight, ArrowUp, AlertCircle } from 'lucide-react'
 import { prepareDeck, renderSections, SPA_CSS } from '@/lib/spaBlocks'
+import { pasangVideoInteraktif } from '@/lib/videoInteraktif'
 
 // Pemutar SPA peserta. Isi tiap bagian dirender oleh src/lib/spaBlocks.js (gaya Pitch Deck),
 // renderer yang sama dengan ekspor HTML, sehingga tampilan di aplikasi dan file HTML identik.
@@ -18,7 +19,9 @@ export default function WebSlidePlayer({
   meetingNo,
   slideData,
   onClose,
-  onOpenNewTab
+  onOpenNewTab,
+  kunciProgres = null,   // awalan kunci penyimpanan progres video interaktif (per peserta & materi)
+  onStatusVideo = null,  // ({ terjawab, total }) gabungan seluruh video interaktif di materi ini
 }) {
   const deck = useMemo(() => prepareDeck(slideData), [slideData])
   const slides = deck.slides
@@ -41,7 +44,31 @@ export default function WebSlidePlayer({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
   const paneRef = useRef(null)
+  const isiRef = useRef(null)
   const isScrollingRef = useRef(false)
+  const statusRef = useRef(onStatusVideo)
+  useEffect(() => { statusRef.current = onStatusVideo }, [onStatusVideo])
+
+  // Pasang soal pada video interaktif (media bertanda data-vi) setelah isi materi dirender.
+  useEffect(() => {
+    const wadah = isiRef.current
+    if (!wadah) return undefined
+    const per = {}
+    const kirim = () => {
+      const v = Object.values(per)
+      statusRef.current?.({ terjawab: v.reduce((a, x) => a + x.terjawab, 0), total: v.reduce((a, x) => a + x.total, 0) })
+    }
+    const pelepas = Array.from(wadah.querySelectorAll('[data-vi]')).map((media) => {
+      const idx = Number(media.getAttribute('data-vi'))
+      const soal = slideData?.slides?.[idx]?.soal_video
+      return pasangVideoInteraktif(media, soal, {
+        kunci: kunciProgres ? `${kunciProgres}_${idx}` : null,
+        onProgres: (p) => { per[idx] = p; kirim() },
+      })
+    })
+    if (pelepas.length === 0) kirim()
+    return () => pelepas.forEach((lepas) => lepas())
+  }, [sectionsHtml, slideData, kunciProgres])
 
   const handleScroll = (e) => {
     if (isScrollingRef.current) return
@@ -183,7 +210,7 @@ export default function WebSlidePlayer({
 
         {/* Isi materi */}
         <div ref={paneRef} onScroll={handleScroll} style={{ flex: 1, overflowY: 'auto', padding: 'clamp(12px, 2.5vw, 28px)' }}>
-          <div className="sx" onClick={handleContentClick} dangerouslySetInnerHTML={{ __html: sectionsHtml }} />
+          <div ref={isiRef} className="sx" onClick={handleContentClick} dangerouslySetInnerHTML={{ __html: sectionsHtml }} />
         </div>
       </div>
 
