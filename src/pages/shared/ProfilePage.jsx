@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   User, Mail, Shield, Edit2, Save, X,
-  Loader2
+  Loader2, Camera
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -20,7 +20,7 @@ export default function ProfilePage() {
   const [stats,     setStats]     = useState({ submissions:0, materialViews:0, forumPosts:0, courses:0, perfectScore:false })
   const [statsLoading, setStatsLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
-  const _fileRef = useRef()
+  const fileRef = useRef()
 
   useEffect(() => {
     if (profile) {
@@ -60,17 +60,21 @@ export default function ProfilePage() {
     setStatsLoading(false)
   }
 
-  async function _handleAvatarChange(e) {
+  // Bucket 'avatars': maks 2 MB, hanya gambar; pengguna hanya boleh menulis avatars/<id-nya>*.
+  async function handleAvatarChange(e) {
     const file = e.target.files?.[0]
+    e.target.value = ''   // agar memilih file yang sama lagi tetap memicu onChange
     if (!file) return
-    if (file.size > 3 * 1024 * 1024) { toast.error('Maks 3MB'); return }
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) { toast.error('Format harus PNG, JPG, WEBP, atau GIF'); return }
+    if (file.size > 2 * 1024 * 1024) { toast.error('Ukuran foto maksimal 2 MB'); return }
     setUploading(true)
-    const ext  = file.name.split('.').pop()
+    const ext  = (file.name.split('.').pop() || 'png').toLowerCase()
     const path = `avatars/${user.id}.${ext}`
-    const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
-    if (upErr) { toast.error('Gagal upload foto'); setUploading(false); return }
+    const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type })
+    if (upErr) { toast.error('Gagal upload foto: ' + upErr.message); setUploading(false); return }
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-    const { error: saveErr } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id)
+    // ?v= mencegah browser menampilkan foto lama dari cache (path-nya sama)
+    const { error: saveErr } = await supabase.from('profiles').update({ avatar_url: `${publicUrl}?v=${Date.now()}` }).eq('id', user.id)
     if (saveErr) toast.error('Gagal simpan foto')
     else { toast.success('Foto profil diperbarui!'); refreshProfile() }
     setUploading(false)
@@ -121,6 +125,16 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
+              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                title="Ganti foto profil" aria-label="Ganti foto profil"
+                style={{ position:'absolute', right:-2, bottom:-2, width:28, height:28, borderRadius:'50%',
+                  border:'2px solid white', background:'#4f46e5', color:'white', display:'flex',
+                  alignItems:'center', justifyContent:'center', cursor: uploading ? 'wait' : 'pointer',
+                  boxShadow:'0 2px 6px rgba(0,0,0,.2)' }}>
+                <Camera size={14} />
+              </button>
+              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={handleAvatarChange} style={{ display:'none' }} />
             </div>
 
             <div style={{ marginBottom:4 }}>
