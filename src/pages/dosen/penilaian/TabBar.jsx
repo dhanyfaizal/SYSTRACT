@@ -11,7 +11,7 @@ export default function TabBar({ active, onChange }) {
   ]
   return (
     <div style={{ display:'flex', gap:4, background:'var(--gray-100)', borderRadius:10, padding:4, width:'fit-content', marginBottom:20 }}>
-      {tabs.map(({ key, icon: _Icon, label }) => (
+      {tabs.map(({ key, icon: Icon, label }) => (
         <button key={key} onClick={() => onChange(key)}
           style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 18px', borderRadius:8, border:'none', cursor:'pointer', fontSize:13, fontWeight:600, transition:'all .15s',
             background: active===key ? '#fff' : 'transparent',
