@@ -105,6 +105,7 @@ export default function DosenMataKuliah() {
   const [regeneratingSlideNo, setRegeneratingSlideNo] = useState(null)
   const [regeneratingLayoutSlideNo, setRegeneratingLayoutSlideNo] = useState(null)
   const [slideBaruNo, setSlideBaruNo] = useState(null) // slide sisipan yang belum pernah disimpan
+  const [snapshotSlide, setSnapshotSlide] = useState('') // isi outline+SPA terakhir yang tersimpan di database
   const [menuSisip, setMenuSisip] = useState(null)     // posisi menu "Sisipkan slide" yang sedang terbuka
 
   const isOutlineEmpty = !slideOutline || !slideOutline.slides || slideOutline.slides.length === 0
@@ -942,9 +943,33 @@ export default function DosenMataKuliah() {
     setActiveMeeting(m)
     setSlideOutline(m.slide_content || null)
     setWebslideData(m.webslide_content || null)
+    setSnapshotSlide(JSON.stringify({ o: m.slide_content || null, w: m.webslide_content || null }))
+    setEditingSlideNo(null)
+    setSlideBaruNo(null)
     setMcqData(null)
     setAiSlideProgressText('')
     setSlideModal(true)
+  }
+
+  // Outline/SPA di modal berbeda dengan yang tersimpan di database (atau ada slide yang masih diedit).
+  const slideBelumDisimpan = slideModal && (
+    editingSlideNo !== null ||
+    JSON.stringify({ o: slideOutline, w: webslideData }) !== snapshotSlide
+  )
+
+  async function tutupSlideModal() {
+    if (slideBelumDisimpan && !mcqData) {
+      const ok = await showConfirm({
+        title: 'Tutup tanpa menyimpan?',
+        message: 'Perubahan outline, slide video, dan pertanyaan video belum tersimpan ke silabus, jadi peserta belum akan melihatnya. Tekan "Simpan ke Silabus" bila ingin menyimpannya.',
+        confirmLabel: 'Tutup tanpa menyimpan',
+        variant: 'danger',
+      })
+      if (!ok) return
+    }
+    setEditingSlideNo(null)
+    setSlideBaruNo(null)
+    setSlideModal(false)
   }
 
   async function handleGenerateSlideOutline() {
@@ -1163,7 +1188,7 @@ export default function DosenMataKuliah() {
 
     setEditingSlideNo(null)
     setSlideBaruNo(null)
-    toast.success(`Slide ${slideNo} berhasil diperbarui`)
+    toast.success(`Slide ${slideNo} diperbarui. Tekan "Simpan ke Silabus" agar peserta bisa melihatnya.`, { duration: 5000 })
   }
 
   function handleCancelEdit() {
@@ -1495,6 +1520,10 @@ export default function DosenMataKuliah() {
   }
 
   async function handleSaveAiSlideContent() {
+    if (editingSlideNo !== null) {
+      toast.error(`Slide ${editingSlideNo} masih diedit. Tekan Simpan atau Batal di slide itu dulu.`)
+      return
+    }
     setSavingSlide(true)
     const { error } = await supabase
       .from('materials')
@@ -1512,6 +1541,7 @@ export default function DosenMataKuliah() {
       }
     } else {
       toast.success('Rancangan Slide berhasil disimpan ke Silabus!')
+      setSnapshotSlide(JSON.stringify({ o: slideOutline, w: webslideData }))
       setSlideModal(false)
       fetchMaterials(selectedCourseId)
     }
@@ -3214,7 +3244,7 @@ export default function DosenMataKuliah() {
                   {+activeMeeting.week_number === 8 || +activeMeeting.week_number === 16 ? 'AI MCQ Questions Generator' : 'AI Slide & WebSlide Generator'}
                 </span>
               </div>
-              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setSlideModal(false)}><X size={14}/></button>
+              <button className="btn btn-ghost btn-icon btn-sm" onClick={tutupSlideModal} aria-label="Tutup"><X size={14}/></button>
             </div>
 
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -3663,8 +3693,18 @@ export default function DosenMataKuliah() {
               )}
             </div>
 
-            <div className="modal-footer" style={{ position: 'sticky', bottom: 0, background: 'var(--surface)', zIndex: 2 }}>
-              <button className="btn btn-secondary btn-sm" onClick={() => setSlideModal(false)}>Tutup</button>
+            <div className="modal-footer" style={{ position: 'sticky', bottom: 0, background: 'var(--surface)', zIndex: 2, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {slideBelumDisimpan && !mcqData && (slideOutline || webslideData) && (
+                <span style={{ marginRight: 'auto', fontSize: 12, fontWeight: 600, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 20, padding: '4px 10px' }} aria-live="polite">
+                  Ada perubahan yang belum disimpan ke silabus
+                </span>
+              )}
+              <button className="btn btn-secondary btn-sm" onClick={tutupSlideModal}>Tutup</button>
+              {slideBelumDisimpan && !mcqData && (slideOutline || webslideData) && (
+                <button className="btn btn-primary btn-sm" style={{ gap: 4 }} onClick={handleSaveAiSlideContent} disabled={savingSlide || isOutlineEmpty}>
+                  {savingSlide ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={13} />} Simpan ke Silabus
+                </button>
+              )}
             </div>
           </div>
         </div>
