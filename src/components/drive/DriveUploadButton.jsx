@@ -16,7 +16,7 @@ export default function DriveUploadButton({
   folderId,
   onSuccess,
   accept = '*',
-  label = 'File Drive',
+  label: _label = 'File Drive',
   mode = 'both',
   disabled = false,
 }) {

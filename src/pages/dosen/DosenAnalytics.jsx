@@ -108,7 +108,7 @@ export default function DosenAnalytics() {
     setLoading(false)
   }
 
-  const { students, assignments, submissions, finalGrades, materials, progress, exams, examAnswers } = data
+  const { students, assignments, submissions, finalGrades, materials, progress } = data
 
   // ── Computed metrics ────────────────────────────────────────
   const totalStudents = students.length
@@ -129,7 +129,7 @@ export default function DosenAnalytics() {
   }), [assignments, submissions])
 
   // Grade distribution from final_grades
-  const gradeDist = useMemo(() => {
+  const _gradeDist = useMemo(() => {
     if (!finalGrades.length) return []
     return GRADE_BANDS.map(b => {
       const next = GRADE_BANDS[GRADE_BANDS.indexOf(b)-1]

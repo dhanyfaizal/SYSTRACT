@@ -92,7 +92,7 @@ export default function AdminUsers() {
   // ── Bulk change role ─────────────────────────────────────────────
   async function handleBulkChangeRole() {
     if (!selectedIds.size) return
-    const selectedNames = filtered.filter(u => selectedIds.has(u.id)).map(u => u.full_name || u.email).slice(0,3)
+    const selectedNames = users.filter(u => selectedIds.has(u.id)).map(u => u.full_name || u.email).slice(0,3)
     const more = selectedIds.size > 3 ? ` +${selectedIds.size - 3} lainnya` : ''
     const ok = await showConfirm({
       title: `Ubah Role ${selectedIds.size} Pengguna?`,

@@ -211,7 +211,7 @@ export default function CourseDetail() {
   }, [isEnrolled, enrollStatus, loading, course, location.pathname, courseId, navigate])
 
   // Countdown timer state untuk materi aktif
-  const [elapsed, setElapsed] = useState(0)
+  const [_elapsed, _setElapsed] = useState(0)
   const [countdown, setCountdown] = useState(COUNTDOWN_SEC)
   const timerRef = useRef(null)
 
@@ -345,10 +345,10 @@ export default function CourseDetail() {
       try {
         const stored = JSON.parse(localStorage.getItem(`sy_done_${user.id}_${courseId}`) || '[]')
         stored.forEach(ref => localDone.add(ref))
-      } catch (e) {}
+      } catch { /* abaikan data lokal yang rusak */ }
 
       // Combine database progress
-      progressData?.forEach(p => {
+      progressData?.forEach(_p => {
         // If a material has multiple attachments, they are index-based.
         // We ensure we map it appropriately. Let's make sure localDone contains database items.
         // For simplicity: DB saves material_id, which completes all attachments of that material, or we track each idx.
@@ -633,7 +633,7 @@ export default function CourseDetail() {
 
       if (error) throw error
       setForumItems(data || [])
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat diskusi forum')
     } finally {
       setForumLoading(false)
@@ -661,7 +661,7 @@ export default function CourseDetail() {
       setNewTitle('')
       setNewBody('')
       fetchForumDiskusi()
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal membuat diskusi')
     } finally {
       setCreatingForum(false)
@@ -978,7 +978,7 @@ export default function CourseDetail() {
                         {lockingModule.name}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {pendingItems.map((item, idx) => (
+                        {pendingItems.map((item, _idx) => (
                           <button
                             key={item.id}
                             onClick={() => {
@@ -1334,7 +1334,7 @@ export default function CourseDetail() {
                   
                   {/* Module List */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {groupedModules.map((mod, modIdx) => {
+                    {groupedModules.map((mod, _modIdx) => {
                       return (
                         <div key={mod.id} style={{ borderBottom: '1px solid var(--gray-100)', paddingBottom: 12 }}>
                           <h4 style={{ fontSize: 12, fontWeight: 800, color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 8px 0' }}>
@@ -1342,7 +1342,7 @@ export default function CourseDetail() {
                           </h4>
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 12 }}>
-                            {mod.items.map((item, idx) => {
+                            {mod.items.map((item, _idx) => {
                               let itemDone = false
                               let scoreText = ''
                               if (item.type === 'materi') {
@@ -1939,7 +1939,7 @@ export default function CourseDetail() {
                   Belum ada tugas untuk mata kuliah ini.
                 </div>
               ) : (
-                courseAssignments.map((a, idx) => {
+                courseAssignments.map((a, _idx) => {
                   const sub = submissionsMap[a.id]
                   const isDone = !!sub
                   const isActive = activeTugas?.id === a.id

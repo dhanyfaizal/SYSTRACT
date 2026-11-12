@@ -68,7 +68,7 @@ export default function NilaiAkhir() {
 
     if (!sts.length) { setLoading(false); return }
 
-    const studentIds = sts.map(s=>s.id)
+    const _studentIds = sts.map(s=>s.id)
     const assignIds  = (assignments||[]).map(a=>a.id)
     const examIds    = (exams||[]).map(e=>e.id)
 

@@ -45,7 +45,7 @@ export default function Leaderboard() {
   const [animated,   setAnimated]   = useState(false)
   const [detail,     setDetail]     = useState(null)   // { student, logs }
   const [detailLoad, setDetailLoad] = useState(false)
-  const animRef = useRef(null)
+  const _animRef = useRef(null)
 
   async function openDetail(student) {
     if (role !== 'dosen') return

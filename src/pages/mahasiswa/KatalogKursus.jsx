@@ -55,7 +55,7 @@ export default function KatalogKursus() {
     }
   }
 
-  async function handleEnroll(courseId, courseName) {
+  async function _handleEnroll(courseId, courseName) {
     setEnrollingMap(prev => ({ ...prev, [courseId]: true }))
     try {
       const { error } = await supabase
@@ -129,7 +129,7 @@ export default function KatalogKursus() {
         <div className="course-grid">
           {filtered.map((c, i) => {
             const isEnrolled = enrolledIds.has(c.id)
-            const isEnrolling = enrollingMap[c.id]
+            const _isEnrolling = enrollingMap[c.id]
 
             return (
               <div key={c.id} className="course-card" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 240 }}>

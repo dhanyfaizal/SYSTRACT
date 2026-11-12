@@ -169,7 +169,7 @@ export default function AttendanceAnalytics({ courseId, students }) {
           <div className="card-header">
             <span style={{ fontWeight:700, fontSize:13 }}>Rekap Per Pertemuan</span>
           </div>
-          {sessions.map(s => {
+          {sessions.map(_s => {
             // fetch aggregates from data
             return null // placeholder — komponen ini bisa dikembangkan
           })}

@@ -98,8 +98,8 @@ export default function SemesterManager() {
 
   const active   = list.find(s => s.is_active)
   const inactive  = list.filter(s => !s.is_active)
-  const archived  = inactive.filter(s => s.ended_at)
-  const pending   = inactive.filter(s => !s.ended_at)
+  const _archived = inactive.filter(s => s.ended_at)
+  const _pending   = inactive.filter(s => !s.ended_at)
 
   return (
     <>

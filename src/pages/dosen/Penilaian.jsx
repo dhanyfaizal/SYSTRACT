@@ -26,7 +26,7 @@ function TabBar({ active, onChange }) {
   ]
   return (
     <div style={{ display:'flex', gap:4, background:'var(--gray-100)', borderRadius:10, padding:4, width:'fit-content', marginBottom:20 }}>
-      {tabs.map(({ key, icon: Icon, label }) => (
+      {tabs.map(({ key, icon: _Icon, label }) => (
         <button key={key} onClick={() => onChange(key)}
           style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 18px', borderRadius:8, border:'none', cursor:'pointer', fontSize:13, fontWeight:600, transition:'all .15s',
             background: active===key ? '#fff' : 'transparent',
@@ -530,7 +530,7 @@ function RekapTab({ userId }) {
     setLoading(true); setMatrix(null)
 
     // Parallel: fetch semua data sekaligus
-    const [{ data: enrollments }, { data: assignments }, { data: exams }] = await Promise.all([
+    const [{ data: _enrollments }, { data: assignments }, { data: exams }] = await Promise.all([
       supabase.from('enrollments')
         .select('student:profiles!student_id(id, full_name, nim)').eq('course_id', cid),
       supabase.from('assignments')

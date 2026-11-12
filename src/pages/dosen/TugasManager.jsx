@@ -167,7 +167,7 @@ function GradingPanel({ assignment, onClose }) {
               {/* Student rows */}
               <div style={{ flex:1, overflowY:'auto' }}>
                 {filtered.length === 0 && <div style={{ padding:20, textAlign:'center', fontSize:12, color:'var(--gray-400)' }}>Tidak ada mahasiswa</div>}
-                {filtered.map((row, i) => {
+                {filtered.map((row, _i) => {
                   const isActive  = row.student_id === selected
                   const isGraded  = row.sub?.status === 'graded'
                   const hasSub    = !!row.sub

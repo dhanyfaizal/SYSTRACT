@@ -22,7 +22,7 @@ export default function AnnouncementCarousel({ showManage = false, managePath = 
   const [loading,      setLoading]      = useState(true)
   const [paused,       setPaused]       = useState(false)
   const [animDir,      setAnimDir]      = useState('right')
-  const [visible,      setVisible]      = useState(true)
+  const [_visible,     _setVisible]     = useState(true)
   const [detailSlide,  setDetailSlide]  = useState(null)  // null = closed
   const timerRef = useRef(null)
 

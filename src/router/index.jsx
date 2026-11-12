@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -8,43 +9,43 @@ import AppLayout from '@/components/layout/AppLayout'
 import Login from '@/pages/auth/Login'
 
 // ── Mahasiswa ────────────────────────────────────────────────
-import MahasiswaDashboard from '@/pages/mahasiswa/Dashboard'
-import MahasiswaMataKuliah from '@/pages/mahasiswa/MataKuliah'
-import CourseDetail       from '@/pages/mahasiswa/CourseDetail'
-import TugasDetail        from '@/pages/mahasiswa/TugasDetail'
-import UjianDetail        from '@/pages/mahasiswa/UjianDetail'
-import Nilai              from '@/pages/mahasiswa/Nilai'
-import KatalogKursus       from '@/pages/mahasiswa/KatalogKursus'
+const MahasiswaDashboard = lazy(() => import('@/pages/mahasiswa/Dashboard'))
+const MahasiswaMataKuliah = lazy(() => import('@/pages/mahasiswa/MataKuliah'))
+const CourseDetail = lazy(() => import('@/pages/mahasiswa/CourseDetail'))
+const TugasDetail = lazy(() => import('@/pages/mahasiswa/TugasDetail'))
+const UjianDetail = lazy(() => import('@/pages/mahasiswa/UjianDetail'))
+const Nilai = lazy(() => import('@/pages/mahasiswa/Nilai'))
+const KatalogKursus = lazy(() => import('@/pages/mahasiswa/KatalogKursus'))
 
 
 // ── Dosen ────────────────────────────────────────────────────
-import DosenDashboard   from '@/pages/dosen/Dashboard'
-import DosenMataKuliah from '@/pages/dosen/MataKuliahManager'
-import TugasManager    from '@/pages/dosen/TugasManager'
-import UjianManager    from '@/pages/dosen/UjianManager'
-import BankSoal        from '@/pages/dosen/BankSoal'
-import ForumManager    from '@/pages/dosen/ForumManager'
-import Penilaian           from '@/pages/dosen/Penilaian'
-import AnnouncementManager from '@/pages/dosen/AnnouncementManager'
-import AttendanceManager   from '@/pages/dosen/AttendanceManager'
-import NilaiAkhir          from '@/pages/dosen/NilaiAkhir'
-import DosenAnalytics      from '@/pages/dosen/DosenAnalytics'
+const DosenDashboard = lazy(() => import('@/pages/dosen/Dashboard'))
+const DosenMataKuliah = lazy(() => import('@/pages/dosen/MataKuliahManager'))
+const TugasManager = lazy(() => import('@/pages/dosen/TugasManager'))
+const UjianManager = lazy(() => import('@/pages/dosen/UjianManager'))
+const BankSoal = lazy(() => import('@/pages/dosen/BankSoal'))
+const ForumManager = lazy(() => import('@/pages/dosen/ForumManager'))
+const Penilaian = lazy(() => import('@/pages/dosen/Penilaian'))
+const AnnouncementManager = lazy(() => import('@/pages/dosen/AnnouncementManager'))
+const AttendanceManager = lazy(() => import('@/pages/dosen/AttendanceManager'))
+const NilaiAkhir = lazy(() => import('@/pages/dosen/NilaiAkhir'))
+const DosenAnalytics = lazy(() => import('@/pages/dosen/DosenAnalytics'))
 
 // ── Admin ────────────────────────────────────────────────────
-import AdminDashboard      from '@/pages/admin/Dashboard'
-import AdminUsers          from '@/pages/admin/Users'
-import AdminEnrollment     from '@/pages/admin/Enrollment'
-import ProgramStudiManager from '@/pages/admin/ProgramStudiManager'
-import AdminAnnouncements  from '@/pages/admin/Announcements'
-import SemesterManager     from '@/pages/admin/SemesterManager'
+const AdminDashboard = lazy(() => import('@/pages/admin/Dashboard'))
+const AdminUsers = lazy(() => import('@/pages/admin/Users'))
+const AdminEnrollment = lazy(() => import('@/pages/admin/Enrollment'))
+const ProgramStudiManager = lazy(() => import('@/pages/admin/ProgramStudiManager'))
+const AdminAnnouncements = lazy(() => import('@/pages/admin/Announcements'))
+const SemesterManager = lazy(() => import('@/pages/admin/SemesterManager'))
 
 
 // ── Shared ───────────────────────────────────────────────────
-import ForumDetail      from '@/pages/shared/ForumDetail'
-import AcademicCalendar from '@/pages/shared/AcademicCalendar'
-import ProfilePage      from '@/pages/shared/ProfilePage'
-import NotFound         from '@/pages/NotFound'
-import WebSlidePreviewPage from '@/pages/dosen/WebSlidePreviewPage'
+const ForumDetail = lazy(() => import('@/pages/shared/ForumDetail'))
+const AcademicCalendar = lazy(() => import('@/pages/shared/AcademicCalendar'))
+const ProfilePage = lazy(() => import('@/pages/shared/ProfilePage'))
+const NotFound = lazy(() => import('@/pages/NotFound'))
+const WebSlidePreviewPage = lazy(() => import('@/pages/dosen/WebSlidePreviewPage'))
 
 // ── Protected Route ──────────────────────────────────────────
 function ProtectedRoute({ allowedRoles }) {
@@ -122,6 +123,7 @@ function SmartForum() {
 export default function AppRouter() {
   return (
     <BrowserRouter>
+      <Suspense fallback={<div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}><div className="spinner" /></div>}>
       <Routes>
         {/* Public */}
         <Route path="/login" element={<Login />} />
@@ -172,6 +174,7 @@ export default function AppRouter() {
         <Route path="/"  element={<Navigate to="/dashboard" replace />} />
         <Route path="*"  element={<NotFound />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }
