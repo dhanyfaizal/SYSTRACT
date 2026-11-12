@@ -196,6 +196,7 @@ export const SPA_CSS = `
 .sx *,.sx *::before,.sx *::after{box-sizing:border-box}
 .sx strong,.sx b{color:var(--ink);font-weight:700}
 .sx-sec{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:clamp(20px,4vw,40px);margin:0 0 20px;scroll-margin-top:12px}
+.sx-mode-slide .sx-sec:not(.is-aktif){display:none}.sx-mode-slide .sx-sec{margin:0}
 .sx-head{display:flex;flex-direction:column;gap:6px;margin-bottom:20px}
 .sx-eyebrow{margin:0;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--forest)}
 .sx-title{margin:0;font-size:clamp(22px,2.6vw,30px);font-weight:700;line-height:1.2;letter-spacing:-.01em;color:var(--ink)}

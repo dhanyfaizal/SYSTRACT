@@ -137,6 +137,8 @@ export default function CourseDetail() {
     { label: 'Latihan benar', ...sm.latihan },
   ].filter((s) => s.total > 0) : []
   const spaBelumTuntas = pakaiSpa && (!sm || syaratSpa.some((s) => s.selesai < s.total))
+  // Tata letak satu layar: materi SPA yang terbuka (bukan terkunci) mengisi kolom tanpa gulir halaman.
+  const tampilanSpa = subTab === 'belajar' && activeItem?.type === 'materi' && pakaiSpa
   const { sisa: sisaDetik, total: totalDetik, dijeda } = useWaktuBelajarAktif({
     aktif: !!refAktif && !refSudahSelesai && subTab === 'belajar' && !pakaiSpa,
     kunci: refAktif && user?.id ? `sy_aktif_${user.id}_${refAktif}` : null,
@@ -623,9 +625,11 @@ export default function CourseDetail() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', minHeight: 520 }}>
+    // Satu layar penuh: tinggi = layar dikurangi header aplikasi dan padding konten (shell.css),
+    // sehingga halaman tidak ikut bergulir; hanya isi materi yang bergulir.
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100dvh - var(--header-h, 56px) - 56px)', minHeight: 480 }}>
       {/* Top Header Row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 16, borderBottom: '1px solid var(--gray-200)', flexShrink: 0, gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10, borderBottom: '1px solid var(--gray-200)', flexShrink: 0, gap: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           <button className="btn btn-ghost btn-icon btn-sm" onClick={() => navigate('/dashboard')} title="Kembali ke Beranda">
             <ArrowLeft size={16} />
@@ -697,7 +701,7 @@ export default function CourseDetail() {
 
       {/* Main Body */}
       {subTab === 'belajar' && (
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', marginTop: 14 }}>
+        <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', marginTop: 10 }}>
           {/* LEFT: Sidebar Syllabus */}
           <div style={{ width: 280, flexShrink: 0, borderRight: '1px solid var(--gray-200)', display: syllabusOpen ? 'flex' : 'none', flexDirection: 'column', paddingRight: 16, overflowY: 'auto' }}>
             
@@ -843,7 +847,7 @@ export default function CourseDetail() {
             </div>
 
           {/* RIGHT: Content Pane */}
-          <div style={{ flex: 1, paddingLeft: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, minWidth: 0, paddingLeft: 20, overflowY: tampilanSpa ? 'hidden' : 'auto', display: 'flex', flexDirection: 'column' }}>
             {isItemLocked(activeItem) ? (
               <div className="card animate-fade-in" style={{ padding: 32, textAlign: 'center', margin: 'auto 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, border: '1px solid var(--gray-200)', background: 'linear-gradient(135deg, #f8fafc, #ffffff)', boxShadow: '0 8px 24px rgba(0,0,0,0.04)', borderRadius: 16, maxWidth: 500, alignSelf: 'center' }}>
                 <div style={{
@@ -907,11 +911,12 @@ export default function CourseDetail() {
             ) : (
               <>
                 {activeItem?.type === 'materi' && (
-              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                {/* WebSlide Integration */}
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: tampilanSpa ? 0 : undefined }}>
+                {/* WebSlide Integration: mengisi sisa tinggi; isi materi satu-satunya area gulir */}
                 {activeItem.data.webslide_content && (
-                  <div style={{ marginBottom: 16 }}>
+                  <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginBottom: 10 }}>
                     <WebSlidePlayer
+                      tinggi="100%"
                       courseName={course.name}
                       prodiName={profile?.program_studi || 'Teknik Informatika'}
                       meetingNo={activeItem.data.week_number || 1}
@@ -938,8 +943,8 @@ export default function CourseDetail() {
                   </div>
                 )}
 
-                {/* Embedded preview if supported */}
-                {activeItem.attach.url !== '#' && (
+                {/* Embedded preview if supported (materi SPA: lampiran berupa tautan di bilah bawah) */}
+                {activeItem.attach.url !== '#' && !tampilanSpa && (
                   getEmbedUrl(activeItem.attach.mime, activeItem.attach.url) ? (
                     <div style={{ position: 'relative', width: '100%', aspectRatio: activeItem.attach.mime === 'video/youtube' ? '16/9' : '4/3', borderRadius: 12, overflow: 'hidden', background: '#000', border: '1px solid var(--gray-200)' }}>
                       <iframe
@@ -968,14 +973,21 @@ export default function CourseDetail() {
                   )
                 )}
 
-                {/* Description */}
-                <div style={{ marginTop: 16 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)' }}>{activeItem.label}</h3>
-                  {activeItem.data.description && <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4 }}>{activeItem.data.description}</p>}
-                </div>
+                {/* Description (materi SPA: judul sudah tampil di kepala pemutar) */}
+                {!tampilanSpa && (
+                  <div style={{ marginTop: 16 }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)' }}>{activeItem.label}</h3>
+                    {activeItem.data.description && <p style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4 }}>{activeItem.data.description}</p>}
+                  </div>
+                )}
 
-                {/* Bottom Complete & Continue bar */}
-                <div style={{ marginTop: 'auto', borderTop: '1px solid var(--gray-200)', paddingTop: 16, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
+                {/* Bilah aksi bawah: selalu terlihat (syarat selesai + Tandai Selesai) */}
+                <div style={{ marginTop: tampilanSpa ? 0 : 'auto', flexShrink: 0, borderTop: '1px solid var(--gray-200)', paddingTop: 10, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  {tampilanSpa && activeItem.attach.url !== '#' && (
+                    <a href={activeItem.attach.url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" style={{ marginRight: 'auto', gap: 4 }}>
+                      Lampiran: {activeItem.label} <ExternalLink size={12} />
+                    </a>
+                  )}
                   {completedRefs.has(`mat_${activeItem.data.id}_${activeItem.subIdx ?? 0}`) ? (
                     <button className="btn btn-primary btn-sm" onClick={goToNextItem}>
                       Lanjut ke Materi Berikutnya <ChevronRight size={13} />
