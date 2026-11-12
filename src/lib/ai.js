@@ -549,8 +549,8 @@ Pilihan layout (pilih yang paling sesuai isi; variasikan agar tidak monoton):
 10. "discussion" — WAJIB untuk slide outline berjudul "Diskusi": pertanyaan pemantik reflektif beserta petunjuk berpikir (bukan jawaban).
    { "slide_no": X, "layout": "discussion", "title": "Diskusi", "discussion_items": [ { "question": "...?", "hint": "..." } ] }
 11. "quiz" — WAJIB untuk slide outline berjudul "Latihan": soal pilihan ganda untuk latihan mandiri.
-   { "slide_no": X, "layout": "quiz", "title": "Latihan", "quiz_items": [ { "question": "...", "options": ["...", "...", "...", "..."], "answer": 1, "explanation": "..." } ] }
-   Setiap soal 4 pilihan; "answer" adalah indeks pilihan benar (0–3); sebarkan posisi jawaban benar; pengecoh harus masuk akal; "explanation" menjelaskan mengapa jawaban itu benar. Soal diambil dari soal pada outline.
+   { "slide_no": X, "layout": "quiz", "title": "Latihan", "quiz_items": [ { "question": "...", "options": ["...", "...", "...", "...", "..."], "answer": 1, "explanation": "..." } ] }
+   Setiap soal TEPAT 5 pilihan; "answer" adalah indeks pilihan benar (0–4); sebarkan posisi jawaban benar; pengecoh harus masuk akal; "explanation" menjelaskan mengapa jawaban itu benar. Soal diambil dari soal pada outline.
 12. "media" — gambar atau video sebagai fokus. HANYA bila slide outline punya "image_url".
    { "slide_no": X, "layout": "media", "title": "...", "image_url": "(salin dari outline)", "caption": "...", "description": "..." }
 
@@ -626,13 +626,13 @@ Aturan:
 - Setiap soal menguji SATU gagasan penting yang benar-benar diucapkan di video, bukan pengetahuan umum di luar video.
 - "detik" = waktu tepat SETELAH gagasan itu selesai dijelaskan (ambil dari cap waktu segmen berikutnya), dalam detik bulat. Jangan menaruh soal sebelum jawabannya disebut di video.
 - Sebar soal ke seluruh video secara merata; jarak antarsoal minimal 30 detik; urutkan menurut detik.
-- Tepat 4 pilihan, satu jawaban benar; pengecoh masuk akal dan diambil dari konteks video; sebarkan posisi jawaban benar.
-- "jawaban" adalah indeks pilihan benar (0–3).
+- Tepat 5 pilihan, satu jawaban benar; pengecoh masuk akal dan diambil dari konteks video; sebarkan posisi jawaban benar.
+- "jawaban" adalah indeks pilihan benar (0–4).
 - "penjelasan" 1 kalimat yang merujuk isi video (boleh menyebut menitnya).
 - Bahasa Indonesia yang jelas dan singkat; pertanyaan maksimal 25 kata. Jangan menyebut "transkrip".
 
 Format output: JSON murni
-{ "soal": [ { "detik": 95, "pertanyaan": "...", "opsi": ["...", "...", "...", "..."], "jawaban": 2, "penjelasan": "..." } ] }
+{ "soal": [ { "detik": 95, "pertanyaan": "...", "opsi": ["...", "...", "...", "...", "..."], "jawaban": 2, "penjelasan": "..." } ] }
 `;
 
   return callAi(prompt, true, onProgress);
@@ -686,7 +686,7 @@ export async function generateMcqQuestions(courseName, examType, topic, capabili
     Kemampuan Akhir: "${capability || 'Mengukur pemahaman materi'}"
 
     Hasilkan daftar soal pilihan ganda (TEPAT 25 SOAL) yang berkualitas tinggi, analitis, dan bervariasi tingkat kesulitannya.
-    Setiap soal harus memiliki tepat 4 opsi jawaban (A, B, C, D) dan kunci jawaban yang benar serta penjelasan singkat.
+    Setiap soal harus memiliki tepat 5 opsi jawaban (A, B, C, D, E) dan kunci jawaban yang benar serta penjelasan singkat.
 
     Format output wajib berupa JSON OBJECT murni dengan struktur:
     {
@@ -700,7 +700,8 @@ export async function generateMcqQuestions(courseName, examType, topic, capabili
             "Jawaban A",
             "Jawaban B",
             "Jawaban C",
-            "Jawaban D"
+            "Jawaban D",
+            "Jawaban E"
           ],
           "answer": "A",
           "explanation": "Penjelasan mengapa jawaban A benar..."
@@ -712,7 +713,7 @@ export async function generateMcqQuestions(courseName, examType, topic, capabili
     ATURAN:
     - Gunakan Bahasa Indonesia formal yang baik, jelas, dan tidak ambigu.
     - Opsi jawaban harus masuk akal (distractor yang baik).
-    - Tentukan satu huruf kunci jawaban (A, B, C, atau D) pada properti "answer".
+    - Tentukan satu huruf kunci jawaban (A, B, C, D, atau E) pada properti "answer"; sebarkan posisi jawaban benar secara merata.
     - Hasilkan TEPAT 25 SOAL pilihan ganda (jangan kurang, jangan lebih).
     - Jangan berikan penjelasan tambahan apapun di luar JSON murni.
   `;

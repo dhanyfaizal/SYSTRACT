@@ -10,12 +10,17 @@ describe('rapikanSoal & periksaSoal', () => {
     const r = rapikanSoal([q(120), q(30), { detik: 50, pertanyaan: '', opsi: ['a', 'b'] }, q(60, { jawaban: 3 })])
     expect(r.map((s) => s.detik)).toEqual([30, 120])
   })
-  it('memberi pesan kesalahan yang jelas', () => {
-    expect(periksaSoal(q(10))).toBe('')
-    expect(periksaSoal(q(10, { pertanyaan: ' ' }))).toMatch(/Pertanyaan/)
-    expect(periksaSoal(q(10, { opsi: ['a', '', '', ''] }))).toMatch(/dua pilihan/)
-    expect(periksaSoal(q(10, { jawaban: 2 }))).toMatch(/ditandai benar/)
-    expect(periksaSoal(q(400), 300)).toMatch(/durasi/)
+  it('memberi pesan kesalahan yang jelas (5 pilihan wajib)', () => {
+    const lima = { opsi: ['a', 'b', 'c', 'd', 'e'] }
+    expect(periksaSoal(q(10, lima))).toBe('')
+    expect(periksaSoal(q(10, { ...lima, pertanyaan: ' ' }))).toMatch(/Pertanyaan/)
+    expect(periksaSoal(q(10))).toMatch(/kelima pilihan/)
+    expect(periksaSoal(q(10, { opsi: ['a', 'b', 'c', 'd', ' '] }))).toMatch(/kelima pilihan/)
+    expect(periksaSoal(q(10, { ...lima, jawaban: 7 }))).toMatch(/ditandai benar/)
+    expect(periksaSoal(q(400, lima), 300)).toMatch(/durasi/)
+  })
+  it('soal lama berpilihan kurang dari 5 tetap bisa diputar peserta', () => {
+    expect(rapikanSoal([q(30)])).toHaveLength(1)
   })
 })
 

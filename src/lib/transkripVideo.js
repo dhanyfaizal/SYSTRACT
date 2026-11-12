@@ -105,20 +105,20 @@ export function normalkanSoalAi(hasil, { durasi = 0 } = {}) {
   const daftar = Array.isArray(hasil?.soal) ? hasil.soal : Array.isArray(hasil) ? hasil : []
   const batas = durasi > 0 ? Math.floor(durasi) - 1 : Infinity
   const mentah = daftar.map((s) => {
-    const opsi = (Array.isArray(s?.opsi) ? s.opsi : []).slice(0, 4).map((o) => String(o ?? '').replace(/^[A-D][.)]\s*/, '').trim())
+    const opsi = (Array.isArray(s?.opsi) ? s.opsi : []).slice(0, 5).map((o) => String(o ?? '').replace(/^[A-E][.)]\s*/, '').trim())
     let jawaban = s?.jawaban
-    if (typeof jawaban === 'string') jawaban = /^[A-D]$/i.test(jawaban.trim()) ? 'ABCD'.indexOf(jawaban.trim().toUpperCase()) : Number(jawaban)
+    if (typeof jawaban === 'string') jawaban = /^[A-E]$/i.test(jawaban.trim()) ? 'ABCDE'.indexOf(jawaban.trim().toUpperCase()) : Number(jawaban)
     const detik = typeof s?.detik === 'string' ? bacaDetik(s.detik) : Number(s?.detik)
     if (!Number.isFinite(detik) || detik < 1) return null // tanpa detik yang jelas: buang
     return {
       detik: Math.min(batas, Math.round(detik)),
       pertanyaan: String(s?.pertanyaan ?? '').trim(),
-      opsi: [...opsi, '', '', '', ''].slice(0, 4),
+      opsi: [...opsi, '', '', '', '', ''].slice(0, 5),
       jawaban: Number.isInteger(jawaban) ? jawaban : 0,
       penjelasan: String(s?.penjelasan ?? '').trim(),
     }
   })
-  const rapi = rapikanSoal(mentah.filter(Boolean)).map((s) => ({ ...s, opsi: [...s.opsi, '', '', '', ''].slice(0, 4) }))
+  const rapi = rapikanSoal(mentah.filter(Boolean)).map((s) => ({ ...s, opsi: [...s.opsi, '', '', '', '', ''].slice(0, 5) }))
   const terpilih = []
   for (const s of rapi) {
     if (!Number.isFinite(s.detik) || s.detik < 1) continue

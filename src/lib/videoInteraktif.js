@@ -8,6 +8,7 @@
 // Kunci jawaban ada di browser (soal ini latihan formatif agar peserta menyimak, bukan ujian).
 
 export const SOAL_MAKS_PER_VIDEO = 12
+export const JUMLAH_PILIHAN = 5 // semua soal pilihan ganda SYSTRACT memakai 5 pilihan (A–E)
 const TOLERANSI_LOMPAT = 2 // detik: selisih yang masih dianggap pemutaran normal, bukan lompatan
 
 /* ------------------------------- Logika murni ------------------------------- */
@@ -35,7 +36,7 @@ export function rapikanSoal(soal) {
 export function periksaSoal(s, durasi = 0) {
   if (!String(s?.pertanyaan || '').trim()) return 'Pertanyaan belum diisi.'
   const opsi = (s.opsi || []).map((o) => String(o || '').trim())
-  if (opsi.filter(Boolean).length < 2) return 'Isi minimal dua pilihan jawaban.'
+  if (opsi.slice(0, JUMLAH_PILIHAN).filter(Boolean).length < JUMLAH_PILIHAN) return `Isi kelima pilihan jawaban (A–E).`
   if (!opsi[s.jawaban]) return 'Pilihan yang ditandai benar masih kosong.'
   if (!(Number(s.detik) >= 1)) return 'Detik kemunculan belum diisi.'
   if (durasi > 0 && Number(s.detik) > durasi) return 'Detik kemunculan melebihi durasi video.'
