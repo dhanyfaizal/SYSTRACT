@@ -2,6 +2,9 @@ import { useState, useRef, useMemo, useEffect, useLayoutEffect } from 'react'
 import { ExternalLink, Menu, X, ChevronLeft, ChevronRight, ArrowUp, AlertCircle } from 'lucide-react'
 import { prepareDeck, renderSections, SPA_CSS } from '@/lib/spaBlocks'
 import { pasangVideoInteraktif } from '@/lib/videoInteraktif'
+import { pasangLatihan } from '@/lib/latihanInteraktif'
+import { targetBacaBagian, bagianTerlihat } from '@/lib/bacaBagian'
+import { DETIK_DIAM_MAKS } from '@/hooks/useWaktuBelajarAktif'
 
 // Pemutar SPA peserta. Isi tiap bagian dirender oleh src/lib/spaBlocks.js (gaya Pitch Deck),
 // renderer yang sama dengan ekspor HTML, sehingga tampilan di aplikasi dan file HTML identik.
@@ -20,8 +23,9 @@ export default function WebSlidePlayer({
   slideData,
   onClose,
   onOpenNewTab,
-  kunciProgres = null,   // awalan kunci penyimpanan progres video interaktif (per peserta & materi)
-  onStatusVideo = null,  // ({ terjawab, total }) gabungan seluruh video interaktif di materi ini
+  kunciProgres = null,   // awalan kunci penyimpanan progres (per peserta & materi); null = tidak disimpan
+  onStatusMateri = null, // ({ baca, video, latihan }) masing-masing { selesai, total } — syarat menyelesaikan materi
+  tinggi = 'max(460px, calc(100vh - 270px))', // tinggi pemutar; '100vh' untuk tampilan tab sendiri
 }) {
   const deck = useMemo(() => prepareDeck(slideData), [slideData])
   const slides = deck.slides
@@ -46,35 +50,126 @@ export default function WebSlidePlayer({
   const paneRef = useRef(null)
   const isiRef = useRef(null)
   const isScrollingRef = useRef(false)
-  const statusRef = useRef(onStatusVideo)
+  const statusRef = useRef(onStatusMateri)
   const slideDataRef = useRef(slideData)
-  useEffect(() => { statusRef.current = onStatusVideo }, [onStatusVideo])
+  const [versiProgres, setVersiProgres] = useState(0)
+  const [soalBagian, setSoalBagian] = useState({}) // { [idx]: { jenis: 'video'|'latihan', terjawab, total } }
+  const [bacaSnapshot, setBacaSnapshot] = useState([]) // salinan catatan baca untuk render
+  useEffect(() => { statusRef.current = onStatusMateri }, [onStatusMateri])
   useEffect(() => { slideDataRef.current = slideData }, [slideData])
 
+  // Waktu baca minimal per bagian (detik), dari isi slide.
+  // Distabilkan menurut isinya: data slide yang sama tapi objek baru tidak boleh mereset pelacak.
+  const targetTeks = slides.map(targetBacaBagian).join(',')
+  const targetBaca = useMemo(() => (targetTeks ? targetTeks.split(',').map(Number) : []), [targetTeks])
+  const kunciBaca = kunciProgres ? `${kunciProgres}_baca` : null
+  const bacaRef = useRef([])
+
   // Isi materi ditulis sendiri (bukan dangerouslySetInnerHTML): React menulis ulang innerHTML saat
-  // komponen induk dirender ulang (mis. timer belajar tiap detik), yang mengganti iframe video dan
-  // membuang panel soal yang sudah terpasang. Di sini isi hanya ditulis ulang bila HTML-nya berubah,
-  // lalu soal dipasang pada video interaktif (media bertanda data-vi).
+  // komponen induk dirender ulang (mis. tiap detik), yang mengganti iframe video dan membuang panel
+  // soal yang sudah terpasang. Di sini isi hanya ditulis ulang bila HTML-nya berubah, lalu soal
+  // dipasang pada video interaktif (data-vi) dan latihan (layout quiz).
   useLayoutEffect(() => {
     const wadah = isiRef.current
     if (!wadah) return undefined
     wadah.innerHTML = sectionsHtml
-    const per = {}
-    const kirim = () => {
-      const v = Object.values(per)
-      statusRef.current?.({ terjawab: v.reduce((a, x) => a + x.terjawab, 0), total: v.reduce((a, x) => a + x.total, 0) })
-    }
-    const pelepas = Array.from(wadah.querySelectorAll('[data-vi]')).map((media) => {
-      const idx = Number(media.getAttribute('data-vi'))
-      const soal = slideDataRef.current?.slides?.[idx]?.soal_video
-      return pasangVideoInteraktif(media, soal, {
-        kunci: kunciProgres ? `${kunciProgres}_${idx}` : null,
-        onProgres: (p) => { per[idx] = p; kirim() },
-      })
-    })
-    if (pelepas.length === 0) kirim()
+    setSoalBagian({})
+    const catat = (idx, jenis) => (p) => setSoalBagian((s) => ({ ...s, [idx]: { jenis, ...p } }))
+    const pelepas = [
+      ...Array.from(wadah.querySelectorAll('[data-vi]')).map((media) => {
+        const idx = Number(media.getAttribute('data-vi'))
+        return pasangVideoInteraktif(media, slideDataRef.current?.slides?.[idx]?.soal_video, {
+          kunci: kunciProgres ? `${kunciProgres}_${idx}` : null,
+          onProgres: catat(idx, 'video'),
+        })
+      }),
+      ...Array.from(wadah.querySelectorAll('section[data-layout="quiz"]')).map((sec) => {
+        const idx = Number(sec.id.replace('sx-sec-', ''))
+        return pasangLatihan(sec, slideDataRef.current?.slides?.[idx]?.quiz_items, {
+          kunci: kunciProgres ? `${kunciProgres}_q${idx}` : null,
+          onProgres: catat(idx, 'latihan'),
+        })
+      }),
+    ]
     return () => pelepas.forEach((lepas) => lepas())
-  }, [sectionsHtml, kunciProgres])
+  }, [sectionsHtml, kunciProgres, versiProgres])
+
+  // Muat catatan baca per bagian (bisa dilanjutkan di lain waktu).
+  useEffect(() => {
+    let tersimpan = []
+    try { tersimpan = kunciBaca ? JSON.parse(localStorage.getItem(kunciBaca) || '[]') : [] } catch { tersimpan = [] }
+    bacaRef.current = targetBaca.map((_, i) => Math.max(0, Number(tersimpan[i]) || 0))
+    setBacaSnapshot(bacaRef.current.slice())
+  }, [kunciBaca, targetBaca])
+
+  // Pelacak baca: bagian yang cukup terlihat di panel bertambah 1 detik, hanya saat tab terlihat
+  // dan peserta aktif (ada gerakan/gulir/ketik dalam 2 menit terakhir).
+  useEffect(() => {
+    const pane = paneRef.current
+    if (!pane) return undefined
+    let terakhirAktif = Date.now()
+    let ketukan = 0
+    const tandai = () => { terakhirAktif = Date.now() }
+    const kejadian = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'scroll']
+    kejadian.forEach((k) => window.addEventListener(k, tandai, { passive: true, capture: true }))
+    const simpan = () => { try { if (kunciBaca) localStorage.setItem(kunciBaca, JSON.stringify(bacaRef.current)) } catch { /* abaikan */ } }
+    const id = setInterval(() => {
+      if (document.visibilityState !== 'visible' || Date.now() - terakhirAktif > DETIK_DIAM_MAKS * 1000) return
+      const rp = pane.getBoundingClientRect()
+      let berubah = false
+      targetBaca.forEach((t, i) => {
+        if (!t || (bacaRef.current[i] || 0) >= t) return
+        const el = isiRef.current?.querySelector(`#sx-sec-${i}`)
+        if (!el || !bagianTerlihat(el.getBoundingClientRect(), rp)) return
+        bacaRef.current[i] = (bacaRef.current[i] || 0) + 1
+        if (bacaRef.current[i] >= t) berubah = true
+      })
+      ketukan += 1
+      if (berubah || ketukan % 5 === 0) simpan()
+      if (berubah) setBacaSnapshot(bacaRef.current.slice())
+    }, 1000)
+    return () => {
+      clearInterval(id)
+      simpan()
+      kejadian.forEach((k) => window.removeEventListener(k, tandai, { capture: true }))
+    }
+  }, [targetBaca, kunciBaca])
+
+  // Progres dari tab lain ("Buka di tab baru"): soal → pasang ulang; baca → gabungkan.
+  useEffect(() => {
+    if (!kunciProgres) return undefined
+    const dengar = (e) => {
+      if (!e.key?.startsWith(`${kunciProgres}_`)) return
+      if (e.key === kunciBaca) {
+        let lain = []
+        try { lain = JSON.parse(e.newValue || '[]') } catch { lain = [] }
+        bacaRef.current = bacaRef.current.map((d, i) => Math.max(d, Number(lain[i]) || 0))
+        setBacaSnapshot(bacaRef.current.slice())
+      } else {
+        setVersiProgres((v) => v + 1)
+      }
+    }
+    window.addEventListener('storage', dengar)
+    return () => window.removeEventListener('storage', dengar)
+  }, [kunciProgres, kunciBaca])
+
+  // Status tiap bagian (untuk tanda ✓ di daftar isi) dan ringkasan syarat selesai materi.
+  const selesaiBagian = useMemo(() => targetBaca.map((t, i) => {
+    const s = soalBagian[i]
+    if (s) return s.terjawab >= s.total
+    return t > 0 ? (bacaSnapshot[i] || 0) >= t : null
+  }), [targetBaca, soalBagian, bacaSnapshot])
+
+  useEffect(() => {
+    const jumlah = (jenis) => Object.values(soalBagian).filter((s) => s.jenis === jenis)
+      .reduce((a, s) => ({ selesai: a.selesai + s.terjawab, total: a.total + s.total }), { selesai: 0, total: 0 })
+    const wajibBaca = targetBaca.map((t, i) => (t > 0 ? i : -1)).filter((i) => i >= 0)
+    statusRef.current?.({
+      baca: { selesai: wajibBaca.filter((i) => selesaiBagian[i]).length, total: wajibBaca.length },
+      video: jumlah('video'),
+      latihan: jumlah('latihan'),
+    })
+  }, [soalBagian, selesaiBagian, targetBaca])
 
   const handleScroll = (e) => {
     if (isScrollingRef.current) return
@@ -130,7 +225,9 @@ export default function WebSlidePlayer({
         color: '#1B2A25',
         borderRadius: 14,
         overflow: 'hidden',
-        height: 'max(460px, calc(100vh - 270px))',
+        height: tinggi,
+        // Video dikecilkan secukupnya agar judul, video, dan baris status muat dalam satu layar.
+        '--sx-video-maks-h': `max(220px, calc(${tinggi} - 250px))`,
         border: '1px solid #DDE3DE',
         position: 'relative',
         fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif"
@@ -208,7 +305,14 @@ export default function WebSlidePlayer({
                   fontWeight: activeIdx === idx ? 700 : 500
                 }}
               >
-                <span style={{ opacity: 0.6, marginRight: 6 }}>{idx + 1}.</span>{label}
+                <span style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                  <span style={{ opacity: 0.6 }}>{idx + 1}.</span>
+                  <span style={{ flex: 1 }}>{label}</span>
+                  {selesaiBagian[idx] === true && <span style={{ color: '#047857', fontWeight: 800 }} aria-label="selesai">✓</span>}
+                  {selesaiBagian[idx] === false && soalBagian[idx] && (
+                    <span style={{ fontSize: 11, color: '#b45309', fontWeight: 700, whiteSpace: 'nowrap' }}>{soalBagian[idx].terjawab}/{soalBagian[idx].total}</span>
+                  )}
+                </span>
               </button>
             ))}
           </nav>

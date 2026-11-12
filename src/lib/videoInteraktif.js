@@ -104,9 +104,19 @@ export function bacaProgres(kunci) {
   }
 }
 
-function simpanProgres(kunci, p) {
+/**
+ * Simpan progres digabung dengan yang sudah tersimpan (bisa dari tab lain): soal terjawab disatukan,
+ * titik terjauh diambil yang terbesar. Tidak menulis bila tidak ada perubahan, agar tab lain
+ * tidak menerima event `storage` yang sia-sia.
+ */
+export function simpanProgres(kunci, p) {
   if (!kunci) return
-  try { localStorage.setItem(kunci, JSON.stringify({ terjawab: [...p.terjawab], maks: Math.floor(p.maks) })) } catch { /* abaikan */ }
+  try {
+    const lama = bacaProgres(kunci)
+    const terjawab = [...new Set([...lama.terjawab, ...p.terjawab])].sort((a, b) => a - b)
+    const nilai = JSON.stringify({ terjawab, maks: Math.floor(Math.max(lama.maks, p.maks)) })
+    if (localStorage.getItem(kunci) !== nilai) localStorage.setItem(kunci, nilai)
+  } catch { /* penyimpanan diblokir: progres hanya di memori */ }
 }
 
 /* ------------------------------- Adapter video ------------------------------ */

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import WebSlidePlayer from '@/components/mahasiswa/WebSlidePlayer'
 
+// Tampilan SPA di tab sendiri (pratinjau dosen dan "Buka di tab baru" peserta).
+// Memakai halaman aplikasi (bukan file blob:) agar video YouTube bisa diputar dan soal video tetap aktif.
 export default function WebSlidePreviewPage() {
   const [previewData, setPreviewData] = useState(null)
 
@@ -30,6 +32,8 @@ export default function WebSlidePreviewPage() {
         prodiName={previewData.prodiName}
         meetingNo={previewData.weekNumber}
         slideData={previewData.webslideData}
+        kunciProgres={previewData.kunciProgres || null}
+        tinggi="100vh"
         onClose={() => window.close()}
       />
     </div>
