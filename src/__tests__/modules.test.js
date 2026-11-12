@@ -30,3 +30,16 @@ describe('youtubeId', () => {
     expect(youtubeId()).toBeNull()
   })
 })
+
+import { urlVerifikasi, rapikanNomor } from '@/lib/sertifikat'
+
+describe('sertifikat', () => {
+  it('alamat verifikasi memakai origin dan meng-encode nomor', () => {
+    expect(urlVerifikasi('SYSTC.2026.11.ABC', 'https://systract.id')).toBe('https://systract.id/verifikasi/SYSTC.2026.11.ABC')
+    expect(urlVerifikasi('a/b', 'https://x.id')).toBe('https://x.id/verifikasi/a%2Fb')
+  })
+  it('nomor yang diketik dirapikan', () => {
+    expect(rapikanNomor('  systc.2026.11.ab cd ')).toBe('SYSTC.2026.11.ABCD')
+    expect(rapikanNomor(null)).toBe('')
+  })
+})

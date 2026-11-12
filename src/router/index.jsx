@@ -45,6 +45,7 @@ const ForumDetail = lazy(() => import('@/pages/shared/ForumDetail'))
 const AcademicCalendar = lazy(() => import('@/pages/shared/AcademicCalendar'))
 const ProfilePage = lazy(() => import('@/pages/shared/ProfilePage'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
+const VerifikasiSertifikat = lazy(() => import('@/pages/public/VerifikasiSertifikat'))
 const WebSlidePreviewPage = lazy(() => import('@/pages/dosen/WebSlidePreviewPage'))
 
 // ── Protected Route ──────────────────────────────────────────
@@ -127,6 +128,8 @@ export default function AppRouter() {
       <Routes>
         {/* Public */}
         <Route path="/login" element={<Login />} />
+        <Route path="/verifikasi" element={<VerifikasiSertifikat />} />
+        <Route path="/verifikasi/:kode" element={<VerifikasiSertifikat />} />
 
         {/* All authenticated users */}
         <Route element={<ProtectedRoute />}>
