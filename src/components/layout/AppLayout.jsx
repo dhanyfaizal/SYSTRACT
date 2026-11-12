@@ -1,5 +1,5 @@
 import { Component, Suspense, createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { AppShell }     from '@/shell/AppShell'
 import { filterNav }    from '@/shell/navUtils'
 import { useAuth }      from '@/contexts/AuthContext'
@@ -77,6 +77,8 @@ const TANPA_KURSUS = []
 
 export default function AppLayout() {
   const { role, user, profile } = useAuth()
+  // Kunci boundary = alamat halaman: error di satu halaman tidak "menempel" ke halaman lain.
+  const { pathname } = useLocation()
   const [examMode, setExamMode] = useState(false)
   // Mode fokus (ruang kelas): menu aplikasi disembunyikan di layar lebar.
   const [focusMode, setFocusMode] = useState(false)
@@ -105,7 +107,7 @@ export default function AppLayout() {
           headerRight={<HeaderActions />}
           storageKey="systract-shell"
         >
-          <ErrorBoundary>
+          <ErrorBoundary key={pathname}>
             <Suspense fallback={<div style={{ display:'flex', justifyContent:'center', paddingTop:60 }}><div className="spinner" /></div>}>
               <Outlet />
             </Suspense>

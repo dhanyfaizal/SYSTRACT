@@ -65,9 +65,10 @@ export default function DosenDashboard() {
       .or(`due_date.gte.${today},due_date.is.null`)
 
     // Submisi belum dinilai
+    // submissions tidak punya course_id: saring lewat tugasnya (assignments.course_id).
     const { count: ungraded } = await supabase.from('submissions')
-      .select('id', { count:'exact', head:true })
-      .in('course_id', courseIds)
+      .select('id, assignment:assignments!inner(course_id)', { count:'exact', head:true })
+      .in('assignment.course_id', courseIds)
       .eq('status', 'submitted')
 
     setStats({ courses: courseIds.length, students: students||0, activeTasks: activeTasks||0, ungraded: ungraded||0 })
@@ -89,8 +90,8 @@ export default function DosenDashboard() {
     const [subRes, examRes, forumRes] = await Promise.all([
       // Submisi tugas terbaru
       supabase.from('submissions')
-        .select('id, submitted_at, status, assignment:assignments(title, course_id), student:profiles(full_name, nim, avatar_url)')
-        .in('course_id', courseIds)
+        .select('id, submitted_at, status, assignment:assignments!inner(title, course_id), student:profiles!student_id(full_name, nim, avatar_url)')
+        .in('assignment.course_id', courseIds)
         .in('status', ['submitted','graded','late'])
         .order('submitted_at', { ascending: false })
         .limit(15),
