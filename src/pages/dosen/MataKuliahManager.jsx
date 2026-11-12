@@ -1,23 +1,24 @@
-import { useState, useEffect, useRef, Fragment } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy, CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown, PlusCircle, Search, Bot, RefreshCw, Download, ChevronUp, Info, HelpCircle, Award, Clock, Link, Check, Upload, Video, FileText, BarChart3 } from 'lucide-react'
+import { Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy, CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown, PlusCircle, Search, Bot, RefreshCw, ChevronUp, Info, HelpCircle, Award, Clock, Link, Check, BarChart3 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { generateCourseDescription, generateCplForCourse, generateCpmk, generateWeeklyPlan, generateReferences, generateSlideContent, generateWebSlideData, generateMcqQuestions, generateSingleSlide, generateSingleWebSlideData } from '@/lib/ai'
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
-import { SPA_LAYOUT_LABELS } from '@/lib/spaBlocks'
 import { parseWebSlideHtml, WebSlideImportError } from '@/lib/webslideImport'
-import { JENIS_SLIDE, sisipkanSlide, slideVideo, spaDariSlideVideo, terapkanSlideVideo, urlVideoValid } from '@/lib/sisipSlide'
+import { slideVideo, spaDariSlideVideo, terapkanSlideVideo } from '@/lib/sisipSlide'
 import { COLORS, SEMESTERS, BLANK_COURSE_FORM, ATTACH_TYPES, BLANK_ATTACH, BLANK_MATERIAL_FORM, typeOf, pecahKompetensi } from './mataKuliah/konstanta'
 import AttachRow from './mataKuliah/AttachRow'
 import { groupMaterialsIntoModules } from '@/lib/modules'
 import BebanBelajarFields from '@/components/dosen/BebanBelajarFields'
 import PanelBebanBelajar from '@/components/dosen/PanelBebanBelajar'
-import EditorSoalVideo from '@/components/dosen/EditorSoalVideo'
 import LaporanProgresMateri from '@/components/dosen/LaporanProgresMateri'
-import { periksaSoal, rapikanSoal } from '@/lib/videoInteraktif'
+import StudioSlide from './mataKuliah/StudioSlide'
+
+// Pertemuan 8 dan 16 adalah UTS/UAS: jendela soal pilihan ganda, bukan studio slide.
+const pertemuanUjian = (m) => +m?.week_number === 8 || +m?.week_number === 16
 
 
 // ── Main SPA component ─────────────────────────────────────────
@@ -92,23 +93,14 @@ export default function DosenMataKuliah() {
   const [generatingWebSlide, setGeneratingWebSlide] = useState(false)
   const [savingSlide, setSavingSlide] = useState(false)
   const [slideOutline, setSlideOutline] = useState(null)
-  const importHtmlRef = useRef(null)
   const [webslideData, setWebslideData] = useState(null)
   const [aiSlideProgressText, setAiSlideProgressText] = useState('')
   const [mcqData, setMcqData] = useState(null) // for UTS/UAS questions
 
-  // ── State untuk Edit & Regenerate Ulang Slide ────────────────
-  const [editingSlideNo, setEditingSlideNo] = useState(null)
-  const [editTitle, setEditTitle] = useState('')
-  const [editContent, setEditContent] = useState('')
-  const [editImageUrl, setEditImageUrl] = useState('')
-  const [editSoal, setEditSoal] = useState([]) // soal di tengah video (slide video)
   const [regeneratingSlideNo, setRegeneratingSlideNo] = useState(null)
   const [regeneratingLayoutSlideNo, setRegeneratingLayoutSlideNo] = useState(null)
-  const [slideBaruNo, setSlideBaruNo] = useState(null) // slide sisipan yang belum pernah disimpan
   const [snapshotSlide, setSnapshotSlide] = useState('') // isi outline+SPA terakhir yang tersimpan di database
   const [laporanMateri, setLaporanMateri] = useState(null) // materi yang laporan progresnya sedang dibuka
-  const [menuSisip, setMenuSisip] = useState(null)     // posisi menu "Sisipkan slide" yang sedang terbuka
 
   const isOutlineEmpty = !slideOutline || !slideOutline.slides || slideOutline.slides.length === 0
 
@@ -946,18 +938,13 @@ export default function DosenMataKuliah() {
     setSlideOutline(m.slide_content || null)
     setWebslideData(m.webslide_content || null)
     setSnapshotSlide(JSON.stringify({ o: m.slide_content || null, w: m.webslide_content || null }))
-    setEditingSlideNo(null)
-    setSlideBaruNo(null)
     setMcqData(null)
     setAiSlideProgressText('')
     setSlideModal(true)
   }
 
-  // Outline/SPA di modal berbeda dengan yang tersimpan di database (atau ada slide yang masih diedit).
-  const slideBelumDisimpan = slideModal && (
-    editingSlideNo !== null ||
-    JSON.stringify({ o: slideOutline, w: webslideData }) !== snapshotSlide
-  )
+  // Outline/SPA di studio berbeda dengan yang tersimpan di database.
+  const slideBelumDisimpan = slideModal && JSON.stringify({ o: slideOutline, w: webslideData }) !== snapshotSlide
 
   async function tutupSlideModal() {
     if (slideBelumDisimpan && !mcqData) {
@@ -969,8 +956,6 @@ export default function DosenMataKuliah() {
       })
       if (!ok) return
     }
-    setEditingSlideNo(null)
-    setSlideBaruNo(null)
     setSlideModal(false)
   }
 
@@ -1107,96 +1092,6 @@ export default function DosenMataKuliah() {
       setLoadingSlide(false)
       setAiSlideProgressText('')
     }
-  }
-
-  // ── Edit/Hapus/Regenerate Per Slide Actions ────────────────
-  function handleDeleteSlide(slideNo, { senyap = false } = {}) {
-    if (!slideOutline) return
-    const updatedSlides = slideOutline.slides
-      .filter(s => s.slide_no !== slideNo)
-      .map((s, idx) => ({ ...s, slide_no: idx + 1 })) // Re-index slides
-
-    setSlideOutline({
-      ...slideOutline,
-      slides: updatedSlides
-    })
-
-    // Sync deletion to webslideData (SPA Layout)
-    syncWebSlideWithOutline(updatedSlides, slideNo, 'delete')
-
-    if (!senyap) toast.success(`Slide ${slideNo} berhasil dihapus`)
-  }
-
-  // Sisipkan slide baru (konten atau video) setelah indeks `posisi`; -1 = paling awal.
-  // Slide langsung dibuka dalam mode edit; bila dibatalkan sebelum disimpan, slide dibuang lagi.
-  function handleSisipkanSlide(posisi, jenis) {
-    if (!slideOutline || editingSlideNo !== null) return
-    const { outline, spa, nomorBaru } = sisipkanSlide(slideOutline.slides || [], webslideData?.slides ?? null, posisi, jenis)
-    setSlideOutline({ ...slideOutline, slides: outline })
-    if (spa) setWebslideData({ ...webslideData, slides: spa })
-    setMenuSisip(null)
-    setSlideBaruNo(nomorBaru)
-    setEditingSlideNo(nomorBaru)
-    setEditTitle('')
-    setEditContent('')
-    setEditImageUrl('')
-    setEditSoal([])
-  }
-
-  function handleStartEditSlide(slide) {
-    setEditingSlideNo(slide.slide_no)
-    setEditTitle(slide.title)
-    setEditContent(slide.content ? slide.content.join('\n') : '')
-    setEditImageUrl(slide.image_url || '')
-    setEditSoal(Array.isArray(slide.soal_video) ? slide.soal_video.map(s => ({ ...s, opsi: [...(s.opsi || []), '', '', '', '', ''].slice(0, 5) })) : [])
-  }
-
-  function handleSaveEditSlide(slideNo) {
-    if (!slideOutline) return
-    const target = slideOutline.slides.find(s => s.slide_no === slideNo)
-    if (!editTitle.trim()) {
-      toast.error('Judul slide wajib diisi.')
-      return
-    }
-    if (target && slideVideo(target) && !urlVideoValid(editImageUrl)) {
-      toast.error('Isi tautan video YouTube (atau berkas video .mp4/.webm) yang valid.')
-      return
-    }
-    const isVideoTarget = target && slideVideo(target)
-    if (isVideoTarget) {
-      const galat = editSoal.map((q, i) => { const g = periksaSoal(q); return g ? `Pertanyaan ${i + 1}: ${g}` : '' }).find(Boolean)
-      if (galat) { toast.error(galat); return }
-    }
-    const updatedSlides = slideOutline.slides.map(s => {
-      if (s.slide_no === slideNo) {
-        return {
-          ...s,
-          title: editTitle.trim(),
-          content: editContent.split('\n').map(line => line.trim()).filter(line => line.length > 0),
-          image_url: editImageUrl.trim(),
-          ...(isVideoTarget ? { soal_video: rapikanSoal(editSoal) } : {})
-        }
-      }
-      return s
-    })
-
-    setSlideOutline({
-      ...slideOutline,
-      slides: updatedSlides
-    })
-
-    // Sync changes to webslideData (SPA Layout)
-    syncWebSlideWithOutline(updatedSlides, slideNo, 'update')
-
-    setEditingSlideNo(null)
-    setSlideBaruNo(null)
-    toast.success(`Slide ${slideNo} diperbarui. Tekan "Simpan ke Silabus" agar peserta bisa melihatnya.`, { duration: 5000 })
-  }
-
-  function handleCancelEdit() {
-    if (slideBaruNo !== null && slideBaruNo === editingSlideNo) handleDeleteSlide(slideBaruNo, { senyap: true })
-    setEditingSlideNo(null)
-    setSlideBaruNo(null)
   }
 
   async function handleRegenerateSlide(slideNo, slideTitle, currentContent) {
@@ -1353,103 +1248,6 @@ export default function DosenMataKuliah() {
     })
   }
 
-  // Baris tipis di antara kartu outline untuk menyisipkan slide konten atau slide video.
-  function renderSisipBar(posisi) {
-    if (editingSlideNo !== null) return null
-    const terbuka = menuSisip === posisi
-    const sibuk = loadingSlide || regeneratingSlideNo !== null || regeneratingLayoutSlideNo !== null
-    const garis = <span aria-hidden="true" style={{ flex: 1, borderTop: '1px dashed var(--gray-300)' }} />
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '-4px 0' }}>
-        {garis}
-        {terbuka ? (
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <button type="button" className="btn btn-secondary btn-xs" style={{ gap: 4 }} onClick={() => handleSisipkanSlide(posisi, JENIS_SLIDE.konten)}>
-              <FileText size={11} /> Slide konten
-            </button>
-            <button type="button" className="btn btn-secondary btn-xs" style={{ gap: 4, color: '#DC2626' }} onClick={() => handleSisipkanSlide(posisi, JENIS_SLIDE.video)}>
-              <Video size={11} /> Slide video
-            </button>
-            <button type="button" className="btn btn-ghost btn-icon btn-xs" title="Tutup" aria-label="Tutup" onClick={() => setMenuSisip(null)}>
-              <X size={11} />
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            className="btn btn-ghost btn-xs"
-            style={{ gap: 4, fontSize: 11, color: 'var(--gray-500)', padding: '2px 8px' }}
-            onClick={() => setMenuSisip(posisi)}
-            disabled={sibuk}
-            title={posisi < 0 ? 'Sisipkan slide di awal' : `Sisipkan slide setelah slide ${posisi + 1}`}
-          >
-            <Plus size={11} /> Sisipkan slide
-          </button>
-        )}
-        {garis}
-      </div>
-    )
-  }
-
-  function renderMediaPreview(url) {
-    if (!url) return null
-    
-    const getYoutubeEmbedUrl = (link) => {
-      let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/
-      let match = link.match(regExp)
-      if (match && match[2].length === 11) {
-        return `https://www.youtube.com/embed/${match[2]}`
-      }
-      return null
-    }
-
-    const ytEmbed = getYoutubeEmbedUrl(url)
-    const isDirectVideo = url.match(/\.(mp4|webm|ogg|mov)($|\?)/i)
-
-    if (ytEmbed) {
-      let origin = ''
-      if (typeof window !== 'undefined') {
-        origin = window.location.origin
-        if (!origin || origin.startsWith('file:')) {
-          origin = 'https://systract.vercel.app'
-        }
-      } else {
-        origin = 'https://systract.vercel.app'
-      }
-      const originParam = origin ? `&origin=${encodeURIComponent(origin)}` : ''
-      const embedUrl = `${ytEmbed}?enablejsapi=1${originParam}`
-
-      return (
-        <iframe
-          src={embedUrl}
-          referrerPolicy="strict-origin-when-cross-origin"
-          style={{ width: '100%', height: '100%', border: 'none' }}
-        />
-      )
-    }
-
-    if (isDirectVideo) {
-      return (
-        <video
-          src={url}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000' }}
-        />
-      )
-    }
-
-    return (
-      <img 
-        src={url} 
-        alt="Preview" 
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-        onError={(e) => {
-          e.target.onerror = null
-          e.target.src = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=150&q=80'
-        }}
-      />
-    )
-  }
-
   async function handleGenerateWebSlide() {
     if (!slideOutline) return
     setGeneratingWebSlide(true)
@@ -1522,10 +1320,6 @@ export default function DosenMataKuliah() {
   }
 
   async function handleSaveAiSlideContent() {
-    if (editingSlideNo !== null) {
-      toast.error(`Slide ${editingSlideNo} masih diedit. Tekan Simpan atau Batal di slide itu dulu.`)
-      return
-    }
     setSavingSlide(true)
     const { error } = await supabase
       .from('materials')
@@ -3244,7 +3038,39 @@ export default function DosenMataKuliah() {
       {/* ── MODAL: AI Slide / WebSlide / Essay Generator ── */}
       {laporanMateri && <LaporanProgresMateri materi={laporanMateri} onClose={() => setLaporanMateri(null)} />}
 
-      {slideModal && activeMeeting && (
+      {/* Studio slide layar penuh untuk pertemuan biasa (UTS/UAS memakai jendela soal di bawah). */}
+      {slideModal && activeMeeting && !pertemuanUjian(activeMeeting) && (
+        <StudioSlide
+          meeting={activeMeeting}
+          courseName={selectedCourse?.name}
+          slideOutline={slideOutline}
+          setSlideOutline={setSlideOutline}
+          webslideData={webslideData}
+          setWebslideData={setWebslideData}
+          sibuk={{
+            outline: loadingSlide,
+            spa: generatingWebSlide,
+            teks: aiSlideProgressText,
+            simpan: savingSlide,
+            kontenNo: regeneratingSlideNo,
+            layoutNo: regeneratingLayoutSlideNo,
+          }}
+          belumDisimpan={slideBelumDisimpan}
+          konfirmasi={showConfirm}
+          onTutup={tutupSlideModal}
+          onSimpan={handleSaveAiSlideContent}
+          onGenerateOutline={handleGenerateSlideOutline}
+          onGenerateSpa={handleGenerateWebSlide}
+          onPratinjau={handlePreviewWebSlide}
+          onUnduhHtml={handleDownloadWebSlide}
+          onImporFile={handleImportHtml}
+          onSalinOutline={handleCopySlideOutline}
+          onRegenerateKonten={handleRegenerateSlide}
+          onRegenerateLayout={handleRegenerateSlideLayout}
+        />
+      )}
+
+      {slideModal && activeMeeting && pertemuanUjian(activeMeeting) && (
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: 800, maxHeight: '85vh', overflow: 'auto' }}>
             <div className="modal-header" style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 2 }}>
@@ -3327,380 +3153,7 @@ export default function DosenMataKuliah() {
                     </div>
                   )}
                 </div>
-              ) : (
-                /* ── FLOW FOR LECTURES: Slides & WebSlide ── */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  
-                  {/* Step A: Outline Slide */}
-                  <div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>1. Outline Materi Slide</span>
-                    <input ref={importHtmlRef} type="file" accept=".html,.htm,text/html" onChange={handleImportHtml} style={{ display: 'none' }} />
-                    {!slideOutline && !loadingSlide && (
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                        <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={handleGenerateSlideOutline}>
-                          <Bot size={13} /> Generate Outline
-                        </button>
-                        <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={() => importHtmlRef.current?.click()}>
-                          <Upload size={13} /> Impor HTML
-                        </button>
-                        <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>File dari "Unduh File HTML" yang sudah diedit.</span>
-                      </div>
-                    )}
-
-                    {slideOutline && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--gray-800)' }}>{slideOutline.title || 'Materi Slide'}</span>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button 
-                              className="btn btn-ghost btn-xs" 
-                              style={{ 
-                                gap: 4, 
-                                color: isOutlineEmpty ? 'var(--gray-400)' : 'var(--indigo-600)',
-                                cursor: isOutlineEmpty ? 'not-allowed' : 'pointer'
-                              }} 
-                              onClick={handleCopySlideOutline}
-                              disabled={isOutlineEmpty}
-                            >
-                              <Copy size={11}/> Salin Outline
-                            </button>
-                            <button 
-                              className="btn btn-ghost btn-xs" 
-                              style={{ gap: 4 }} 
-                              onClick={handleGenerateSlideOutline}
-                            >
-                              {isOutlineEmpty ? (
-                                <>
-                                  <Bot size={11} color="var(--indigo-600)"/> <span style={{ color: 'var(--indigo-600)', fontWeight: 700 }}>Generate Outline</span>
-                                </>
-                              ) : (
-                                <>
-                                  <RefreshCw size={11}/> Outline Ulang
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* List of Slide Cards */}
-                        <div style={{ 
-                          display: 'flex', 
-                          flexDirection: 'column', 
-                          gap: 12, 
-                          maxHeight: 400, 
-                          overflowY: 'auto', 
-                          border: '1px solid var(--gray-200)', 
-                          borderRadius: 12, 
-                          padding: 16, 
-                          background: '#f8fafc' 
-                        }}>
-                          {isOutlineEmpty ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 16px', color: 'var(--gray-400)', gap: 10 }}>
-                              <Bot size={24} style={{ color: 'var(--indigo-400)', opacity: 0.8 }} />
-                              <span style={{ fontSize: 13, fontWeight: 500, textAlign: 'center' }}>
-                                Belum ada outline. Klik <strong>"Generate Outline"</strong> di atas untuk memulai.
-                              </span>
-                            </div>
-                          ) : (
-                            <>
-                            {renderSisipBar(-1)}
-                            {slideOutline.slides?.map((s, i) => {
-                            const isEditing = editingSlideNo === s.slide_no;
-                            const isRegenerating = regeneratingSlideNo === s.slide_no;
-                            const isRegeneratingLayout = regeneratingLayoutSlideNo === s.slide_no;
-                            const isVideo = slideVideo(s);
-
-                            return (
-                              <Fragment key={s.slide_no}>
-                              <div style={{
-                                background: '#ffffff', 
-                                border: '1px solid var(--gray-200)', 
-                                borderRadius: 10, 
-                                padding: 16,
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: 10,
-                                position: 'relative'
-                              }}>
-                                {/* Loading overlay for single slide regeneration */}
-                                {isRegenerating && (
-                                  <div style={{
-                                    position: 'absolute',
-                                    top: 0, left: 0, right: 0, bottom: 0,
-                                    background: 'rgba(255,255,255,0.8)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: 10,
-                                    borderRadius: 10,
-                                    zIndex: 5
-                                  }}>
-                                    <Loader2 size={20} className="spinner" style={{ animation: 'spin 1s linear infinite', color: 'var(--indigo-600)' }} />
-                                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--indigo-700)' }}>AI sedang meregenerasi slide...</span>
-                                  </div>
-                                )}
-
-                                {/* Loading overlay for single slide layout regeneration */}
-                                {isRegeneratingLayout && (
-                                  <div style={{
-                                    position: 'absolute',
-                                    top: 0, left: 0, right: 0, bottom: 0,
-                                    background: 'rgba(255,255,255,0.8)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: 10,
-                                    borderRadius: 10,
-                                    zIndex: 5
-                                  }}>
-                                    <Loader2 size={20} className="spinner" style={{ animation: 'spin 1s linear infinite', color: 'var(--indigo-600)' }} />
-                                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--indigo-700)' }}>AI sedang meregenerasi layout SPA...</span>
-                                  </div>
-                                )}
-
-                                {isEditing ? (
-                                  /* EDITING MODE */
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                      <span style={{ fontSize: 11, fontWeight: 800, background: isVideo ? '#FEF2F2' : 'var(--indigo-50)', color: isVideo ? '#DC2626' : 'var(--indigo-600)', padding: '2px 8px', borderRadius: 99, whiteSpace: 'nowrap' }}>
-                                        {isVideo ? 'VIDEO' : 'SLIDE'} {s.slide_no}
-                                      </span>
-                                      <input
-                                        type="text"
-                                        className="input"
-                                        style={{ flex: 1, padding: '6px 10px', fontSize: 13, borderRadius: 6 }}
-                                        value={editTitle}
-                                        onChange={e => setEditTitle(e.target.value)}
-                                        placeholder={isVideo ? 'Judul video, mis. Cara Kerja Sistem Pendingin' : 'Judul Slide'}
-                                        autoFocus={slideBaruNo === s.slide_no}
-                                      />
-                                    </div>
-                                    {isVideo && (
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray-500)' }}>Tautan video YouTube (wajib):</label>
-                                        <input
-                                          type="url"
-                                          className="input"
-                                          style={{ padding: '6px 10px', fontSize: 12, borderRadius: 6 }}
-                                          value={editImageUrl}
-                                          onChange={e => setEditImageUrl(e.target.value)}
-                                          placeholder="https://www.youtube.com/watch?v=..."
-                                        />
-                                        {editImageUrl.trim() && !urlVideoValid(editImageUrl) && (
-                                          <span style={{ fontSize: 11, color: 'var(--red-600)' }}>Tautan belum dikenali sebagai video YouTube atau berkas .mp4/.webm.</span>
-                                        )}
-                                        {urlVideoValid(editImageUrl) && (
-                                          <EditorSoalVideo url={editImageUrl.trim()} soal={editSoal} onChange={setEditSoal} konteks={{ kursus: selectedCourse?.name, judul: editTitle }} />
-                                        )}
-                                      </div>
-                                    )}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray-500)' }}>{isVideo ? 'Pengantar singkat di bawah video (opsional, satu baris per poin):' : 'Poin Slide (Satu baris untuk setiap poin):'}</label>
-                                      <textarea 
-                                        className="input"
-                                        rows={4}
-                                        style={{ resize: 'vertical', fontSize: 12, padding: 8, borderRadius: 6, lineHeight: 1.5 }}
-                                        value={editContent}
-                                        onChange={e => setEditContent(e.target.value)}
-                                        placeholder="Masukkan poin slide..."
-                                      />
-                                    </div>
-                                    {!isVideo && <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray-500)' }}>URL Gambar atau Video (Internet):</label>
-                                      <input 
-                                        type="text" 
-                                        className="input" 
-                                        style={{ padding: '6px 10px', fontSize: 12, borderRadius: 6 }} 
-                                        value={editImageUrl}
-                                        onChange={e => setEditImageUrl(e.target.value)}
-                                        placeholder="Contoh: https://images.unsplash.com/photo-... atau https://www.youtube.com/watch?v=..."
-                                      />
-                                    </div>}
-                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 4 }}>
-                                      <button className="btn btn-ghost btn-xs" style={{ gap: 4 }} onClick={handleCancelEdit}>
-                                        <X size={12}/> Batal
-                                      </button>
-                                      <button className="btn btn-primary btn-xs" style={{ gap: 4, background: 'var(--indigo-600)' }} onClick={() => handleSaveEditSlide(s.slide_no)}>
-                                        <Check size={12}/> Simpan
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  /* READ-ONLY MODE */
-                                  <>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <span style={{ fontSize: 10, fontWeight: 800, background: isVideo ? '#FEF2F2' : 'var(--indigo-50)', color: isVideo ? '#DC2626' : 'var(--indigo-600)', padding: '2px 8px', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
-                                          {isVideo && <Video size={10} />}{isVideo ? 'VIDEO' : 'SLIDE'} {s.slide_no}
-                                        </span>
-                                        {isVideo && (
-                                          <span style={{ fontSize: 9, fontWeight: 700, background: s.soal_video?.length ? '#ECFDF3' : 'var(--gray-100)', color: s.soal_video?.length ? '#047857' : 'var(--gray-500)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
-                                            {s.soal_video?.length ? `${s.soal_video.length} PERTANYAAN` : 'TANPA PERTANYAAN'}
-                                          </span>
-                                        )}
-                                        {webslideData && webslideData.slides && (
-                                          (() => {
-                                            const layoutObj = webslideData.slides.find(ws => ws.slide_no === s.slide_no);
-                                            if (layoutObj) {
-                                              return (
-                                                <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', background: 'var(--gray-100)', color: 'var(--gray-600)', padding: '2px 6px', borderRadius: 4 }}>
-                                                  {SPA_LAYOUT_LABELS[layoutObj.layout] || layoutObj.layout}
-                                                </span>
-                                              );
-                                            }
-                                            return null;
-                                          })()
-                                        )}
-                                        <h5 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: 'var(--gray-800)' }}>{s.title}</h5>
-                                      </div>
-                                      
-                                      {/* Slide Actions Toolbar */}
-                                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                                        {!isVideo && webslideData && webslideData.slides && (
-                                          <button
-                                            className="btn btn-ghost btn-xs"
-                                            title="Generate Ulang Layout SPA Slide Ini"
-                                            onClick={() => handleRegenerateSlideLayout(s.slide_no)}
-                                            disabled={loadingSlide || regeneratingSlideNo !== null || regeneratingLayoutSlideNo !== null}
-                                            style={{ padding: '2px 6px', fontSize: 10, gap: 4, color: 'var(--indigo-600)', background: 'var(--indigo-50)', borderRadius: 6, display: 'flex', alignItems: 'center' }}
-                                          >
-                                            <Bot size={10}/> Layout SPA
-                                          </button>
-                                        )}
-                                        <button 
-                                          className="btn btn-ghost btn-icon btn-xs" 
-                                          title="Edit Slide"
-                                          onClick={() => handleStartEditSlide(s)}
-                                          disabled={loadingSlide || regeneratingSlideNo !== null || regeneratingLayoutSlideNo !== null}
-                                          style={{ padding: 4, borderRadius: 6 }}
-                                        >
-                                          <Edit2 size={12} color="var(--gray-500)"/>
-                                        </button>
-                                        {!isVideo && <button
-                                          className="btn btn-ghost btn-icon btn-xs"
-                                          title="Generate Ulang Konten Slide Ini"
-                                          onClick={() => handleRegenerateSlide(s.slide_no, s.title, s.content)}
-                                          disabled={loadingSlide || regeneratingSlideNo !== null || regeneratingLayoutSlideNo !== null}
-                                          style={{ padding: 4, borderRadius: 6 }}
-                                        >
-                                          <RefreshCw size={12} color="var(--indigo-600)"/>
-                                        </button>}
-                                        <button 
-                                          className="btn btn-ghost btn-icon btn-xs text-danger" 
-                                          title="Hapus Slide"
-                                          onClick={() => handleDeleteSlide(s.slide_no)}
-                                          disabled={loadingSlide || regeneratingSlideNo !== null || regeneratingLayoutSlideNo !== null}
-                                          style={{ padding: 4, borderRadius: 6 }}
-                                        >
-                                          <Trash2 size={12} color="var(--red-600)"/>
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    {/* Slide Content Bullet Points & Preview */}
-                                    <div style={{ display: 'grid', gridTemplateColumns: s.image_url ? '1fr 180px' : '1fr', gap: 16, alignItems: 'start' }}>
-                                      <ul style={{ 
-                                        paddingLeft: 18, 
-                                        margin: 0, 
-                                        fontSize: 12, 
-                                        color: 'var(--gray-600)',
-                                        lineHeight: 1.6,
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: 4
-                                      }}>
-                                        {s.content?.map((c, ci) => (
-                                          <li key={ci} style={{ listStyleType: 'disc' }}>{c}</li>
-                                        ))}
-                                      </ul>
-                                      {s.image_url && (
-                                        <div style={{ 
-                                          width: 180, 
-                                          height: 112, 
-                                          borderRadius: 8, 
-                                          overflow: 'hidden', 
-                                          border: '1px solid var(--gray-200)',
-                                          background: '#f1f5f9'
-                                        }}>
-                                          {renderMediaPreview(s.image_url)}
-                                        </div>
-                                      )}
-                                      {/* Saran media dari AI (hanya untuk instruktur; tidak tampil ke peserta) */}
-                                      {(() => {
-                                        const hint = !s.image_url && webslideData?.slides?.find(ws => ws.slide_no === s.slide_no)?.media_hint
-                                        if (!hint) return null
-                                        return (
-                                          <p style={{ margin: 0, fontSize: 12, color: '#8A5E00', background: '#FFF7E6', border: '1px solid #F5DFA8', borderRadius: 6, padding: '6px 10px' }}>
-                                            <strong>Saran media:</strong> {hint}. Tambahkan lewat tombol edit slide (URL gambar/video), lalu generate ulang layout slide ini.
-                                          </p>
-                                        )
-                                      })()}
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                              {renderSisipBar(i)}
-                              </Fragment>
-                            );
-                            })}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Step B: WebSlide Presentation layouts */}
-                  {slideOutline && (
-                    <div>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>2. Tampilan Presentasi WebSlide</span>
-                      {!webslideData && !generatingWebSlide && (
-                        <button 
-                          className="btn btn-primary btn-sm" 
-                          style={{ gap: 6 }} 
-                          onClick={handleGenerateWebSlide}
-                          disabled={isOutlineEmpty}
-                        >
-                          <Bot size={13} /> Bangun SPA (Layout Dinamis AI)
-                        </button>
-                      )}
-
-                      {webslideData && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                            <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={handlePreviewWebSlide}>
-                              <ExternalLink size={13}/> Buka Preview Presentasi
-                            </button>
-                            <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={handleDownloadWebSlide}>
-                              <Download size={13}/> Unduh File HTML
-                            </button>
-                            <button className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={() => importHtmlRef.current?.click()}>
-                              <Upload size={13}/> Impor HTML
-                            </button>
-                          </div>
-                          
-                          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                            <button className="btn btn-ghost btn-xs" style={{ gap: 4 }} onClick={handleGenerateWebSlide} disabled={generatingWebSlide}>
-                              <RefreshCw size={11}/> Rancang Ulang WebSlide
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Save to materials button */}
-                  {(slideOutline || webslideData) && (
-                    <div style={{ borderTop: '1px solid var(--gray-200)', paddingTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
-                      <button className="btn btn-primary btn-sm" onClick={handleSaveAiSlideContent} disabled={savingSlide || isOutlineEmpty}>
-                        {savingSlide ? <Loader2 size={13} className="spinner" style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={13}/>}
-                        Simpan Rancangan Slide ke Silabus
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+              ) : null}
             </div>
 
             <div className="modal-footer" style={{ position: 'sticky', bottom: 0, background: 'var(--surface)', zIndex: 2, display: 'flex', alignItems: 'center', gap: 8 }}>

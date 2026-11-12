@@ -82,3 +82,88 @@ export function terapkanSlideVideo(outlineSlides, spaSlides) {
     return o && slideVideo(o) ? spaDariSlideVideo(o) : s
   })
 }
+
+/* ───────────────────── Studio slide: ubah, hapus, pindah, layout ───────────────────── */
+
+const nomoriUlangDaftar = (list) => list.map((s, i) => ({ ...s, slide_no: i + 1 }))
+
+/** "Judul: isi" → { judul, isi }; tanpa titik dua → { judul: '', isi: baris }. */
+export function pecahPoin(baris) {
+  const t = String(baris || '').trim()
+  const m = t.match(/^([^:]{1,80}):\s+(.+)$/)
+  return m ? { judul: m[1].trim(), isi: m[2].trim() } : { judul: '', isi: t }
+}
+
+// Layout yang isinya bisa disusun langsung dari poin outline (tanpa AI).
+export const LAYOUT_DARI_POIN = ['list', 'grid', 'steps', 'accordion', 'statement']
+// Layout yang isinya terstruktur khusus (tabel, angka, diskusi, quiz): poin outline tidak menimpanya.
+const LAYOUT_TERSTRUKTUR = new Set(['table', 'stats', 'discussion', 'quiz', 'cover', 'thank_you'])
+
+/** Susun isi SPA untuk `layout` dari poin outline; judul item lama dipertahankan bila poin tak memberi judul. */
+export function isiDariPoin(layout, poin, lama = {}) {
+  const p = (poin || []).map((x) => String(x).trim()).filter(Boolean)
+  switch (layout) {
+    case 'list':
+      return { list_items: p.map((text, i) => ({ text, color: lama.list_items?.[i]?.color || 'blue' })) }
+    case 'grid':
+      return { grid_items: p.map((x, i) => { const { judul, isi } = pecahPoin(x); return { title: judul || lama.grid_items?.[i]?.title || `Poin ${i + 1}`, desc: isi, icon: lama.grid_items?.[i]?.icon || 'fa-solid fa-lightbulb' } }) }
+    case 'steps':
+      return { steps: p.map((x, i) => { const { judul, isi } = pecahPoin(x); return { title: judul || lama.steps?.[i]?.title || `Langkah ${i + 1}`, body: isi } }) }
+    case 'accordion':
+      return { accordion_items: p.map((x, i) => { const { judul, isi } = pecahPoin(x); return { header: judul || lama.accordion_items?.[i]?.header || `Poin ${i + 1}`, content: isi } }) }
+    case 'statement':
+      return { body: p.join(' ') }
+    case 'split':
+      return { split_right: p }
+    case 'media':
+      return { description: p.join(' ') }
+    case 'legacy':
+      return {}
+    default:
+      return {}
+  }
+}
+
+/** Bagian SPA setelah slide outline diubah (judul, poin, gambar, video & soal). */
+export function sinkronSlideSpa(spaSlide, outlineSlide) {
+  if (slideVideo(outlineSlide)) return spaDariSlideVideo(outlineSlide)
+  const s = spaSlide || spaDariSlideKonten(outlineSlide)
+  const poin = outlineSlide.content || []
+  const dasar = { ...s, slide_no: outlineSlide.slide_no, title: outlineSlide.title, content: poin }
+  if (outlineSlide.image_url !== undefined) dasar.image_url = outlineSlide.image_url || undefined
+  if (LAYOUT_TERSTRUKTUR.has(s.layout)) return dasar
+  return { ...dasar, ...isiDariPoin(s.layout, poin, s) }
+}
+
+/** Ganti layout satu bagian SPA, isinya disusun dari poin outline. */
+export function ubahLayoutSpa(spaSlide, outlineSlide, layout) {
+  if (!LAYOUT_DARI_POIN.includes(layout)) return spaSlide
+  const s = spaSlide || {}
+  const bersih = { slide_no: outlineSlide.slide_no, layout, title: outlineSlide.title, content: outlineSlide.content || [] }
+  if (s.image_url || outlineSlide.image_url) bersih.image_url = outlineSlide.image_url || s.image_url
+  if (s.reference) bersih.reference = s.reference
+  return { ...bersih, ...isiDariPoin(layout, outlineSlide.content, s) }
+}
+
+/** Hapus slide (outline & SPA), lalu nomori ulang. */
+export function hapusSlide(outlineSlides, spaSlides, slideNo) {
+  const outline = nomoriUlangDaftar((outlineSlides || []).filter((s) => s.slide_no !== slideNo))
+  const spa = Array.isArray(spaSlides) ? nomoriUlangDaftar(spaSlides.filter((s) => s.slide_no !== slideNo)) : spaSlides
+  return { outline, spa }
+}
+
+/** Pindahkan slide ke atas (-1) atau ke bawah (+1) di outline & SPA. */
+export function pindahSlide(outlineSlides, spaSlides, slideNo, arah) {
+  const geser = (list) => {
+    const a = [...(list || [])]
+    const i = a.findIndex((s) => s.slide_no === slideNo)
+    const j = i + arah
+    if (i < 0 || j < 0 || j >= a.length) return null
+    ;[a[i], a[j]] = [a[j], a[i]]
+    return nomoriUlangDaftar(a)
+  }
+  const outline = geser(outlineSlides)
+  if (!outline) return null
+  const spa = Array.isArray(spaSlides) ? (geser(spaSlides) || spaSlides) : spaSlides
+  return { outline, spa, nomorBaru: slideNo + arah }
+}
