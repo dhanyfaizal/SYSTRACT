@@ -5,6 +5,9 @@ import { AuthProvider }  from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import AppRouter         from '@/router/index'
 import '@/styles/index.css'
+import { mulaiPantauGalat } from '@/lib/pantauGalat'
+
+mulaiPantauGalat()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <ThemeProvider>

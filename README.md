@@ -27,7 +27,11 @@ npm run dev
 | `SUMOPOD_API_KEY`, `SUMOPOD_API_URL` | server | Hanya di Vercel; **jangan** diberi awalan `VITE_` |
 | — | server | Model AI dikunci di `api/ai.js` (`MODEL_DIIZINKAN`, saat ini hanya `deepseek-v4-flash`); `SUMOPOD_MODEL` tidak lagi dipakai |
 
+| `VITE_SENTRY_DSN` | browser | Opsional. Pemantauan error (Sentry); kosong = mati. Hanya ID pengguna yang dikirim, tanpa email/nama |
+
 Fitur AI (`/api/ai`) hanya berjalan di Vercel atau `vercel dev`, tidak di `npm run dev`.
+
+Backup database harian (GitHub Actions) dan cara memulihkannya: [`supabase/BACKUP.md`](supabase/BACKUP.md).
 
 ## Perintah
 

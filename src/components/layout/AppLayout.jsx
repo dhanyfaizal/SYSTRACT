@@ -6,6 +6,7 @@ import { useAuth }      from '@/contexts/AuthContext'
 import { supabase }     from '@/lib/supabase'
 import HeaderActions    from './Header'
 import { buildNav, ROLE_LABEL } from './navConfig'
+import { laporGalat } from '@/lib/pantauGalat'
 
 const LOGO_URL = '/logo-stikom.webp'
 const BRAND = { name: 'SYSTRACT', sub: 'STIKOM Yos Sudarso', logo: LOGO_URL }
@@ -19,7 +20,10 @@ export const useSidebar = () => useContext(SidebarContext)
 class ErrorBoundary extends Component {
   state = { hasError: false, error: null }
   static getDerivedStateFromError(error) { return { hasError: true, error } }
-  componentDidCatch(error, info) { console.error('[SYSTRACT] Render error:', error, info) }
+  componentDidCatch(error, info) {
+    console.error('[SYSTRACT] Render error:', error, info)
+    laporGalat(error, { komponen: info?.componentStack?.split('\n').slice(0, 6).join('\n') })
+  }
   render() {
     if (this.state.hasError) {
       return (
