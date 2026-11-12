@@ -1,15 +1,13 @@
 /**
- * SIRA-SYS — AI Service Integration (Sumopod API)
- * Semua panggilan AI melalui fungsi server /api/ai; kunci API hanya ada di server.
+ * AISYS (Akal Imitasi STIKOM Yos Sudarso) — layanan AI SYSTRACT.
+ * Semua panggilan AI melalui fungsi server /api/ai; kunci API dan pilihan model hanya ada di server.
+ * Browser tidak tahu (dan tidak menampilkan) nama model maupun penyedia aslinya.
  */
 import { supabase } from '@/lib/supabase'
 
-// Model fallback list untuk mengatasi quota exhaustion atau rate limit (HTTP 429)
-const MODELS = [
-  "deepseek-v4-flash"
-];
+const LOG = '[AISYS]';
 
-// Kunci API AI tidak lagi disimpan di browser. Semua panggilan lewat fungsi server
+// Kunci API AI tidak disimpan di browser. Semua panggilan lewat fungsi server
 // /api/ai (lihat api/ai.js) yang memegang kunci dan memeriksa sesi login Supabase.
 async function aiHeaders() {
   const { data } = await supabase.auth.getSession();
@@ -18,163 +16,82 @@ async function aiHeaders() {
   return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 }
 
-// Inti pemanggilan API dengan fallback otomatis
+// Inti pemanggilan AISYS (server sudah mencoba ulang/menyederhanakan permintaan bila perlu).
 export async function callAi(prompt, isJson = true, onProgress = null, system = '') {
-  let quotaError = null;
-  let lastError = null;
+  try {
+    if (onProgress) onProgress("Menghubungi AISYS...");
+    console.log(`${LOG} Mengirim permintaan...`);
+    if (onProgress) onProgress("AISYS sedang memikirkan materi & merumuskan konten (proses ini memakan waktu)...");
 
-  if (onProgress) {
-    onProgress("Menghubungi Gateway API Server...");
-  }
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: await aiHeaders(),
+      body: JSON.stringify({
+        messages: [
+          ...(system ? [{ role: 'system', content: system }] : []),
+          { role: 'user', content: prompt }
+        ],
+        response_format: isJson ? { type: "json_object" } : undefined,
+        stream: true
+      })
+    });
 
-  for (const model of MODELS) {
-    try {
-      if (onProgress) {
-        if (model !== MODELS[0]) {
-          onProgress("Model utama sibuk, beralih ke model cadangan...");
-        } else {
-          onProgress("Mengirim data materi & rujukan RPS ke server...");
-        }
-      }
-      console.log(`[SIRASYS AI] Mencoba model ${model}...`);
-      
-      if (onProgress) {
-        onProgress("AI sedang memikirkan materi & merumuskan konten (proses ini memakan waktu)...");
-      }
-
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: await aiHeaders(),
-        body: JSON.stringify({
-          model,
-          messages: [
-            ...(system ? [{ role: 'system', content: system }] : []),
-            { role: 'user', content: prompt }
-          ],
-          response_format: isJson ? { type: "json_object" } : undefined,
-          stream: true
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      if (!response.body) {
-        if (onProgress) {
-          onProgress("Membaca data respon...");
-        }
-        const data = await response.json();
-        if (data?.error) {
-          throw new Error(data.error.message || JSON.stringify(data.error));
-        }
-        const resultText = data.choices?.[0]?.message?.content;
-        if (!resultText) throw new Error("Respons AI kosong.");
-        const cleanText = resultText.replace(/```json\n?|```/g, '').trim();
-        return isJson ? JSON.parse(cleanText) : cleanText;
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let accumulatedText = "";
-      let buffer = "";
-
-      if (onProgress) {
-        onProgress("Koneksi berhasil! Mulai mengunduh stream data dari AI...");
-      }
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const cleanedLine = line.trim();
-          if (!cleanedLine) continue;
-          if (cleanedLine.startsWith("data: ")) {
-            const dataStr = cleanedLine.slice(6).trim();
-            if (dataStr === "[DONE]") continue;
-            try {
-              const dataObj = JSON.parse(dataStr);
-              const content = dataObj.choices?.[0]?.delta?.content || "";
-              accumulatedText += content;
-
-              if (onProgress) {
-                onProgress({
-                  type: 'chunk',
-                  text: accumulatedText
-                });
-              }
-            } catch {
-              // Abaikan parsing error parsial pada stream
-            }
-          }
-        }
-      }
-
-      if (onProgress) {
-        onProgress("Mendekode & memvalidasi struktur JSON...");
-      }
-
-      const cleanText = accumulatedText.replace(/```json\n?|```/g, '').trim();
-      if (!cleanText) throw new Error("Respons stream AI kosong.");
-
-      if (onProgress) {
-        onProgress("Memverifikasi kelayakan format materi...");
-      }
-
-      return isJson ? JSON.parse(cleanText) : cleanText;
-    } catch (err) {
-      lastError = err;
-      const errMsg = String(err.message || '').toLowerCase();
-      if (errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('limit') || errMsg.includes('exhausted')) {
-        quotaError = err;
-      }
-      console.warn(`[SIRASYS AI Fallback] Kegagalan pada model ${model}:`, err);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
+
+    if (!response.body) {
+      if (onProgress) onProgress("Membaca data respon...");
+      const data = await response.json();
+      if (data?.error) {
+        throw new Error(data.error.message || JSON.stringify(data.error));
+      }
+      const resultText = data.choices?.[0]?.message?.content;
+      if (!resultText) throw new Error("Respons AISYS kosong.");
+      const cleanText = resultText.replace(/```json\n?|```/g, '').trim();
+      return isJson ? JSON.parse(cleanText) : cleanText;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let accumulatedText = "";
+    let buffer = "";
+
+    if (onProgress) onProgress("Terhubung. Menerima jawaban AISYS...");
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const cleanedLine = line.trim();
+        if (!cleanedLine.startsWith("data: ")) continue;
+        const dataStr = cleanedLine.slice(6).trim();
+        if (dataStr === "[DONE]") continue;
+        try {
+          const dataObj = JSON.parse(dataStr);
+          accumulatedText += dataObj.choices?.[0]?.delta?.content || "";
+          if (onProgress) onProgress({ type: 'chunk', text: accumulatedText });
+        } catch {
+          // Abaikan parsing error parsial pada stream
+        }
+      }
+    }
+
+    if (onProgress) onProgress("Mendekode & memvalidasi struktur JSON...");
+    const cleanText = accumulatedText.replace(/```json\n?|```/g, '').trim();
+    if (!cleanText) throw new Error("Respons AISYS kosong.");
+    if (onProgress) onProgress("Memverifikasi kelayakan format materi...");
+    return isJson ? JSON.parse(cleanText) : cleanText;
+  } catch (err) {
+    console.warn(`${LOG} Permintaan gagal:`, err);
+    throw new Error(`AISYS gagal merespons: ${err?.message || 'Koneksi gagal.'}`);
   }
-
-  const finalError = quotaError || lastError;
-  const finalMessage = finalError?.message || (typeof finalError === 'string' ? finalError : 'Koneksi gagal.');
-  throw new Error(`Semua model AI gagal merespon: ${finalMessage}`);
-}
-
-// Uji koneksi kunci API tertentu
-export async function testConnection(key, url) {
-  const testUrl = url || 'https://ai.sumopod.com/v1';
-  const testKey = key;
-  
-  if (!testKey) throw new Error("API Key tidak boleh kosong.");
-
-  // Gunakan model flash yang cepat untuk pengujian
-  const response = await fetch(`${testUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${testKey}`
-    },
-    body: JSON.stringify({
-      model: "deepseek-v4-flash",
-      messages: [{ role: 'user', content: "Katakan 'OK' jika terhubung." }],
-      max_tokens: 10
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`HTTP ${response.status}: ${errorText}`);
-  }
-
-  const data = await response.json();
-  if (data?.error) {
-    throw new Error(data.error.message || JSON.stringify(data.error));
-  }
-
-  return true;
 }
 
 // 1. Generate CPMK berdasarkan CPL dan deskripsi mata kuliah

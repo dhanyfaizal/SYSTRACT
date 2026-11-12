@@ -25,7 +25,7 @@ npm run dev
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | browser | Project Settings → API di Supabase |
 | `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY` | browser | Google Cloud Console (Drive Picker) |
 | `SUMOPOD_API_KEY`, `SUMOPOD_API_URL` | server | Hanya di Vercel; **jangan** diberi awalan `VITE_` |
-| — | server | Model AI dikunci di `api/ai.js` (`MODEL_DIIZINKAN`, saat ini hanya `deepseek-v4-flash`); `SUMOPOD_MODEL` tidak lagi dipakai |
+| — | server | Model AI dikunci di `api/ai.js` (`MODEL_DIIZINKAN`, saat ini hanya `deepseek-v4-flash`); `SUMOPOD_MODEL` tidak lagi dipakai. Di browser AI tampil sebagai **AISYS** (Akal Imitasi STIKOM Yos Sudarso): nama model/penyedia disamarkan server |
 
 | `VITE_SENTRY_DSN` | browser | Opsional. Pemantauan error (Sentry); kosong = mati. Hanya ID pengguna yang dikirim, tanpa email/nama |
 

@@ -12,6 +12,13 @@ const DEFAULT_URL = 'https://ai.sumopod.com/v1'
 const MODEL_DIIZINKAN = ['deepseek-v4-flash']
 const MAX_BODY_CHARS = 400_000
 
+// Ke browser, AI selalu tampil sebagai AISYS (Akal Imitasi STIKOM Yos Sudarso): nama model dan
+// penyedia asli tidak ikut terkirim (respons, potongan stream, maupun pesan error).
+const NAMA_AI = 'AISYS'
+const escRegex = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const POLA_NAMA_ASLI = new RegExp([...MODEL_DIIZINKAN.map(escRegex), 'deepseek[\\w.:/-]*', 'sumopod', 'litellm'].join('|'), 'gi')
+export const samarkan = (teks) => String(teks).replace(POLA_NAMA_ASLI, NAMA_AI)
+
 const PERAN_AI = ['dosen', 'admin']
 
 // 'ok' | 'belum_login' | 'bukan_instruktur'
@@ -119,7 +126,7 @@ export default async function handler(req, res) {
     // agar klien (yang membaca stream) tetap bekerja.
     if (upstream.ok && stream && usedNoStream) {
       const data = await upstream.json()
-      const content = data?.choices?.[0]?.message?.content || ''
+      const content = samarkan(data?.choices?.[0]?.message?.content || '')
       res.status(200)
       res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
       res.write(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`)
@@ -131,19 +138,27 @@ export default async function handler(req, res) {
       const text = await upstream.text()
       res.status(upstream.status)
       res.setHeader('Content-Type', upstream.headers.get('content-type') || 'application/json')
-      return res.send(text)
+      return res.send(samarkan(text))
     }
 
-    // Teruskan stream SSE apa adanya ke browser.
+    // Teruskan stream SSE ke browser per baris utuh (nama tidak terpotong antarpotongan), disamarkan.
     res.status(200)
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
     res.setHeader('Cache-Control', 'no-cache, no-transform')
     const reader = upstream.body.getReader()
+    const dekoder = new TextDecoder()
+    let sisa = ''
     for (;;) {
       const { value, done } = await reader.read()
       if (done) break
-      res.write(Buffer.from(value))
+      sisa += dekoder.decode(value, { stream: true })
+      const akhirBaris = sisa.lastIndexOf('\n')
+      if (akhirBaris < 0) continue
+      res.write(samarkan(sisa.slice(0, akhirBaris + 1)))
+      sisa = sisa.slice(akhirBaris + 1)
     }
+    sisa += dekoder.decode()
+    if (sisa) res.write(samarkan(sisa))
     return res.end()
   } catch (err) {
     console.error('[api/ai]', err)
