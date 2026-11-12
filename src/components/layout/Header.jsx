@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Bell, LogOut, User, ChevronDown, Bot,
+  Bell, LogOut, User, ChevronDown,
   Sun, Moon, Megaphone, BookOpen, ClipboardList
 } from 'lucide-react'
 import { useAuth }    from '@/contexts/AuthContext'
-import { useAI }      from '@/contexts/AIContext'
 import { useTheme }   from '@/contexts/ThemeContext'
 import GlobalSearch   from './GlobalSearch'
 import { supabase }   from '@/lib/supabase'
@@ -29,7 +28,6 @@ const NOTIF_ICON = {
 // Isi sisi kanan header AppShell: pencarian, tema, asisten AI, notifikasi, menu akun.
 export default function HeaderActions() {
   const { profile, signOut, user } = useAuth()
-  const { setChatOpen }            = useAI()
   const { theme, toggleTheme }     = useTheme()
   const navigate                   = useNavigate()
 
@@ -170,16 +168,6 @@ export default function HeaderActions() {
             {theme === 'dark'
               ? <Sun  size={16} color="#fbbf24" />
               : <Moon size={16} />}
-          </button>
-
-          {/* AI Assistant shortcut */}
-          <button
-            className="btn btn-ghost btn-icon"
-            title="Asisten AI"
-            aria-label="Buka asisten AI"
-            onClick={() => setChatOpen(true)}
-          >
-            <Bot size={16} />
           </button>
 
           {/* ── Notifications ───────────────────────────────── */}

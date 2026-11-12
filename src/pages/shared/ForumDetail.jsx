@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Send, Loader2, MessageSquare, Coins, Bot } from 'lucide-react'
+import { ArrowLeft, Send, Loader2, MessageSquare, Coins } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { useAI } from '@/contexts/AIContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
-import { formatMessageText } from '@/components/ai/AIAssistant'
 
 export default function ForumDetail() {
   const { id } = useParams()
   const { user, profile } = useAuth()
-  const { askWithContext, askGemini, hasKey } = useAI()
   const navigate = useNavigate()
   const [forum,   setForum]   = useState(null)
   const [replies, setReplies] = useState([])
@@ -19,9 +16,7 @@ export default function ForumDetail() {
   const [loading, setLoading] = useState(true)
 
   const [enrolledStudents, setEnrolledStudents] = useState([])
-  const [showAnalysis, setShowAnalysis] = useState(false)
-  const [analyzing, setAnalyzing] = useState(false)
-  const [aiSummary, setAiSummary] = useState('')
+  const isStaf = ['dosen', 'admin'].includes(profile?.role)
 
   useEffect(() => { fetchData() }, [id])
 
@@ -44,33 +39,6 @@ export default function ForumDetail() {
     }
 
     setLoading(false)
-  }
-
-  async function handleAIAnalysis() {
-    if (!hasKey) {
-      toast.error('Silakan atur API Key Anda terlebih dahulu di menu AI Assistant!')
-      return
-    }
-
-    setAnalyzing(true)
-    setShowAnalysis(false)
-    setAiSummary('')
-
-    try {
-      const commentsText = replies.length > 0 
-        ? replies.map(r => `- ${r.author?.full_name}: "${r.body}"`).join('\n')
-        : 'Belum ada komentar sama sekali.'
-
-      const prompt = `Berikut adalah seluruh komentar/balasan dari forum diskusi berjudul "${forum.title}":\n\n${commentsText}\n\nInstruksi:\n1. Buat rangkuman singkat, padat, dan langsung ke inti diskusi (maksimal 150-200 kata).\n2. Tuliskan 3-4 poin menarik dari jalannya diskusi.\n3. Harap ringkas dan pastikan kalimat terakhir Anda selesai dengan sempurna (tidak terpotong di tengah kalimat/kata). Jawab dalam Bahasa Indonesia.`
-
-      const res = await askGemini(prompt)
-      setAiSummary(res)
-      setShowAnalysis(true)
-    } catch (err) {
-      toast.error(err.message || 'Gagal menganalisis diskusi')
-    } finally {
-      setAnalyzing(false)
-    }
   }
 
   async function sendReply() {
@@ -120,146 +88,33 @@ export default function ForumDetail() {
               </div>
             </div>
             
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                style={{
-                  color: 'var(--indigo-600)',
-                  background: 'var(--indigo-50)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 3,
-                  padding: '4px 10px',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  border: 'none',
-                  borderRadius: 12,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--indigo-100)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--indigo-50)' }}
-                onClick={() => askWithContext(`Tolong jelaskan atau analisis topik diskusi forum berikut:\n\nJudul: "${forum.title}"\nIsi: "${forum.body || ''}"\nDibuat oleh: ${forum.author?.full_name || 'Pengguna'}\n\nBerikan rangkuman dan poin diskusi yang menarik dari topik ini.`)}
-              >
-                <Bot size={11} /> Tanya AI
-              </button>
-
-              <button
-                style={{
-                  color: 'var(--indigo-600)',
-                  background: 'var(--indigo-50)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 3,
-                  padding: '4px 10px',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  border: 'none',
-                  borderRadius: 12,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--indigo-100)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--indigo-50)' }}
-                onClick={handleAIAnalysis}
-                disabled={analyzing}
-              >
-                {analyzing ? (
-                  <>
-                    <Loader2 size={11} style={{ animation: 'spin .7s linear infinite', marginRight: 2 }} />
-                    <span>Menganalisis...</span>
-                  </>
-                ) : (
-                  <>
-                    <Bot size={11} />
-                    <span>Rangkum Diskusi</span>
-                  </>
-                )}
-              </button>
-            </div>
           </div>
           {forum.body && <p style={{ fontSize:13, color:'var(--gray-700)', lineHeight:1.7 }}>{forum.body}</p>}
         </div>
       </div>
 
-      {/* AI Analysis Panel */}
-      {showAnalysis && (
-        <div className="card" style={{
-          marginBottom: 16,
-          border: '1px solid var(--indigo-100)',
-          background: 'var(--surface)',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            padding: '12px 16px',
-            background: 'var(--indigo-50)',
-            borderBottom: '1px solid var(--indigo-100)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: 'var(--indigo-700)' }}>
-              <Bot size={14} color="var(--indigo-600)" />
-              <span>Analisis & Rangkuman AI</span>
+      {/* Partisipasi peserta (hanya dosen/admin) */}
+      {isStaf && enrolledStudents.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              Partisipasi peserta
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => setShowAnalysis(false)} style={{ padding: 4 }}>
-              Tutup
-            </button>
-          </div>
-          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '16px 20px' }}>
-            {/* Summary */}
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6 }}>
-                📝 Rangkuman Diskusi
-              </div>
-              <div style={{
-                background: 'var(--gray-50)',
-                padding: '12px 16px',
-                borderRadius: 8,
-                fontSize: 13,
-                color: 'var(--gray-700)',
-                lineHeight: 1.6
-              }}>
-                {formatMessageText(aiSummary)}
-              </div>
-            </div>
-
-            {/* Participation */}
             <div className="form-grid form-grid-2" style={{ gap: 16 }}>
-              {/* Sudah */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#065f46', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }}></span>
-                  Sudah Partisipasi ({sudahPartisipasi.length})
-                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#065f46', marginBottom: 8 }}>Sudah membalas ({sudahPartisipasi.length})</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {sudahPartisipasi.length === 0 ? (
-                    <span style={{ fontSize: 11, color: 'var(--gray-400)' }}>Belum ada mahasiswa berpartisipasi.</span>
-                  ) : (
-                    sudahPartisipasi.map(s => (
-                      <span key={s.id} className="badge-pill badge-green" style={{ padding: '4px 10px', fontSize: 11 }}>
-                        ✓ {s.full_name}
-                      </span>
-                    ))
-                  )}
+                  {sudahPartisipasi.length === 0
+                    ? <span style={{ fontSize: 11, color: 'var(--gray-500)' }}>Belum ada.</span>
+                    : sudahPartisipasi.map(s => <span key={s.id} className="badge-pill badge-green" style={{ padding: '4px 10px', fontSize: 11 }}>✓ {s.full_name}</span>)}
                 </div>
               </div>
-
-              {/* Belum */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#991b1b', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444' }}></span>
-                  Belum Partisipasi ({belumPartisipasi.length})
-                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#991b1b', marginBottom: 8 }}>Belum membalas ({belumPartisipasi.length})</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {belumPartisipasi.length === 0 ? (
-                    <span style={{ fontSize: 11, color: 'var(--gray-400)' }}>Semua mahasiswa sudah berpartisipasi.</span>
-                  ) : (
-                    belumPartisipasi.map(s => (
-                      <span key={s.id} className="badge-pill badge-red" style={{ padding: '4px 10px', fontSize: 11 }}>
-                        ✗ {s.full_name}
-                      </span>
-                    ))
-                  )}
+                  {belumPartisipasi.length === 0
+                    ? <span style={{ fontSize: 11, color: 'var(--gray-500)' }}>Semua sudah membalas.</span>
+                    : belumPartisipasi.map(s => <span key={s.id} className="badge-pill badge-red" style={{ padding: '4px 10px', fontSize: 11 }}>✗ {s.full_name}</span>)}
                 </div>
               </div>
             </div>

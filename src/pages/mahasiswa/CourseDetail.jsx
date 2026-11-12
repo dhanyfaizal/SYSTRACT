@@ -3,13 +3,13 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, ClipboardList, MessageSquare, ExternalLink, CheckCircle2, FileDown, BookMarked, Send, Loader2, Award, ChevronUp, ChevronDown, ChevronRight, Lock, PanelLeftClose, PanelLeftOpen, Maximize2, Minimize2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSidebar } from '@/components/layout/AppLayout'
-import { useAI } from '@/contexts/AIContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 import WebSlidePlayer from '@/components/mahasiswa/WebSlidePlayer'
 import CoursePreview from '@/components/mahasiswa/CoursePreview'
-import { COUNTDOWN_SEC, getMatType, getEmbedUrl } from './courseDetail/materiHelpers'
+import { getMatType, getEmbedUrl } from './courseDetail/materiHelpers'
+import { useWaktuBelajarAktif, targetDetikMateri, lampiranVideo, DETIK_DIAM_MAKS } from '@/hooks/useWaktuBelajarAktif'
 import CountdownRing from './courseDetail/CountdownRing'
 import { urlVerifikasi, buatQrDataUrl, unduhSertifikatPdf } from '@/lib/sertifikat'
 import { SertifikatDepan, SertifikatBelakang, SkalaHalaman } from './courseDetail/SertifikatDesainB'
@@ -19,7 +19,6 @@ import { groupMaterialsIntoModules } from '@/lib/modules'
 export default function CourseDetail() {
   const { id: courseId } = useParams()
   const { user, profile } = useAuth()
-  const { askWithContext } = useAI()
   const navigate = useNavigate()
 
   const [course, setCourse] = useState(null)
@@ -105,8 +104,6 @@ export default function CourseDetail() {
 
   // Countdown timer state untuk materi aktif
   const [_elapsed, _setElapsed] = useState(0)
-  const [countdown, setCountdown] = useState(COUNTDOWN_SEC)
-  const timerRef = useRef(null)
 
   // State untuk form tugas
   const [linkUrl, setLinkUrl] = useState('')
@@ -126,47 +123,17 @@ export default function CourseDetail() {
     }
   }, [courseId, user])
 
-  // Countdown controller
-  useEffect(() => {
-    if (activeItem?.type === 'materi' && subTab === 'belajar') {
-      const matId = activeItem.data.id
-      const subIdx = activeItem.subIdx ?? 0
-      const refId = `mat_${matId}_${subIdx}`
-
-      if (completedRefs.has(refId)) {
-        setCountdown(0)
-        return
-      }
-
-      // Check storage key for first opened timestamp
-      const storageKey = `sy_mat_t_${user.id}_${matId}_${subIdx}`
-      let openedAt = parseInt(localStorage.getItem(storageKey) || '0')
-      if (!openedAt) {
-        openedAt = Date.now()
-        localStorage.setItem(storageKey, String(openedAt))
-      }
-
-      const currentElapsed = Math.floor((Date.now() - openedAt) / 1000)
-      const remaining = Math.max(0, COUNTDOWN_SEC - currentElapsed)
-      setCountdown(remaining)
-
-      if (remaining > 0) {
-        timerRef.current = setInterval(() => {
-          setCountdown(c => {
-            if (c <= 1) {
-              clearInterval(timerRef.current)
-              return 0
-            }
-            return c - 1
-          })
-        }, 1000)
-      }
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-  }, [activeItem, completedRefs, subTab])
+  // Waktu belajar aktif per lampiran: hanya berjalan saat tab terlihat dan peserta berinteraksi
+  // (video cukup tab terlihat). Minimal separuh estimasi dosen, dibagi rata ke lampiran materi.
+  const refAktif = activeItem?.type === 'materi' ? `mat_${activeItem.data.id}_${activeItem.subIdx ?? 0}` : null
+  const refSudahSelesai = !!refAktif && completedRefs.has(refAktif)
+  const { sisa: sisaDetik, total: totalDetik, dijeda } = useWaktuBelajarAktif({
+    aktif: !!refAktif && !refSudahSelesai && subTab === 'belajar',
+    kunci: refAktif && user?.id ? `sy_aktif_${user.id}_${refAktif}` : null,
+    targetDetik: targetDetikMateri(activeItem?.data?.estimasi_menit, activeItem?.data?.attachments?.length || 1),
+    pantauDiam: !lampiranVideo(activeItem?.attach),
+  })
+  const countdown = refSudahSelesai ? 0 : sisaDetik
 
   async function fetchCourseAndSyllabus() {
     if (!course) {
@@ -423,7 +390,7 @@ export default function CourseDetail() {
 
     const toastId = toast.loading('Menyimpan progres...')
     try {
-      // Server mencatat course_progress dan memberi +3 poin (sekali per lampiran).
+      // Server mencatat penyelesaian lampiran ini (course_progress + catatan penyelesaian).
       const { error: ptErr } = await supabase.rpc('klaim_poin_materi', {
         p_material_id: materialId,
         p_sub_idx: subIdx,
@@ -436,7 +403,7 @@ export default function CourseDetail() {
       setCompletedRefs(nextDone)
       localStorage.setItem(`sy_done_${user.id}_${courseId}`, JSON.stringify(Array.from(nextDone)))
 
-      toast.success('Materi selesai! +3 Poin ⭐', { id: toastId })
+      toast.success('Materi selesai ✓', { id: toastId })
       
       // Auto advance
       goToNextItem()
@@ -939,7 +906,6 @@ export default function CourseDetail() {
                       prodiName={profile?.program_studi || 'Teknik Informatika'}
                       meetingNo={activeItem.data.week_number || 1}
                       slideData={activeItem.data.webslide_content}
-                      askWithContext={askWithContext}
                       onOpenNewTab={() => {
                         const htmlContent = generateWebSlideHtml(
                           course.name,
@@ -1000,9 +966,13 @@ export default function CourseDetail() {
                     <>
                       {countdown > 0 ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fffbeb', border: '1px solid #fde68a', padding: '6px 12px', borderRadius: 20 }}>
-                          <CountdownRing seconds={countdown} />
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#b45309' }}>
-                            Pelajari materi selama {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')} untuk menyelesaikan
+                          <CountdownRing seconds={countdown} total={totalDetik} dijeda={!!dijeda} />
+                          <span style={{ fontSize: 11, fontWeight: 600, color: dijeda ? '#475569' : '#b45309' }} aria-live="polite">
+                            {dijeda === 'tab'
+                              ? 'Dijeda — kembali ke halaman ini untuk melanjutkan'
+                              : dijeda === 'diam'
+                                ? `Dijeda — tidak ada aktivitas ${DETIK_DIAM_MAKS / 60} menit. Gulir atau gerakkan kursor untuk melanjutkan`
+                                : `Pelajari materi ${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')} lagi untuk menyelesaikan`}
                           </span>
                         </div>
                       ) : (
@@ -1011,7 +981,7 @@ export default function CourseDetail() {
                           style={{ background: 'var(--success)', borderColor: '#059669', animation: 'pulse-green 1.5s infinite' }}
                           onClick={() => handleMarkComplete(activeItem.data.id, activeItem.subIdx ?? 0)}
                         >
-                          ✓ Tandai Selesai & Lanjut (+3 pts)
+                          ✓ Tandai Selesai & Lanjut
                         </button>
                       )}
                     </>
