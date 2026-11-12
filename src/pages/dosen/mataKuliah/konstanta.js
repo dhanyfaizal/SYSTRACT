@@ -5,7 +5,11 @@ export const SEMESTERS = ['Ganjil 2025/2026','Genap 2025/2026','Ganjil 2026/2027
 
 
 
-export const BLANK_COURSE_FORM = { code:'', name:'', description:'', credits:3, semester: SEMESTERS[0], cover_color:'#4f46e5', dosen_id:'' }
+export const BLANK_COURSE_FORM = { code:'', name:'', description:'', credits:3, semester: SEMESTERS[0], cover_color:'#4f46e5', dosen_id:'', kompetensi_teks:'' }
+
+/** "Excel, Word ,  PowerPoint" → ['Excel','Word','PowerPoint'] (maks. 6, tanpa duplikat). */
+export const pecahKompetensi = (teks = '') =>
+  [...new Set(String(teks).split(/[,;\n·]/).map((x) => x.trim()).filter(Boolean))].slice(0, 6)
 
 
 // ── Attachment type definitions ────────────────────────────────
