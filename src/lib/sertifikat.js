@@ -28,7 +28,7 @@ export async function unduhSertifikatPdf(container, namaFile) {
   let pdf = null
   for (const el of halaman) {
     const png = await toPng(el, {
-      pixelRatio: 2.5,
+      pixelRatio: 2, // 1123 px × 2 ≈ 190 dpi pada A4: tajam saat dicetak, file tetap ringan
       backgroundColor: '#ffffff',
       // logo eksternal yang gagal dimuat (CORS) diganti piksel transparan, PDF tetap jadi
       imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
