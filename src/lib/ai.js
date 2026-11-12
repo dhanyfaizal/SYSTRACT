@@ -638,6 +638,37 @@ Format output: JSON murni
   return callAi(prompt, true, onProgress);
 }
 
+// 8.d. Saran pemetaan CPMK & estimasi menit belajar untuk semua aktivitas kursus (dosen menyunting sebelum simpan).
+export async function generateSaranBebanCpmk({ kursus, sks, cpmk, aktivitas }, onProgress = null) {
+  const prompt = `
+Anda membantu instruktur memetakan aktivitas kursus daring ke CPMK dan memperkirakan waktu belajar peserta.
+
+Kursus: "${kursus || '-'}"
+Beban: ${sks ? `${sks} SKS (1 SKS = 45 jam belajar per semester, Permendikbudristek 53/2023)` : 'SKS belum diisi'}
+
+CPMK:
+${JSON.stringify(cpmk)}
+
+Aktivitas (jenis: materi, forum, tugas, kuis, evaluasi):
+${JSON.stringify(aktivitas)}
+
+Aturan:
+- "cpmk": 1–2 kode CPMK yang PALING didukung aktivitas itu, berdasarkan judul dan ringkasannya. Hanya pakai kode dari daftar CPMK di atas.
+- Usahakan setiap CPMK didukung minimal satu aktivitas bila memang ada aktivitas yang relevan; jangan memaksakan pemetaan yang tidak masuk akal.
+- Ujian/evaluasi yang mencakup banyak pertemuan boleh dipetakan ke CPMK pertemuan-pertemuan itu (maksimal 3).
+- "menit": perkiraan REALISTIS waktu peserta rata-rata, termasuk belajar mandiri yang memang dituntut aktivitas itu (mis. tugas: memahami soal, mengerjakan, menulis laporan; forum: membaca dan menanggapi; evaluasi: durasi ujian + persiapan).
+  - Jika aktivitas punya "menit_dari_isi", isi "menit" dengan angka itu.
+  - Jangan membesar-besarkan angka demi mengejar target SKS; angka ini akan diperiksa asesor.
+- "alasan": maksimal 15 kata, Bahasa Indonesia.
+- Kembalikan SEMUA aktivitas, memakai "id" yang sama.
+
+Format output: JSON murni
+{ "aktivitas": [ { "id": "a1", "cpmk": ["CPMK-1"], "menit": 60, "alasan": "..." } ] }
+`;
+
+  return callAi(prompt, true, onProgress);
+}
+
 // 9. Generate Soal Ujian Essay untuk UTS/UAS
 export async function generateEssayQuestions(courseName, examType, topic, capability, onProgress = null) {
   const prompt = `

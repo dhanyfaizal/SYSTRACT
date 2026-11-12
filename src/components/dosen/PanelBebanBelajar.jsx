@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Clock, CheckCircle2, AlertTriangle, Info } from 'lucide-react'
+import { Clock, CheckCircle2, AlertTriangle, Info, Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { JENIS_AKTIVITAS, formatDurasi, formatJam, statusKelayakan } from '@/lib/bebanBelajar'
 
@@ -9,7 +9,7 @@ const WARNA = { memenuhi: '#059669', kurang: '#d97706', belum_sks: '#64748b' }
  * Ringkasan beban belajar kursus terhadap target SKS (1 SKS = 45 jam, Permendikbudristek 53/2023)
  * dan cakupan CPMK. `muatUlang` diganti nilainya oleh induk setiap kali data kursus berubah.
  */
-export default function PanelBebanBelajar({ courseId, muatUlang }) {
+export default function PanelBebanBelajar({ courseId, muatUlang, onLengkapi }) {
   const [data, setData] = useState(null)
   const [galat, setGalat] = useState(null)
 
@@ -114,6 +114,15 @@ export default function PanelBebanBelajar({ courseId, muatUlang }) {
               {cpmkKosong.length} CPMK belum didukung aktivitas apa pun — rekognisi butuh setiap CPMK terpetakan.
             </p>
           )}
+        </div>
+      )}
+
+      {onLengkapi && (
+        <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <button type="button" className={`btn btn-sm ${data.belum_diisi > 0 || cpmkKosong.length ? 'btn-primary' : 'btn-secondary'}`} style={{ gap: 6 }} onClick={onLengkapi}>
+            <Sparkles size={13} /> Lengkapi beban &amp; CPMK
+          </button>
+          <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>Isi menit dan CPMK semua aktivitas sekaligus, dengan saran AI.</span>
         </div>
       )}
 

@@ -15,6 +15,7 @@ import { groupMaterialsIntoModules } from '@/lib/modules'
 import BebanBelajarFields from '@/components/dosen/BebanBelajarFields'
 import PanelBebanBelajar from '@/components/dosen/PanelBebanBelajar'
 import LaporanProgresMateri from '@/components/dosen/LaporanProgresMateri'
+import LengkapiBebanCpmk from '@/components/dosen/LengkapiBebanCpmk'
 import StudioSlide from './mataKuliah/StudioSlide'
 
 // Pertemuan 8 dan 16 adalah UTS/UAS: jendela soal pilihan ganda, bukan studio slide.
@@ -101,6 +102,7 @@ export default function DosenMataKuliah() {
   const [regeneratingLayoutSlideNo, setRegeneratingLayoutSlideNo] = useState(null)
   const [snapshotSlide, setSnapshotSlide] = useState('') // isi outline+SPA terakhir yang tersimpan di database
   const [laporanMateri, setLaporanMateri] = useState(null) // materi yang laporan progresnya sedang dibuka
+  const [lengkapiBeban, setLengkapiBeban] = useState(false) // alat isi beban & CPMK sekaligus
 
   const isOutlineEmpty = !slideOutline || !slideOutline.slides || slideOutline.slides.length === 0
 
@@ -1701,7 +1703,7 @@ export default function DosenMataKuliah() {
                   <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                     {/* Left Column (Main Content) */}
                     <div style={{ flex: '2 1 500px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-                      <PanelBebanBelajar courseId={selectedCourseId} muatUlang={materials} />
+                      <PanelBebanBelajar courseId={selectedCourseId} muatUlang={materials} onLengkapi={() => setLengkapiBeban(true)} />
                       
                       {/* Deskripsi Kursus */}
                       <div className="card" style={{ padding: 20 }}>
@@ -3037,6 +3039,9 @@ export default function DosenMataKuliah() {
 
       {/* ── MODAL: AI Slide / WebSlide / Essay Generator ── */}
       {laporanMateri && <LaporanProgresMateri materi={laporanMateri} onClose={() => setLaporanMateri(null)} />}
+      {lengkapiBeban && selectedCourse && (
+        <LengkapiBebanCpmk course={selectedCourse} onClose={() => setLengkapiBeban(false)} onSaved={() => fetchMaterials(selectedCourseId)} />
+      )}
 
       {/* Studio slide layar penuh untuk pertemuan biasa (UTS/UAS memakai jendela soal di bawah). */}
       {slideModal && activeMeeting && !pertemuanUjian(activeMeeting) && (
