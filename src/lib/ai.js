@@ -343,6 +343,9 @@ export async function generateReferences(courseName, cpmkList, onProgress = null
 
 // Aturan penulisan materi yang berlaku untuk outline, regenerate slide, dan SPA.
 // Dikirim sebagai pesan sistem agar tidak bercampur dengan data kursus.
+// Aturan pilihan jawaban, dipakai latihan SPA, soal video, dan soal ujian.
+const ATURAN_PILIHAN = `Kualitas pilihan jawaban: kelima pilihan sejenis dan kira-kira sama panjang (selisih paling banyak beberapa kata); jawaban benar TIDAK boleh menjadi pilihan terpanjang atau paling rinci secara konsisten. Pengecoh diambil dari miskonsepsi yang wajar atau konsep lain dari materi yang sama, bukan pilihan yang jelas konyol. Hindari "semua benar", "semua salah", dan kata mutlak (selalu, tidak pernah, hanya) yang membocorkan jawaban.`;
+
 const ATURAN_MATERI = `
 Anda adalah penulis materi kursus daring (MOOC) berbahasa Indonesia untuk peserta yang belajar mandiri.
 
@@ -393,6 +396,7 @@ Struktur:
 2. Bagian 1 adalah pengantar yang menyapa peserta secara langsung (misalnya "Anda akan mempelajari …"): apa yang akan dipelajari dan mengapa penting (3–4 poin). Jangan memulai dengan "Bagian ini …". Jangan membuat bagian "peta pembelajaran", indikator penilaian, atau aktivitas kelas.
 3. Bagian inti: setiap sub-topik dibahas dalam 4–6 bagian berurutan, masing-masing dari sudut yang berbeda, misalnya: pengertian dan konsep dasar; komponen atau cara kerja; jenis atau klasifikasi; perbandingan (cocok untuk tabel); penerapan atau contoh nyata (konteks Indonesia bila relevan); kelebihan, keterbatasan, atau tantangan. Pilih sudut yang memang relevan; jangan membuat bagian pengisi.
 4. Setiap bagian inti berisi 4–5 poin. Setiap poin satu kalimat informatif, paling banyak sekitar 35 kata (bukan frasa pendek). Bila topiknya memuat besaran atau rumus, sertakan minimal satu contoh perhitungan langkah demi langkah.
+   Sertakan minimal 4 contoh nyata bernama yang dikenal luas di seluruh materi (perusahaan, produk, standar, atau peristiwa; mis. produk penting dalam sejarah topik, penyedia terkenal, kasus publik), masing-masing di bagian yang relevan. Hanya contoh yang perannya Anda yakini benar; jangan menyertakan angka atau tanggal yang tidak pasti.
 5. Setelah bagian inti, satu bagian "Studi Kasus" yang memadukan beberapa sub-topik dalam satu skenario nyata (konteks, pilihan, pertimbangan, keputusan yang disarankan).
 6. Jumlah total 26–34 bagian (termasuk pengantar, studi kasus, dan tiga bagian penutup), mengikuti banyaknya sub-topik.
 7. Tiga bagian terakhir berurutan:
@@ -475,7 +479,8 @@ Pilihan layout (pilih yang paling sesuai isi; variasikan agar tidak monoton):
    { "slide_no": X, "layout": "discussion", "title": "Diskusi", "discussion_items": [ { "question": "...?", "hint": "..." } ] }
 11. "quiz" — WAJIB untuk slide outline berjudul "Latihan": soal pilihan ganda untuk latihan mandiri.
    { "slide_no": X, "layout": "quiz", "title": "Latihan", "quiz_items": [ { "question": "...", "options": ["...", "...", "...", "...", "..."], "answer": 1, "explanation": "..." } ] }
-   Setiap soal TEPAT 5 pilihan; "answer" adalah indeks pilihan benar (0–4); sebarkan posisi jawaban benar; pengecoh harus masuk akal; "explanation" menjelaskan mengapa jawaban itu benar. Soal diambil dari soal pada outline.
+   Setiap soal TEPAT 5 pilihan; "answer" adalah indeks pilihan benar (0–4); sebarkan posisi jawaban benar; "explanation" menjelaskan mengapa jawaban itu benar. Soal diambil dari soal pada outline.
+   ${ATURAN_PILIHAN}
 12. "media" — gambar atau video sebagai fokus. HANYA bila slide outline punya "image_url".
    { "slide_no": X, "layout": "media", "title": "...", "image_url": "(salin dari outline)", "caption": "...", "description": "..." }
 
@@ -531,7 +536,8 @@ ${JSON.stringify(outlineData)}
 
 Aturan pemetaan:
 - Petakan SELURUH slide pada outline di atas. Jumlah slide dan nilai "slide_no" harus sama persis dengan outline: jangan menambah, mengurangi, menggabung, atau mengubah urutan.
-- Pertahankan keringkasan teks outline; jangan memperpanjangnya. Isi boleh disusun ulang agar cocok dengan layout.
+- Pertahankan isi outline: SETIAP poin outline harus tetap muncul beserta rinciannya (contoh, alasan, angka, nama). Jangan memangkas poin menjadi frasa pendek dan jangan menambah fakta baru. Isi boleh disusun ulang agar cocok dengan layout.
+- Pilih layout yang menampung isi: poin panjang cocok untuk "list", "split", atau "accordion"; "grid" dan "steps" hanya bila setiap poin bisa ditulis utuh di kartu/langkah tanpa dipangkas (deskripsi kartu boleh 1–2 kalimat).
 - Gunakan tag <strong> untuk kata kunci penting dan <em> untuk istilah asing. Jangan memakai tag HTML lain.
 - Istilah asing cukup dijelaskan singkat di dalam slide yang sama.
 ${KATALOG_LAYOUT}
@@ -583,7 +589,8 @@ Aturan:
 - Setiap soal menguji SATU gagasan penting yang benar-benar diucapkan di video, bukan pengetahuan umum di luar video.
 - "detik" = waktu tepat SETELAH gagasan itu selesai dijelaskan (ambil dari cap waktu segmen berikutnya), dalam detik bulat. Jangan menaruh soal sebelum jawabannya disebut di video.
 - Sebar soal ke seluruh video secara merata; jarak antarsoal minimal 30 detik; urutkan menurut detik.
-- Tepat 5 pilihan, satu jawaban benar; pengecoh masuk akal dan diambil dari konteks video; sebarkan posisi jawaban benar.
+- Tepat 5 pilihan, satu jawaban benar; pengecoh diambil dari konteks video; sebarkan posisi jawaban benar.
+- ${ATURAN_PILIHAN}
 - "jawaban" adalah indeks pilihan benar (0–4).
 - "penjelasan" 1 kalimat yang merujuk isi video (boleh menyebut menitnya).
 - Bahasa Indonesia yang jelas dan singkat; pertanyaan maksimal 25 kata. Jangan menyebut "transkrip".
@@ -700,7 +707,7 @@ export async function generateMcqQuestions(courseName, examType, topic, capabili
 
     ATURAN:
     - Gunakan Bahasa Indonesia formal yang baik, jelas, dan tidak ambigu.
-    - Opsi jawaban harus masuk akal (distractor yang baik).
+    - ${ATURAN_PILIHAN}
     - Tentukan satu huruf kunci jawaban (A, B, C, D, atau E) pada properti "answer"; sebarkan posisi jawaban benar secara merata.
     - Hasilkan TEPAT 25 SOAL pilihan ganda (jangan kurang, jangan lebih).
     - Jangan berikan penjelasan tambahan apapun di luar JSON murni.
