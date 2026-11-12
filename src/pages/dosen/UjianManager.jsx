@@ -6,6 +6,8 @@ import toast from 'react-hot-toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import CoursePicker from "@/components/dosen/CoursePicker"
+import BebanBelajarFields from '@/components/dosen/BebanBelajarFields'
+import { useCpmkKursus } from '@/hooks/useCpmkKursus'
 
 const EXAM_MODES = [
   { value:'ujian',   label:'Ujian',    desc:'1 kali percobaan, dosen input nilai',   color:'#4f46e5' },
@@ -13,7 +15,7 @@ const EXAM_MODES = [
   { value:'quiz',    label:'Quiz',     desc:'Percobaan tak terbatas, auto-graded',    color:'#7c3aed' },
 ]
 
-const BLANK = { title: '', type: 'kuis', duration_minutes: 90, start_at: '', end_at: '', is_published: false, use_question_bank: false, question_config: [], exam_mode: 'ujian', max_attempts: 5, passing_grade: 70 }
+const BLANK = { title: '', type: 'kuis', duration_minutes: 90, start_at: '', end_at: '', is_published: false, use_question_bank: false, question_config: [], exam_mode: 'ujian', max_attempts: 5, passing_grade: 70, estimasi_menit: null, cpmk_kode: [] }
 
 function fmt(iso) {
   if (!iso) return '—'
@@ -33,6 +35,7 @@ export default function DosenUjianManager() {
   const [editing,  setEditing]  = useState(null)
   const [saving,   setSaving]   = useState(false)
   const [form,        setForm]        = useState(BLANK)
+  const cpmkKursus = useCpmkKursus(courseId)
   const [hasilTarget, setHasilTarget] = useState(null)
   const [hasilData,   setHasilData]   = useState([])
   const [hasilLoad,   setHasilLoad]   = useState(false)
@@ -120,6 +123,8 @@ export default function DosenUjianManager() {
       exam_mode:    e.exam_mode    || 'ujian',
       max_attempts: e.max_attempts || 5,
       passing_grade: e.passing_grade || 70,
+      estimasi_menit: e.estimasi_menit ?? null,
+      cpmk_kode: e.cpmk_kode || [],
     })
     setEditing(e.id); setModal(true)
     fetchTopics(courseId)
@@ -343,6 +348,13 @@ export default function DosenUjianManager() {
                   <input className="input" type="datetime-local" value={form.end_at} onChange={e => setForm(f=>({...f,end_at:e.target.value}))}/>
                 </div>
               </div>
+              <BebanBelajarFields
+                value={form}
+                onChange={(v) => setForm(f => ({ ...f, estimasi_menit: v.estimasi_menit, cpmk_kode: v.cpmk_kode }))}
+                cpmkList={cpmkKursus}
+                placeholderMenit={`kosong = ${form.duration_minutes || 0} (durasi)`}
+                petunjukMenit="Termasuk persiapan dan mengerjakan; bila dikosongkan dipakai durasi ujian."
+              />
               {/* Question bank toggle */}
               <div style={{ background:'var(--gray-50)', borderRadius:10, padding:'12px 14px', border:'1px solid var(--gray-200)', marginTop:4 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom: form.use_question_bank ? 14 : 0 }}>

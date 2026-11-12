@@ -1432,9 +1432,9 @@ export default function CourseDetail() {
                         <span style={{ background: '#1e293b', color: 'white', padding: '2px 8px', borderRadius: 2, fontSize: 9, letterSpacing: '0.5px' }}>Training Center</span>
                       </div>
                       {/* SYSTRACT Logo */}
-                      <img src="https://i.ibb.co/BKFH2Hk9/SYSTRACT.png" alt="SYSTRACT Logo" style={{ height: 40, width: 40, objectFit: 'contain' }} />
+                      <img src="/logo-systract.png" alt="Logo SYSTRACT" style={{ height: 40, width: 40, objectFit: 'contain' }} />
                       {/* STIKOM Seal Logo */}
-                      <img src="https://i.ibb.co.com/kgV7WDhF/Logo-SYS.png" alt="STIKOM Seal" style={{ height: 40, width: 40, objectFit: 'contain' }} />
+                      <img src="/logo-stikom.webp" alt="Logo STIKOM Yos Sudarso" style={{ height: 40, width: 40, objectFit: 'contain' }} />
                     </div>
 
                     {/* Right Competencies Badge (Asymmetrical Curved Design) */}
@@ -1690,7 +1690,7 @@ export default function CourseDetail() {
                           <span style={{ background: '#eab308', color: 'white', padding: '1px 6px', borderRadius: 2 }}>STIKOM Yos Sudarso</span>
                           <span style={{ background: '#1e293b', color: 'white', padding: '1px 6px', borderRadius: 2, fontSize: 8 }}>Training Center</span>
                         </div>
-                        <img src="https://i.ibb.co.com/kgV7WDhF/Logo-SYS.png" alt="STIKOM Seal" style={{ height: 32, width: 32, objectFit: 'contain' }} />
+                        <img src="/logo-stikom.webp" alt="Logo STIKOM Yos Sudarso" style={{ height: 32, width: 32, objectFit: 'contain' }} />
                       </div>
                     </div>
 

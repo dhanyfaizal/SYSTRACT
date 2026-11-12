@@ -19,7 +19,7 @@ export const ATTACH_TYPES = [
 
 export const BLANK_ATTACH = () => ({ mime: ATTACH_TYPES[0].mime, url: '', label: '' })
 
-export const BLANK_MATERIAL_FORM = () => ({ title: '', description: '', week_number: 1, attachments: [BLANK_ATTACH()] })
+export const BLANK_MATERIAL_FORM = () => ({ title: '', description: '', week_number: 1, attachments: [BLANK_ATTACH()], estimasi_menit: null, jenis_aktivitas: null, cpmk_kode: [] })
 
 
 export function typeOf(mime) { return ATTACH_TYPES.find(t => t.mime === mime) || ATTACH_TYPES[3] }

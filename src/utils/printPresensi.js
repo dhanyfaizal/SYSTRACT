@@ -5,6 +5,8 @@
  */
 
 const STATUS_LABEL = { hadir:'H', izin:'I', sakit:'S', alpha:'A' }
+// Alamat lengkap: dokumen cetak dibuka di jendela baru, path relatif tidak selalu terbaca.
+const LOGO_STIKOM = `${window.location.origin}/logo-stikom.webp`
 const STATUS_COLOR  = { hadir:'#16a34a', izin:'#2563eb', sakit:'#d97706', alpha:'#dc2626' }
 
 export async function printPresensi({ supabase, courseId }) {
@@ -175,7 +177,7 @@ export async function printPresensi({ supabase, courseId }) {
       <div class="page${si < sessions.length - 1 ? ' page-break' : ''}">
         <div class="header">
           <div class="header-inner">
-            <img class="header-logo" src="https://i.ibb.co.com/kgV7WDhF/Logo-SYS.png" alt="STIKOM"/>
+            <img class="header-logo" src="${LOGO_STIKOM}" alt="STIKOM Yos Sudarso"/>
             <div class="header-text">
               <div class="inst">STIKOM Yos Sudarso Purwokerto</div>
               <div style="font-size:13pt;font-weight:bold;text-transform:uppercase;letter-spacing:1px">Lampiran: Daftar Hadir per Pertemuan</div>
@@ -239,7 +241,7 @@ export async function printPresensi({ supabase, courseId }) {
 <div class="page page-break">
   <div class="header">
     <div class="header-inner">
-      <img class="header-logo" src="https://i.ibb.co.com/kgV7WDhF/Logo-SYS.png" alt="STIKOM"/>
+      <img class="header-logo" src="${LOGO_STIKOM}" alt="STIKOM Yos Sudarso"/>
       <div class="header-text">
         <div class="inst">STIKOM Yos Sudarso Purwokerto</div>
         <div class="title">Berita Acara Pembelajaran</div>
@@ -296,7 +298,7 @@ export async function printPresensi({ supabase, courseId }) {
 <div class="page page-break">
   <div class="header">
     <div class="header-inner">
-      <img class="header-logo" src="https://i.ibb.co.com/kgV7WDhF/Logo-SYS.png" alt="STIKOM"/>
+      <img class="header-logo" src="${LOGO_STIKOM}" alt="STIKOM Yos Sudarso"/>
       <div class="header-text">
         <div class="title">Rekap Daftar Hadir Mahasiswa</div>
         <div class="sub">${course.code} — ${course.name} | ${course.semester}</div>

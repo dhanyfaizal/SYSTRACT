@@ -12,6 +12,8 @@ import { parseWebSlideHtml, WebSlideImportError } from '@/lib/webslideImport'
 import { COLORS, SEMESTERS, BLANK_COURSE_FORM, ATTACH_TYPES, BLANK_ATTACH, BLANK_MATERIAL_FORM, typeOf } from './mataKuliah/konstanta'
 import AttachRow from './mataKuliah/AttachRow'
 import { groupMaterialsIntoModules } from '@/lib/modules'
+import BebanBelajarFields from '@/components/dosen/BebanBelajarFields'
+import PanelBebanBelajar from '@/components/dosen/PanelBebanBelajar'
 
 
 // ── Main SPA component ─────────────────────────────────────────
@@ -494,7 +496,8 @@ export default function DosenMataKuliah() {
       ? m.attachments
       : m.webview_link ? [{ mime: m.mime_type || ATTACH_TYPES[0].mime, url: m.webview_link, label: '' }]
       : [BLANK_ATTACH()]
-    setMaterialForm({ title: m.title, description: m.description||'', week_number: m.week_number||1, attachments })
+    setMaterialForm({ title: m.title, description: m.description||'', week_number: m.week_number||1, attachments,
+      estimasi_menit: m.estimasi_menit ?? null, jenis_aktivitas: m.jenis_aktivitas ?? null, cpmk_kode: m.cpmk_kode || [] })
     setEditingMaterialId(m.id)
     setMaterialModal(true)
   }
@@ -524,6 +527,9 @@ export default function DosenMataKuliah() {
       attachments: filled,
       webview_link: first.url,
       mime_type: first.mime,
+      estimasi_menit: materialForm.estimasi_menit ?? null,
+      jenis_aktivitas: materialForm.jenis_aktivitas || null,
+      cpmk_kode: materialForm.cpmk_kode || [],
     }
 
     let error
@@ -1775,6 +1781,7 @@ export default function DosenMataKuliah() {
                   <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                     {/* Left Column (Main Content) */}
                     <div style={{ flex: '2 1 500px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                      <PanelBebanBelajar courseId={selectedCourseId} muatUlang={materials} />
                       
                       {/* Deskripsi Kursus */}
                       <div className="card" style={{ padding: 20 }}>
@@ -2985,6 +2992,14 @@ export default function DosenMataKuliah() {
                 <input className="input" type="number" min={0} max={16} value={materialForm.week_number} onChange={e => setMaterialForm(f=>({...f,week_number:+e.target.value}))}/>
                 <span className="input-hint">Isi 0 untuk materi umum / pendahuluan kelas</span>
               </div>
+
+              <BebanBelajarFields
+                value={materialForm}
+                onChange={(v) => setMaterialForm(f => ({ ...f, estimasi_menit: v.estimasi_menit, jenis_aktivitas: v.jenis_aktivitas, cpmk_kode: v.cpmk_kode }))}
+                cpmkList={(selectedCourse?.cpmk || []).filter(c => c?.kode)}
+                denganJenis
+                petunjukMenit="Total waktu menonton, membaca, atau praktik semua lampiran materi ini."
+              />
 
               <div>
                 <div style={{ display:'flex', alignItems:'center', justifyContent: 'space-between', marginBottom:10 }}>

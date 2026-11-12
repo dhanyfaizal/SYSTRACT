@@ -8,7 +8,7 @@ import HeaderActions    from './Header'
 import AIAssistant      from '@/components/ai/AIAssistant'
 import { buildNav, ROLE_LABEL } from './navConfig'
 
-const LOGO_URL = 'https://i.ibb.co.com/kgV7WDhF/Logo-SYS.png'
+const LOGO_URL = '/logo-stikom.webp'
 const BRAND = { name: 'SYSTRACT', sub: 'STIKOM Yos Sudarso', logo: LOGO_URL }
 
 // Dipakai halaman ujian untuk menyembunyikan sidebar selama ujian berlangsung.
