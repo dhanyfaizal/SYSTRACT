@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 
-// Pemilih kursus untuk halaman instruktur (Tugas, Ujian, Forum, Bank Soal, Presensi).
+// Pemilih kursus untuk halaman instruktur (Tugas, Ujian, Forum, Bank Soal; Presensi sedang disembunyikan).
 //
 // Bila halaman dibuka dari sub-menu kursus di sidebar (URL membawa ?courseId=…),
 // kursusnya sudah jelas dari sidebar dan judul header, jadi pemilih tidak ditampilkan

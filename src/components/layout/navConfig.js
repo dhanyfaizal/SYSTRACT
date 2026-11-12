@@ -36,7 +36,9 @@ const DOSEN_COURSE_SUBS = [
   { label: 'Forum',     icon: MessageSquare, path: '/forum'     },
   { label: 'Ujian',     icon: FileText,      path: '/ujian'     },
   { label: 'Bank Soal', icon: Database,      path: '/bank-soal' },
-  { label: 'Presensi',  icon: UserCheck,     path: '/absensi'   },
+  // Disembunyikan dulu: kursus daring belum memakai sesi tatap muka. Halaman /absensi dan datanya
+  // tetap ada; hapus 'tersembunyi' untuk menampilkannya lagi.
+  { label: 'Presensi',  icon: UserCheck,     path: '/absensi', tersembunyi: true },
 ]
 
 function dosenNav(courses) {
@@ -47,7 +49,7 @@ function dosenNav(courses) {
     { id: 'semua-kursus', label: 'Semua kursus', icon: LayoutGrid, to: '/materi' },
     ...courses.map((c) => ({
       id: `kursus-${c.id}`, label: c.name, icon: BookOpen,
-      children: DOSEN_COURSE_SUBS.map((s) => ({ to: `${s.path}?courseId=${c.id}`, label: s.label, icon: s.icon })),
+      children: DOSEN_COURSE_SUBS.filter((s) => !s.tersembunyi).map((s) => ({ to: `${s.path}?courseId=${c.id}`, label: s.label, icon: s.icon })),
     })),
     { section: 'Penilaian' },
     { id: 'analitik',    label: 'Analitik',    icon: BarChart2,     to: '/analitik'    },
