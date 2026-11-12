@@ -187,7 +187,7 @@ function el(tag, kelas, teks) {
  * @param {{ kunci?: string, onProgres?: (p: {terjawab: number, total: number}) => void }} opsi
  * @returns {() => void} pelepas
  */
-export function pasangVideoInteraktif(media, soalMentah, { kunci, onProgres } = {}) {
+export function pasangVideoInteraktif(media, soalMentah, { kunci, onProgres, onJawab } = {}) {
   const soal = rapikanSoal(soalMentah)
   const figure = media.closest('figure') || media.parentElement
   const progres = bacaProgres(kunci)
@@ -240,6 +240,7 @@ export function pasangVideoInteraktif(media, soalMentah, { kunci, onProgres } = 
     const s = soal[i]
     daftar.querySelectorAll('button').forEach((b) => { b.disabled = true })
     umpan.replaceChildren()
+    onJawab?.({ soal: i, pilihan: oi, benar: oi === s.jawaban })
     if (oi === s.jawaban) {
       tombol.classList.add('is-correct')
       progres.terjawab.add(i)

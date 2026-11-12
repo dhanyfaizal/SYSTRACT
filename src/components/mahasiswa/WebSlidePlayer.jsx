@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useEffect, useLayoutEffect } from 'react'
 import { ExternalLink, Menu, X, ChevronLeft, ChevronRight, ArrowUp, AlertCircle, Presentation, ScrollText } from 'lucide-react'
 import { prepareDeck, renderSections, SPA_CSS } from '@/lib/spaBlocks'
-import { pasangVideoInteraktif } from '@/lib/videoInteraktif'
+import { pasangVideoInteraktif, bacaProgres, simpanProgres, rapikanSoal } from '@/lib/videoInteraktif'
 import { pasangLatihan } from '@/lib/latihanInteraktif'
 import { targetBacaBagian, bagianTerlihat } from '@/lib/bacaBagian'
 import { DETIK_DIAM_MAKS } from '@/hooks/useWaktuBelajarAktif'
@@ -26,6 +26,11 @@ export default function WebSlidePlayer({
   kunciProgres = null,   // awalan kunci penyimpanan progres (per peserta & materi); null = tidak disimpan
   onStatusMateri = null, // ({ baca, video, latihan }) masing-masing { selesai, total } — syarat menyelesaikan materi
   tinggi = 'max(460px, calc(100vh - 270px))', // tinggi pemutar; '100vh' untuk tampilan tab sendiri
+  // Pencatatan di server (peserta): setiap jawaban soal, laporan detik baca berkala, dan progres
+  // tersimpan untuk dilanjutkan di perangkat lain ({ baca: number[], benar: [{bagian, jenis, soal}] }).
+  onJawab = null,        // ({ bagian, jenis: 'video'|'latihan', soal, pilihan, benar })
+  onBaca = null,         // (detikPerBagian: number[])
+  progresServer = null,
 }) {
   const deck = useMemo(() => prepareDeck(slideData), [slideData])
   const slides = deck.slides
@@ -55,8 +60,11 @@ export default function WebSlidePlayer({
   const [versiProgres, setVersiProgres] = useState(0)
   const [soalBagian, setSoalBagian] = useState({}) // { [idx]: { jenis: 'video'|'latihan', terjawab, total } }
   const [bacaSnapshot, setBacaSnapshot] = useState([]) // salinan catatan baca untuk render
+  const jawabRef = useRef(onJawab)
+  const bacaCbRef = useRef(onBaca)
   useEffect(() => { statusRef.current = onStatusMateri }, [onStatusMateri])
   useEffect(() => { slideDataRef.current = slideData }, [slideData])
+  useEffect(() => { jawabRef.current = onJawab; bacaCbRef.current = onBaca }, [onJawab, onBaca])
 
   // Waktu baca minimal per bagian (detik), dari isi slide.
   // Distabilkan menurut isinya: data slide yang sama tapi objek baru tidak boleh mereset pelacak.
@@ -81,6 +89,7 @@ export default function WebSlidePlayer({
         return pasangVideoInteraktif(media, slideDataRef.current?.slides?.[idx]?.soal_video, {
           kunci: kunciProgres ? `${kunciProgres}_${idx}` : null,
           onProgres: catat(idx, 'video'),
+          onJawab: (p) => jawabRef.current?.({ bagian: idx, jenis: 'video', ...p }),
         })
       }),
       ...Array.from(wadah.querySelectorAll('section[data-layout="quiz"]')).map((sec) => {
@@ -88,6 +97,7 @@ export default function WebSlidePlayer({
         return pasangLatihan(sec, slideDataRef.current?.slides?.[idx]?.quiz_items, {
           kunci: kunciProgres ? `${kunciProgres}_q${idx}` : null,
           onProgres: catat(idx, 'latihan'),
+          onJawab: (p) => jawabRef.current?.({ bagian: idx, jenis: 'latihan', ...p }),
         })
       }),
     ]
@@ -113,6 +123,11 @@ export default function WebSlidePlayer({
     const kejadian = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'scroll']
     kejadian.forEach((k) => window.addEventListener(k, tandai, { passive: true, capture: true }))
     const simpan = () => { try { if (kunciBaca) localStorage.setItem(kunciBaca, JSON.stringify(bacaRef.current)) } catch { /* abaikan */ } }
+    // Laporan ke server: tiap 15 detik selama peserta aktif, saat sebuah bagian selesai, dan saat
+    // meninggalkan materi. Tetap dikirim walau angkanya sama, karena server menaikkan catatannya
+    // bertahap sesuai waktu nyata dan perlu menyusul angka di browser.
+    const lapor = () => bacaCbRef.current?.(bacaRef.current.slice())
+    let detikSejakLapor = 0
     const id = setInterval(() => {
       if (document.visibilityState !== 'visible' || Date.now() - terakhirAktif > DETIK_DIAM_MAKS * 1000) return
       const rp = pane.getBoundingClientRect()
@@ -125,12 +140,15 @@ export default function WebSlidePlayer({
         if (bacaRef.current[i] >= t) berubah = true
       })
       ketukan += 1
+      detikSejakLapor += 1
       if (berubah || ketukan % 5 === 0) simpan()
+      if (berubah || detikSejakLapor >= 15) { lapor(); detikSejakLapor = 0 }
       if (berubah) setBacaSnapshot(bacaRef.current.slice())
     }, 1000)
     return () => {
       clearInterval(id)
       simpan()
+      lapor()
       kejadian.forEach((k) => window.removeEventListener(k, tandai, { capture: true }))
     }
   }, [targetBaca, kunciBaca])
@@ -152,6 +170,62 @@ export default function WebSlidePlayer({
     window.addEventListener('storage', dengar)
     return () => window.removeEventListener('storage', dengar)
   }, [kunciProgres, kunciBaca])
+
+  // Progres dari server (perangkat lain): gabungkan ke catatan perangkat ini, lalu kirim ke server
+  // soal yang sudah benar di perangkat ini tetapi belum tercatat di server (mis. dijawab sebelum
+  // pencatatan server ada), memakai kunci dari data materi.
+  useEffect(() => {
+    if (!progresServer || !kunciProgres) return
+    const data = slideDataRef.current?.slides || []
+    // Baca: ambil yang terbesar.
+    const baca = Array.isArray(progresServer.baca) ? progresServer.baca : []
+    bacaRef.current = bacaRef.current.map((d, i) => Math.max(d, Number(baca[i]) || 0))
+    try { if (kunciBaca) localStorage.setItem(kunciBaca, JSON.stringify(bacaRef.current)) } catch { /* abaikan */ }
+    setBacaSnapshot(bacaRef.current.slice())
+
+    // Soal: server → perangkat.
+    const diServer = new Set((progresServer.benar || []).map((b) => `${b.jenis}:${b.bagian}:${b.soal}`))
+    let bertambah = false
+    const kunciSoal = (jenis, bagian) => `${kunciProgres}_${jenis === 'video' ? '' : 'q'}${bagian}`
+    const perBagian = {}
+    ;(progresServer.benar || []).forEach((b) => {
+      const k = kunciSoal(b.jenis, b.bagian)
+      ;(perBagian[k] ||= { jenis: b.jenis, bagian: b.bagian, soal: [] }).soal.push(b.soal)
+    })
+    Object.entries(perBagian).forEach(([k, { jenis, bagian, soal }]) => {
+      const lokal = bacaProgres(k)
+      const baru = soal.filter((s) => !lokal.terjawab.has(s))
+      if (!baru.length) return
+      let maks = lokal.maks
+      if (jenis === 'video') {
+        const urut = rapikanSoal(data[bagian]?.soal_video)
+        soal.forEach((s) => { if (urut[s]) maks = Math.max(maks, urut[s].detik) })
+      }
+      simpanProgres(k, { terjawab: new Set([...lokal.terjawab, ...baru]), maks })
+      bertambah = true
+    })
+
+    // Soal: perangkat → server.
+    data.forEach((slide, bagian) => {
+      if (slide?.layout === 'media' && Array.isArray(slide.soal_video) && slide.soal_video.length) {
+        const urut = rapikanSoal(slide.soal_video)
+        bacaProgres(kunciSoal('video', bagian)).terjawab.forEach((s) => {
+          if (urut[s] && !diServer.has(`video:${bagian}:${s}`)) jawabRef.current?.({ bagian, jenis: 'video', soal: s, pilihan: urut[s].jawaban, benar: true, sinkron: true })
+        })
+      }
+      if (slide?.layout === 'quiz' && Array.isArray(slide.quiz_items)) {
+        bacaProgres(kunciSoal('latihan', bagian)).terjawab.forEach((s) => {
+          const item = slide.quiz_items[s]
+          if (!item || diServer.has(`latihan:${bagian}:${s}`)) return
+          const nOpsi = Math.min(Array.isArray(item.options) ? item.options.length : 0, 6)
+          const pilihan = Number.isInteger(item.answer) && item.answer >= 0 && item.answer < nOpsi ? item.answer : 0
+          jawabRef.current?.({ bagian, jenis: 'latihan', soal: s, pilihan, benar: true, sinkron: true })
+        })
+      }
+    })
+
+    if (bertambah) setVersiProgres((v) => v + 1)
+  }, [progresServer, kunciProgres, kunciBaca])
 
   // Status tiap bagian (untuk tanda ✓ di daftar isi) dan ringkasan syarat selesai materi.
   const selesaiBagian = useMemo(() => targetBaca.map((t, i) => {

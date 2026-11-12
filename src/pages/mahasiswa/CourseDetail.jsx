@@ -139,6 +139,41 @@ export default function CourseDetail() {
   const spaBelumTuntas = pakaiSpa && (!sm || syaratSpa.some((s) => s.selesai < s.total))
   // Tata letak satu layar: materi SPA yang terbuka (bukan terkunci) mengisi kolom tanpa gulir halaman.
   const tampilanSpa = subTab === 'belajar' && activeItem?.type === 'materi' && pakaiSpa
+
+  // Progres materi SPA di server: dimuat saat materi dibuka (lanjut di perangkat lain),
+  // jawaban soal dan detik baca dikirim ke server yang juga memeriksa syarat "Tandai Selesai".
+  const idMateriSpa = pakaiSpa ? activeItem?.data?.id : null
+  const [progresServer, setProgresServer] = useState(null) // { matId, data }
+  useEffect(() => {
+    if (!idMateriSpa || !user?.id) return undefined
+    let batal = false
+    supabase.rpc('progres_saya_materi', { p_material_id: idMateriSpa }).then(({ data, error }) => {
+      if (batal) return
+      if (error) { console.warn('[SYSTRACT] Progres server tidak termuat:', error.message); return }
+      setProgresServer({ matId: idMateriSpa, data })
+    })
+    return () => { batal = true }
+  }, [idMateriSpa, user?.id])
+  const galatServerRef = useRef(0)
+  const laporGalatServer = (error) => {
+    console.warn('[SYSTRACT] Pencatatan progres gagal:', error.message)
+    // Cukup sekali per menit agar tidak membanjiri layar.
+    if (Date.now() - galatServerRef.current > 60000) {
+      galatServerRef.current = Date.now()
+      toast.error('Progres belum tersimpan ke server. Periksa koneksi Anda.')
+    }
+  }
+  const kirimJawaban = (p) => {
+    if (!idMateriSpa) return
+    supabase.rpc('jawab_soal_materi', {
+      p_material_id: idMateriSpa, p_bagian: p.bagian, p_jenis: p.jenis, p_soal: p.soal, p_pilihan: p.pilihan,
+    }).then(({ error }) => { if (error) laporGalatServer(error) })
+  }
+  const kirimBaca = (detik) => {
+    if (!idMateriSpa) return
+    supabase.rpc('catat_baca_materi', { p_material_id: idMateriSpa, p_detik: detik.map((d) => Math.max(0, Math.floor(d))) })
+      .then(({ error }) => { if (error) laporGalatServer(error) })
+  }
   const { sisa: sisaDetik, total: totalDetik, dijeda } = useWaktuBelajarAktif({
     aktif: !!refAktif && !refSudahSelesai && subTab === 'belajar' && !pakaiSpa,
     kunci: refAktif && user?.id ? `sy_aktif_${user.id}_${refAktif}` : null,
@@ -421,7 +456,12 @@ export default function CourseDetail() {
       goToNextItem()
     } catch (err) {
       console.error(err)
-      toast.error('Gagal mencatat progres.', { id: toastId })
+      // P0001: server menilai syarat materi belum terpenuhi (pesannya menyebut yang kurang).
+      if (err?.code === 'P0001') {
+        toast.error(`${err.message}. Bila baru saja menyelesaikannya, tunggu beberapa detik lalu coba lagi.`, { id: toastId, duration: 7000 })
+      } else {
+        toast.error('Gagal mencatat progres.', { id: toastId })
+      }
     }
   }
 
@@ -923,6 +963,9 @@ export default function CourseDetail() {
                       slideData={activeItem.data.webslide_content}
                       kunciProgres={user?.id ? `sy_vi_${user.id}_${activeItem.data.id}` : null}
                       onStatusMateri={(p) => setStatusMateri({ matId: activeItem.data.id, ...p })}
+                      onJawab={kirimJawaban}
+                      onBaca={kirimBaca}
+                      progresServer={progresServer?.matId === activeItem.data.id ? progresServer.data : null}
                       onOpenNewTab={() => {
                         // Halaman aplikasi (bukan file blob:): YouTube menolak diputar dari blob: (Error 153),
                         // dan di sini soal video tetap aktif dengan progres yang sama.
