@@ -7,8 +7,10 @@ import { supabase } from '@/lib/supabase'
 import { withRetry } from '@/lib/withRetry'
 import toast from 'react-hot-toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import BebanBelajarFields from '@/components/dosen/BebanBelajarFields'
+import { useCpmkKursus } from '@/hooks/useCpmkKursus'
 
-const BLANK = { title: '', description: '', max_score: 100, due_date: '', allow_late_submission: false }
+const BLANK = { title: '', description: '', max_score: 100, due_date: '', allow_late_submission: false, estimasi_menit: null, cpmk_kode: [] }
 const fmt = iso => iso ? new Date(iso).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'
 
 /* ── Grading Panel ─────────────────────────────────────────── */
@@ -348,6 +350,7 @@ export default function DosenTugasManager() {
   const [editing,     setEditing]     = useState(null)
   const [saving,      setSaving]      = useState(false)
   const [form,        setForm]        = useState(BLANK)
+  const cpmkKursus = useCpmkKursus(courseId)
 
   useEffect(() => { if (user) fetchCourses() }, [user])
   useEffect(() => { if (courseId) fetchAssignments() }, [courseId])
@@ -372,7 +375,8 @@ export default function DosenTugasManager() {
 
   function openNew()   { setForm(BLANK); setEditing(null); setModal(true) }
   function openEdit(a) {
-    setForm({ title:a.title, description:a.description||'', max_score:a.max_score, allow_late_submission:a.allow_late_submission, due_date:a.due_date?a.due_date.slice(0,16):'' })
+    setForm({ title:a.title, description:a.description||'', max_score:a.max_score, allow_late_submission:a.allow_late_submission, due_date:a.due_date?a.due_date.slice(0,16):'',
+      estimasi_menit: a.estimasi_menit ?? null, cpmk_kode: a.cpmk_kode || [] })
     setEditing(a.id); setModal(true)
   }
 
@@ -527,6 +531,12 @@ export default function DosenTugasManager() {
                 <input type="checkbox" id="late-sub" checked={form.allow_late_submission} onChange={e => setForm(f=>({...f,allow_late_submission:e.target.checked}))} style={{ width:16, height:16, accentColor:'var(--indigo-600)' }}/>
                 <label htmlFor="late-sub" style={{ fontSize:13, cursor:'pointer' }}>Izinkan pengumpulan terlambat</label>
               </div>
+              <BebanBelajarFields
+                value={form}
+                onChange={(v) => setForm(f => ({ ...f, estimasi_menit: v.estimasi_menit, cpmk_kode: v.cpmk_kode }))}
+                cpmkList={cpmkKursus}
+                petunjukMenit="Waktu rata-rata peserta mengerjakan tugas ini, termasuk membaca instruksi dan menyusun laporan."
+              />
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary btn-sm" onClick={() => setModal(false)}>Batal</button>

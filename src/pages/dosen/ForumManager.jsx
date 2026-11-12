@@ -6,8 +6,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import BebanBelajarFields from '@/components/dosen/BebanBelajarFields'
+import { useCpmkKursus } from '@/hooks/useCpmkKursus'
 
-const BLANK = { title: '', body: '', is_pinned: false }
+const BLANK = { title: '', body: '', is_pinned: false, estimasi_menit: null, cpmk_kode: [] }
 
 function timeAgo(iso) {
   if (!iso) return ''
@@ -31,6 +33,7 @@ export default function DosenForumManager() {
   const [modal,    setModal]    = useState(false)
   const [saving,   setSaving]   = useState(false)
   const [form,     setForm]     = useState(BLANK)
+  const cpmkKursus = useCpmkKursus(courseId)
 
   useEffect(() => { if (user) fetchCourses() }, [user])
   useEffect(() => { if (courseId) fetchForums() }, [courseId])
@@ -209,6 +212,12 @@ export default function DosenForumManager() {
                   Sematkan topik ini di atas
                 </label>
               </div>
+              <BebanBelajarFields
+                value={form}
+                onChange={(v) => setForm(f => ({ ...f, estimasi_menit: v.estimasi_menit, cpmk_kode: v.cpmk_kode }))}
+                cpmkList={cpmkKursus}
+                petunjukMenit="Waktu peserta membaca diskusi dan menulis tanggapan."
+              />
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary btn-sm" onClick={() => setModal(false)}>Batal</button>
