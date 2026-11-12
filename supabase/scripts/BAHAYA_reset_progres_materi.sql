@@ -1,3 +1,6 @@
+-- ⚠️  BAHAYA: MENGHAPUS DATA PERMANEN — seluruh poin materi dan riwayat lihat materi semua mahasiswa.
+-- Bukan migrasi. Jangan dijalankan di produksi kecuali memang ingin mengosongkan progres, dan setelah backup.
+
 -- Reset semua progress materi (poin + views)
 -- Jalankan di Supabase SQL Editor sebelum deploy fitur baru
 

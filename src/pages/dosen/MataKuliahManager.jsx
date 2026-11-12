@@ -741,7 +741,7 @@ export default function DosenMataKuliah() {
 
     if (error) {
       if (error.message?.includes('column')) {
-        toast.error('⚠️ Kolom database belum tersedia. Harap jalankan script migrasi supabase_migration_rps.sql di Supabase SQL Editor.', { duration: 6000 })
+        toast.error('⚠️ Struktur database belum sesuai versi aplikasi. Hubungi admin SYSTRACT.', { duration: 6000 })
       } else {
         toast.error("Gagal menyimpan CPL & CPMK: " + error.message)
       }
@@ -925,7 +925,7 @@ export default function DosenMataKuliah() {
 
       if (error) {
         if (error.message?.includes('column')) {
-          throw new Error('Kolom database "weekly_plan" belum tersedia. Harap jalankan script migrasi supabase_migration_rps.sql di Supabase SQL Editor.')
+          throw new Error('Struktur database belum sesuai versi aplikasi (kolom weekly_plan). Hubungi admin SYSTRACT.')
         }
         throw error
       }
@@ -1004,7 +1004,7 @@ export default function DosenMataKuliah() {
 
     if (error) {
       if (error.message?.includes('column')) {
-        toast.error('⚠️ Kolom database belum tersedia. Harap jalankan script migrasi supabase_migration_rps.sql di Supabase SQL Editor.', { duration: 6000 })
+        toast.error('⚠️ Struktur database belum sesuai versi aplikasi. Hubungi admin SYSTRACT.', { duration: 6000 })
       } else {
         toast.error("Gagal menyimpan referensi: " + error.message)
       }
@@ -1498,7 +1498,7 @@ export default function DosenMataKuliah() {
 
     if (error) {
       if (error.message?.includes('column')) {
-        toast.error('⚠️ Kolom database belum tersedia. Harap jalankan script migrasi supabase_migration_rps.sql di Supabase SQL Editor.', { duration: 6000 })
+        toast.error('⚠️ Struktur database belum sesuai versi aplikasi. Hubungi admin SYSTRACT.', { duration: 6000 })
       } else {
         toast.error('Gagal menyimpan ke database: ' + error.message)
       }
