@@ -33,7 +33,8 @@
 | `20261112090000_fase2_arsip_tabel_lama.sql` | 12 tabel sistem lama dipindah ke skema `arsip`, policy ganda dibuang | 2026-11-12 |
 | `20261112100000_ujian_skor_persen.sql` | Skor ujian selalu persen 0–100; skor ujian soal manual lama dihitung ulang | 2026-11-12 |
 | `20261112140000_sertifikat_bernomor.sql` | Sertifikat bernomor unik terbit otomatis saat divalidasi; dicabut saat validasi dibatalkan; RPC `verifikasi_sertifikat` publik | 2026-11-12 |
-| `20261112170000_beban_belajar_cpmk.sql` | Estimasi menit & CPMK per materi/tugas/ujian/forum; RPC `ringkasan_beban_belajar` (1 SKS = 45 jam, Permendikbudristek 53/2023) | belum |
+| `20261112170000_beban_belajar_cpmk.sql` | Estimasi menit & CPMK per materi/tugas/ujian/forum; RPC `ringkasan_beban_belajar` (1 SKS = 45 jam, Permendikbudristek 53/2023) | (cek) |
+| `20261112200000_sertifikat_rincian_jam.sql` | Jam belajar, setara SKS & rincian modul dibekukan di sertifikat saat terbit; verifikasi publik memuat jam & SKS | belum |
 
 Uji otomatis: `bash supabase/tests/terapkan_semua.sh` (butuh `psql` dan variabel `PG*`) membangun
 database dari nol, menerapkan semua migrasi dua kali, lalu menjalankan audit. CI menjalankannya di tiap push.
