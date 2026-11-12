@@ -6,10 +6,10 @@
 // dengan peran dosen atau admin yang boleh memakai. Peserta tidak punya akses AI.
 
 const DEFAULT_URL = 'https://ai.sumopod.com/v1'
-// Model server: utama SUMOPOD_MODEL, cadangan SUMOPOD_FALLBACK_MODEL (env); bila kosong, default di bawah.
-// Cadangan dipakai otomatis bila model utama gagal di sisi penyedia.
-const DEFAULT_MODEL = 'deepseek-v4-flash'
-const FALLBACK_MODEL = 'deepseek-flash'
+// Model dikunci di kode: hanya model murah ini yang boleh dipakai dengan kunci SYSTRACT.
+// Variabel lingkungan (SUMOPOD_MODEL dsb.) dan isi permintaan browser TIDAK bisa mengganti model,
+// supaya anggaran tidak terkuras oleh model mahal. Ubah daftar ini hanya dengan sengaja.
+const MODEL_DIIZINKAN = ['deepseek-v4-flash']
 const MAX_BODY_CHARS = 400_000
 
 const PERAN_AI = ['dosen', 'admin']
@@ -68,11 +68,11 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Kunci AI server belum dikonfigurasi (SUMOPOD_API_KEY).' })
     }
     const baseUrl = (process.env.SUMOPOD_API_URL || DEFAULT_URL).replace(/\/+$/, '')
-    // Pengguna tidak bisa memilih model lain dengan kunci SYSTRACT.
-    const modelsToTry = [...new Set([
-      process.env.SUMOPOD_MODEL || DEFAULT_MODEL,
-      process.env.SUMOPOD_FALLBACK_MODEL || FALLBACK_MODEL,
-    ])]
+    // Pengguna maupun pengaturan Vercel tidak bisa memilih model lain dengan kunci SYSTRACT.
+    if (process.env.SUMOPOD_MODEL && !MODEL_DIIZINKAN.includes(process.env.SUMOPOD_MODEL)) {
+      console.warn(`[api/ai] SUMOPOD_MODEL="${process.env.SUMOPOD_MODEL}" diabaikan; hanya ${MODEL_DIIZINKAN.join(', ')} yang diizinkan.`)
+    }
+    const modelsToTry = MODEL_DIIZINKAN
 
     // Penyedia (LiteLLM di Sumopod) kadang memetakan model ke versi yang menolak parameter
     // tertentu ("Invalid param: not support for model"). Bila itu terjadi, coba ulang dengan

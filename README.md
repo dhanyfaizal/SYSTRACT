@@ -25,7 +25,7 @@ npm run dev
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | browser | Project Settings → API di Supabase |
 | `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY` | browser | Google Cloud Console (Drive Picker) |
 | `SUMOPOD_API_KEY`, `SUMOPOD_API_URL` | server | Hanya di Vercel; **jangan** diberi awalan `VITE_` |
-| `SUMOPOD_MODEL`, `SUMOPOD_FALLBACK_MODEL` | server | Opsional; model utama & cadangan |
+| — | server | Model AI dikunci di `api/ai.js` (`MODEL_DIIZINKAN`, saat ini hanya `deepseek-v4-flash`); `SUMOPOD_MODEL` tidak lagi dipakai |
 
 Fitur AI (`/api/ai`) hanya berjalan di Vercel atau `vercel dev`, tidak di `npm run dev`.
 
