@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useSidebar } from '@/components/layout/AppLayout'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
-import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 import WebSlidePlayer from '@/components/mahasiswa/WebSlidePlayer'
 import CoursePreview from '@/components/mahasiswa/CoursePreview'
 import { getMatType, getEmbedUrl } from './courseDetail/materiHelpers'
@@ -127,18 +126,24 @@ export default function CourseDetail() {
   // (video cukup tab terlihat). Minimal separuh estimasi dosen, dibagi rata ke lampiran materi.
   const refAktif = activeItem?.type === 'materi' ? `mat_${activeItem.data.id}_${activeItem.subIdx ?? 0}` : null
   const refSudahSelesai = !!refAktif && completedRefs.has(refAktif)
-  // Video interaktif di SPA: materi baru bisa diselesaikan setelah semua soal video terjawab.
-  const [statusVideo, setStatusVideo] = useState(null) // { matId, terjawab, total }
-  const adaVideoSpa = !!activeItem?.data?.webslide_content?.slides?.some((s) => s?.layout === 'media' && s?.soal_video?.length)
-  const sv = statusVideo && statusVideo.matId === activeItem?.data?.id ? statusVideo : null
-  const videoBelumTuntas = adaVideoSpa && (!sv || sv.terjawab < sv.total)
+  // Materi berbentuk SPA: syarat selesai = semua bagian dibaca (waktu baca per bagian dari isi slide),
+  // semua soal video terjawab, dan semua soal latihan dijawab benar. Timer umum hanya untuk materi lain.
+  const pakaiSpa = !!activeItem?.data?.webslide_content?.slides?.length
+  const [statusMateri, setStatusMateri] = useState(null) // { matId, baca, video, latihan }
+  const sm = statusMateri && statusMateri.matId === activeItem?.data?.id ? statusMateri : null
+  const syaratSpa = sm ? [
+    { label: 'Bagian dibaca', ...sm.baca },
+    { label: 'Soal video', ...sm.video },
+    { label: 'Latihan benar', ...sm.latihan },
+  ].filter((s) => s.total > 0) : []
+  const spaBelumTuntas = pakaiSpa && (!sm || syaratSpa.some((s) => s.selesai < s.total))
   const { sisa: sisaDetik, total: totalDetik, dijeda } = useWaktuBelajarAktif({
-    aktif: !!refAktif && !refSudahSelesai && subTab === 'belajar',
+    aktif: !!refAktif && !refSudahSelesai && subTab === 'belajar' && !pakaiSpa,
     kunci: refAktif && user?.id ? `sy_aktif_${user.id}_${refAktif}` : null,
     targetDetik: targetDetikMateri(activeItem?.data?.estimasi_menit, activeItem?.data?.attachments?.length || 1),
-    pantauDiam: !lampiranVideo(activeItem?.attach) && !adaVideoSpa,
+    pantauDiam: !lampiranVideo(activeItem?.attach),
   })
-  const countdown = refSudahSelesai ? 0 : sisaDetik
+  const countdown = refSudahSelesai || pakaiSpa ? 0 : sisaDetik
 
   async function fetchCourseAndSyllabus() {
     if (!course) {
@@ -912,16 +917,22 @@ export default function CourseDetail() {
                       meetingNo={activeItem.data.week_number || 1}
                       slideData={activeItem.data.webslide_content}
                       kunciProgres={user?.id ? `sy_vi_${user.id}_${activeItem.data.id}` : null}
-                      onStatusVideo={(p) => setStatusVideo({ matId: activeItem.data.id, ...p })}
+                      onStatusMateri={(p) => setStatusMateri({ matId: activeItem.data.id, ...p })}
                       onOpenNewTab={() => {
-                        const htmlContent = generateWebSlideHtml(
-                          course.name,
-                          profile?.program_studi || 'Teknik Informatika',
-                          activeItem.data.week_number || 1,
-                          activeItem.data.webslide_content
-                        );
-                        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-                        window.open(URL.createObjectURL(blob), '_blank');
+                        // Halaman aplikasi (bukan file blob:): YouTube menolak diputar dari blob: (Error 153),
+                        // dan di sini soal video tetap aktif dengan progres yang sama.
+                        try {
+                          localStorage.setItem('webslide_preview_data', JSON.stringify({
+                            courseName: course.name,
+                            prodiName: profile?.program_studi || 'Teknik Informatika',
+                            weekNumber: activeItem.data.week_number || 1,
+                            webslideData: activeItem.data.webslide_content,
+                            kunciProgres: user?.id ? `sy_vi_${user.id}_${activeItem.data.id}` : null,
+                          }))
+                          window.open('/webslide-preview', '_blank')
+                        } catch {
+                          toast.error('Materi tidak dapat dibuka di tab baru.')
+                        }
                       }}
                     />
                   </div>
@@ -982,11 +993,18 @@ export default function CourseDetail() {
                                 : `Pelajari materi ${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')} lagi untuk menyelesaikan`}
                           </span>
                         </div>
-                      ) : videoBelumTuntas ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fffbeb', border: '1px solid #fde68a', padding: '6px 12px', borderRadius: 20 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#b45309' }} aria-live="polite">
-                            Jawab semua pertanyaan di video materi ({sv?.terjawab ?? 0}/{sv?.total ?? '…'}) untuk menyelesaikan
-                          </span>
+                      ) : spaBelumTuntas ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }} aria-live="polite">
+                          <span style={{ fontSize: 11, fontWeight: 600, color: '#6b7280' }}>Untuk menyelesaikan:</span>
+                          {!sm && <span style={{ fontSize: 11, color: '#6b7280' }}>memuat syarat…</span>}
+                          {syaratSpa.map((s) => {
+                            const beres = s.selesai >= s.total
+                            return (
+                              <span key={s.label} style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20, background: beres ? '#ecfdf5' : '#fffbeb', border: `1px solid ${beres ? '#a7f3d0' : '#fde68a'}`, color: beres ? '#047857' : '#b45309' }}>
+                                {beres ? '✓ ' : ''}{s.label} {s.selesai}/{s.total}
+                              </span>
+                            )
+                          })}
                         </div>
                       ) : (
                         <button

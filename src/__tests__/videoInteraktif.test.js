@@ -80,3 +80,15 @@ describe('render SPA video interaktif', () => {
     expect(html).not.toContain('enablejsapi')
   })
 })
+
+describe('simpanProgres (beberapa tab)', () => {
+  it('menggabungkan soal terjawab dan titik terjauh dengan yang sudah tersimpan', async () => {
+    const { simpanProgres, bacaProgres } = await import('@/lib/videoInteraktif')
+    localStorage.clear()
+    simpanProgres('k', { terjawab: new Set([0, 2]), maks: 90 })
+    simpanProgres('k', { terjawab: new Set([1]), maks: 30 }) // tab lain yang datanya lebih lama
+    const p = bacaProgres('k')
+    expect([...p.terjawab]).toEqual([0, 1, 2])
+    expect(p.maks).toBe(90)
+  })
+})

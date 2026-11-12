@@ -142,7 +142,7 @@ const BODY = {
   },
   quiz(s, n) {
     const letters = 'ABCDEF'
-    return `<p class="sx-note">Latihan mandiri: pilih jawaban untuk melihat pembahasan. Tidak memengaruhi nilai.</p><div class="sx-quiz">${arr(s.quiz_items).map((q, qi) => {
+    return `<p class="sx-note">Latihan: jawab setiap soal dengan benar untuk menyelesaikan topik ini. Pembahasan muncul setelah jawaban benar. Tidak memengaruhi nilai.</p><div class="sx-quiz">${arr(s.quiz_items).map((q, qi) => {
       const opts = arr(q?.options, 6)
       const ans = Number.isInteger(q?.answer) && q.answer >= 0 && q.answer < opts.length ? q.answer : 0
       return `<div class="sx-q" data-k="quiz_items.${qi}.answer" data-v="${ans}" data-t="n"><p class="sx-q-text"><span class="sx-q-badge">${qi + 1}</span><span data-f="quiz_items.${qi}.question">${q?.question || ''}</span></p><div class="sx-opts">${opts.map((o, oi) => `<label class="sx-opt${oi === ans ? ' is-correct' : ''}"><input type="radio" name="sxq-${n}-${qi}" /><span class="sx-opt-l">${letters[oi]}</span><span data-f="quiz_items.${qi}.options.${oi}">${o || ''}</span></label>`).join('')}</div><div class="sx-fb"><p class="sx-fb-ok">Benar.</p><p class="sx-fb-no">Belum tepat. Jawaban yang benar ditandai hijau.</p>${has(q?.explanation) ? `<p data-f="quiz_items.${qi}.explanation">${q.explanation}</p>` : ''}</div></div>`
@@ -264,28 +264,43 @@ export const SPA_CSS = `
 .sx-q{border:1px solid var(--line);border-radius:16px;padding:18px}
 .sx-q-text{display:flex;gap:12px;align-items:flex-start;margin:0 0 14px;font-weight:700;color:var(--ink);font-size:16px}
 .sx-opts{display:flex;flex-direction:column;gap:10px}
-.sx-opt{display:flex;gap:12px;align-items:center;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;cursor:pointer;background:var(--white);font-size:15px;transition:border-color .12s,background .12s}
+.sx-opt{position:relative;display:flex;gap:12px;align-items:center;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;cursor:pointer;background:var(--white);font-size:15px;transition:border-color .12s,background .12s}
 .sx-opt:hover{border-color:var(--forest)}
-.sx-opt input{position:absolute;opacity:0;pointer-events:none}
+.sx-opt input{position:absolute;top:50%;left:14px;width:1px;height:1px;margin:0;opacity:0;pointer-events:none}
 .sx-opt:has(input:focus-visible){outline:2px solid var(--forest);outline-offset:2px}
 .sx-opt-l{flex:none;width:28px;height:28px;border-radius:8px;border:1.5px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:var(--muted)}
-.sx-q:has(input:checked) .sx-opt{pointer-events:none}
-.sx-q:has(input:checked) .sx-opt.is-correct{border-color:var(--forest);background:#E6F4EC}
-.sx-q:has(input:checked) .sx-opt.is-correct .sx-opt-l{background:var(--forest);border-color:var(--forest);color:#fff}
-.sx-opt:not(.is-correct):has(input:checked){border-color:var(--rose);background:#FDECEA}
-.sx-opt:not(.is-correct):has(input:checked) .sx-opt-l{background:var(--rose);border-color:var(--rose);color:#fff}
+.sx-q:not(.sx-q-js):has(input:checked) .sx-opt{pointer-events:none}
+.sx-q:not(.sx-q-js):has(input:checked) .sx-opt.is-correct{border-color:var(--forest);background:#E6F4EC}
+.sx-q:not(.sx-q-js):has(input:checked) .sx-opt.is-correct .sx-opt-l{background:var(--forest);border-color:var(--forest);color:#fff}
+.sx-q:not(.sx-q-js) .sx-opt:not(.is-correct):has(input:checked){border-color:var(--rose);background:#FDECEA}
+.sx-q:not(.sx-q-js) .sx-opt:not(.is-correct):has(input:checked) .sx-opt-l{background:var(--rose);border-color:var(--rose);color:#fff}
 .sx-fb{display:none;margin-top:14px;padding:14px 16px;border-radius:12px;background:var(--paper)}
 .sx-fb p{margin:0 0 4px;color:var(--soft);font-size:15px}
-.sx-q:has(input:checked) .sx-fb{display:block}
+.sx-q:not(.sx-q-js):has(input:checked) .sx-fb{display:block}
 .sx-fb-ok,.sx-fb-no{display:none;font-weight:700}
-.sx-q:has(.is-correct input:checked) .sx-fb-ok{display:block;color:var(--forest)}
-.sx-q:has(.sx-opt:not(.is-correct) input:checked) .sx-fb-no{display:block;color:var(--rose)}
+.sx-q:not(.sx-q-js):has(.is-correct input:checked) .sx-fb-ok{display:block;color:var(--forest)}
+.sx-q:not(.sx-q-js):has(.sx-opt:not(.is-correct) input:checked) .sx-fb-no{display:block;color:var(--rose)}
+/* Quiz di aplikasi (latihanInteraktif.js): harus benar, kunci jawaban tidak dibuka saat salah */
+.sx-q-js.is-tampil-fb .sx-fb{display:block}
+.sx-q-js:not(.is-selesai) .sx-fb p:not(.sx-lat-msg){display:none}
+.sx-q-js .sx-fb .sx-fb-ok,.sx-q-js .sx-fb .sx-fb-no{display:none}
+.sx-lat-msg{font-weight:700}.sx-lat-msg.is-ok{color:var(--forest)!important}.sx-lat-msg.is-no{color:var(--rose)!important}
+.sx-q-js .sx-opt.is-benar{border-color:var(--forest);background:#E6F4EC}
+.sx-q-js .sx-opt.is-benar .sx-opt-l{background:var(--forest);border-color:var(--forest);color:#fff}
+.sx-q-js .sx-opt.is-salah{border-color:var(--rose);background:#FDECEA;cursor:not-allowed}
+.sx-q-js .sx-opt.is-salah .sx-opt-l{background:var(--rose);border-color:var(--rose);color:#fff}
+.sx-q-js.is-selesai .sx-opt{cursor:default}
+.sx-q-js.is-selesai .sx-opt:hover,.sx-q-js .sx-opt.is-salah:hover{border-color:inherit}
+.sx-q-js.is-selesai .sx-opt.is-benar:hover{border-color:var(--forest)}
+.sx-q-js.is-selesai{border-color:#B7E4C7}
 /* Media */
 .sx-fig{margin:20px 0 0}
 .sx-img{display:block;width:100%;height:auto;border-radius:14px;border:1px solid var(--line);cursor:zoom-in;background:var(--paper)}
 .sx-video{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#000}
 .sx-video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .sx-video-file{display:block;width:100%;border-radius:14px;background:#000}
+.sx-l-media .sx-video,.sx-l-media .sx-vi-status,.sx-l-media .sx-vi-panel{width:min(100%,calc(var(--sx-video-maks-h,72vh) * 16 / 9));margin-inline:auto;box-sizing:border-box}
+.sx-l-media .sx-video-file{width:auto;max-width:100%;max-height:var(--sx-video-maks-h,72vh);margin-inline:auto}
 .sx-fig figcaption{margin-top:8px;font-size:14px;color:var(--muted)}
 .sx-with-media{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:28px;align-items:start}
 .sx-with-media .sx-fig{margin:0}
