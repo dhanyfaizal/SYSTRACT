@@ -6,6 +6,7 @@
 // (tidak perlu AI: tampilannya sudah pasti satu pemutar video satu layar).
 
 import { youtubeId } from './spaBlocks.js'
+import { rapikanSoal } from './videoInteraktif.js'
 
 export const JENIS_SLIDE = { konten: 'konten', video: 'video' }
 
@@ -22,6 +23,7 @@ export const slideVideo = (s) => s?.jenis === JENIS_SLIDE.video
 /** Bentuk SPA untuk slide video outline: layout "media" dengan pemutar sebagai fokus. */
 export function spaDariSlideVideo(outlineSlide) {
   const poin = (outlineSlide.content || []).map((c) => String(c).trim()).filter(Boolean)
+  const soal = rapikanSoal(outlineSlide.soal_video)
   return {
     slide_no: outlineSlide.slide_no,
     layout: 'media',
@@ -30,6 +32,7 @@ export function spaDariSlideVideo(outlineSlide) {
     caption: '',
     description: poin.join(' '),
     content: poin,
+    ...(soal.length ? { soal_video: soal } : {}),
   }
 }
 

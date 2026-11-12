@@ -47,19 +47,34 @@ export function youtubeId(url = '') {
   return m ? m[1] : null
 }
 
-function figure(url, path = 'image_url', caption = '', capPath = '') {
+// Asal halaman untuk YouTube IFrame API (wajib agar pemutar bisa dikendalikan dari halaman).
+const asalHalaman = () => {
+  const o = typeof window !== 'undefined' ? window.location?.origin : ''
+  return o && /^https?:/.test(o) ? `&origin=${encodeURIComponent(o)}` : ''
+}
+
+/**
+ * @param {{ soal?: object[], idx?: number }} [vi]  video interaktif: soal yang menjeda video
+ */
+function figure(url, path = 'image_url', caption = '', capPath = '', vi = null) {
   if (!has(url)) return ''
   const id = youtubeId(url)
+  const interaktif = vi && Array.isArray(vi.soal) && vi.soal.length > 0
+  // data-vi menandai media yang dipasangi soal oleh pemutar peserta (src/lib/videoInteraktif.js).
+  const tanda = interaktif ? ` data-vi="${vi.idx}"` : ''
   let inner
   if (id) {
-    inner = `<div class="sx-video"><iframe src="https://www.youtube.com/embed/${id}?rel=0" title="Video materi" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
+    const param = interaktif ? `rel=0&enablejsapi=1&fs=0&disablekb=1&playsinline=1${asalHalaman()}` : 'rel=0'
+    inner = `<div class="sx-video"><iframe${tanda} src="https://www.youtube.com/embed/${id}?${param}" title="Video materi" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture${interaktif ? '' : '; fullscreen'}"${interaktif ? '' : ' allowfullscreen'}></iframe></div>`
   } else if (/\.(mp4|webm|ogg|mov)(\?|#|$)/i.test(url)) {
-    inner = `<video class="sx-video-file" src="${attr(url)}" controls preload="metadata"></video>`
+    inner = `<video${tanda} class="sx-video-file" src="${attr(url)}" controls preload="metadata"${interaktif ? ' controlslist="nodownload noplaybackrate" disablepictureinpicture' : ''}></video>`
   } else {
     inner = `<img class="sx-img" src="${attr(url)}" alt="" loading="lazy" />`
   }
   const cap = capPath ? `<figcaption data-f="${capPath}">${caption || ''}</figcaption>` : ''
-  return `<figure class="sx-fig" data-k="${path}" data-v="${attr(url)}">${inner}${cap}</figure>`
+  // Soal ikut disimpan (JSON) agar file HTML hasil ekspor bisa diimpor kembali utuh.
+  const dataSoal = interaktif ? `<span hidden data-k="soal_video" data-t="j" data-v="${attr(JSON.stringify(vi.soal))}"></span>` : ''
+  return `<figure class="sx-fig" data-k="${path}" data-v="${attr(url)}">${inner}${cap}${dataSoal}</figure>`
 }
 
 /* ---------------------------------- Ikon ---------------------------------- */
@@ -156,7 +171,8 @@ export function renderSection(slide, idx, ctx = {}) {
     return `${open}<h2 class="sx-title" data-f="title">${slide.title || 'Penutup'}</h2>${has(slide.description) ? `<p class="sx-lead" data-f="description">${slide.description}</p>` : ''}</section>`
   }
   if (layout === 'media') {
-    return `${open}${head(slide, n)}${figure(slide.image_url, 'image_url', slide.caption, 'caption')}${has(slide.description) ? `<p class="sx-lead" data-f="description">${slide.description}</p>` : ''}${ref}</section>`
+    const vi = Array.isArray(slide.soal_video) && slide.soal_video.length ? { soal: slide.soal_video, idx } : null
+    return `${open}${head(slide, n, vi ? 'Video interaktif' : undefined)}${figure(slide.image_url, 'image_url', slide.caption, 'caption', vi)}${has(slide.description) ? `<p class="sx-lead" data-f="description">${slide.description}</p>` : ''}${ref}</section>`
   }
 
   const eyebrow = layout === 'quiz' ? 'Latihan' : layout === 'discussion' ? 'Pertanyaan pemantik' : null
@@ -276,5 +292,22 @@ export const SPA_CSS = `
 .sx-l-cover .sx-fig{margin:0}
 .sx-l-cover .sx-img{border-color:var(--lineDark,#2E3743)}
 @media (min-width:900px){.sx-l-cover:has(.sx-fig){grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-items:center}}
+.sx-vi-status{margin:12px 0 0;padding:10px 14px;border-radius:12px;background:#FFF7E6;border:1px solid #F5DFA8;color:#7A5200;font-size:14px;font-weight:600}
+.sx-vi-status.is-done{background:#ECFDF3;border-color:#B7E4C7;color:var(--forest)}
+.sx-vi-panel{margin:12px 0 0;padding:18px;border:2px solid var(--forest);border-radius:16px;background:#F1FAF5}
+.sx-vi-eyebrow{margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--forest)}
+.sx-vi-q{margin:0 0 14px;font-size:17px;font-weight:700;color:var(--ink);line-height:1.45}
+.sx-vi-opts{display:flex;flex-direction:column;gap:10px}
+.sx-vi-opt{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--white);font:inherit;font-size:15px;color:var(--text);cursor:pointer}
+.sx-vi-opt:hover:not(:disabled){border-color:var(--forest)}
+.sx-vi-opt:focus-visible{outline:2px solid var(--forest);outline-offset:2px}
+.sx-vi-opt:disabled{cursor:default}
+.sx-vi-opt.is-correct{border-color:var(--forest);background:#E6F4EC}.sx-vi-opt.is-correct .sx-opt-l{background:var(--forest);border-color:var(--forest);color:#fff}
+.sx-vi-opt.is-wrong{border-color:var(--rose);background:#FDECEA}.sx-vi-opt.is-wrong .sx-opt-l{background:var(--rose);border-color:var(--rose);color:#fff}
+.sx-vi-fb:not(:empty){margin-top:14px}
+.sx-vi-fb p{margin:0 0 6px;color:var(--soft);font-size:15px}
+.sx-vi-ok{color:var(--forest)!important;font-weight:700}.sx-vi-no{color:var(--rose)!important;font-weight:700}
+.sx-vi-btn{margin-top:6px;padding:10px 16px;border:0;border-radius:10px;background:var(--forest);color:#fff;font:inherit;font-weight:700;font-size:14px;cursor:pointer}
+.sx-vi-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 @media (max-width:760px){.sx{font-size:15px}.sx-split,.sx-with-media{grid-template-columns:minmax(0,1fr)}.sx-sec{border-radius:14px}.sx-check li{font-size:16px}}
 `

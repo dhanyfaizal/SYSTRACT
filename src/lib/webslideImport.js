@@ -173,7 +173,17 @@ function parseSxSection(sec, idx, Parser) {
     const path = el.getAttribute('data-k')
     if (!own(el) || !SAFE_PATH.test(path)) return
     const raw = el.getAttribute('data-v') || ''
-    setPath(slide, path, el.getAttribute('data-t') === 'n' ? Number(raw) : raw)
+    const tipe = el.getAttribute('data-t')
+    if (tipe === 'j') {
+      // Data terstruktur (soal video). Teksnya disimpan sudah di-escape; kembalikan ke teks polos.
+      const polos = (v) => new Parser().parseFromString(`<!doctype html><body>${v}</body>`, 'text/html').body.textContent || ''
+      const urai = (v) => (Array.isArray(v) ? v.map(urai) : v && typeof v === 'object'
+        ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, urai(x)]))
+        : typeof v === 'string' ? polos(v) : v)
+      try { setPath(slide, path, urai(JSON.parse(raw))) } catch { /* data rusak: abaikan */ }
+      return
+    }
+    setPath(slide, path, tipe === 'n' ? Number(raw) : raw)
   })
   // Rapikan larik yang berlubang (mis. butir yang dihapus saat diedit).
   for (const [k, v] of Object.entries(slide)) {
@@ -233,6 +243,7 @@ export function parseWebSlideHtml(html, Parser = globalThis.DOMParser) {
         ...(s.image_url ? { image_url: s.image_url } : {}),
         // Bagian "media" yang berisi video dikembalikan sebagai slide video.
         ...(s.layout === 'media' && urlVideoValid(s.image_url) ? { jenis: JENIS_SLIDE.video } : {}),
+        ...(Array.isArray(s.soal_video) && s.soal_video.length ? { soal_video: s.soal_video } : {}),
       })),
     },
   }

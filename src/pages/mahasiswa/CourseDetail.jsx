@@ -127,11 +127,16 @@ export default function CourseDetail() {
   // (video cukup tab terlihat). Minimal separuh estimasi dosen, dibagi rata ke lampiran materi.
   const refAktif = activeItem?.type === 'materi' ? `mat_${activeItem.data.id}_${activeItem.subIdx ?? 0}` : null
   const refSudahSelesai = !!refAktif && completedRefs.has(refAktif)
+  // Video interaktif di SPA: materi baru bisa diselesaikan setelah semua soal video terjawab.
+  const [statusVideo, setStatusVideo] = useState(null) // { matId, terjawab, total }
+  const adaVideoSpa = !!activeItem?.data?.webslide_content?.slides?.some((s) => s?.layout === 'media' && s?.soal_video?.length)
+  const sv = statusVideo && statusVideo.matId === activeItem?.data?.id ? statusVideo : null
+  const videoBelumTuntas = adaVideoSpa && (!sv || sv.terjawab < sv.total)
   const { sisa: sisaDetik, total: totalDetik, dijeda } = useWaktuBelajarAktif({
     aktif: !!refAktif && !refSudahSelesai && subTab === 'belajar',
     kunci: refAktif && user?.id ? `sy_aktif_${user.id}_${refAktif}` : null,
     targetDetik: targetDetikMateri(activeItem?.data?.estimasi_menit, activeItem?.data?.attachments?.length || 1),
-    pantauDiam: !lampiranVideo(activeItem?.attach),
+    pantauDiam: !lampiranVideo(activeItem?.attach) && !adaVideoSpa,
   })
   const countdown = refSudahSelesai ? 0 : sisaDetik
 
@@ -906,6 +911,8 @@ export default function CourseDetail() {
                       prodiName={profile?.program_studi || 'Teknik Informatika'}
                       meetingNo={activeItem.data.week_number || 1}
                       slideData={activeItem.data.webslide_content}
+                      kunciProgres={user?.id ? `sy_vi_${user.id}_${activeItem.data.id}` : null}
+                      onStatusVideo={(p) => setStatusVideo({ matId: activeItem.data.id, ...p })}
                       onOpenNewTab={() => {
                         const htmlContent = generateWebSlideHtml(
                           course.name,
@@ -973,6 +980,12 @@ export default function CourseDetail() {
                               : dijeda === 'diam'
                                 ? `Dijeda — tidak ada aktivitas ${DETIK_DIAM_MAKS / 60} menit. Gulir atau gerakkan kursor untuk melanjutkan`
                                 : `Pelajari materi ${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')} lagi untuk menyelesaikan`}
+                          </span>
+                        </div>
+                      ) : videoBelumTuntas ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fffbeb', border: '1px solid #fde68a', padding: '6px 12px', borderRadius: 20 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: '#b45309' }} aria-live="polite">
+                            Jawab semua pertanyaan di video materi ({sv?.terjawab ?? 0}/{sv?.total ?? '…'}) untuk menyelesaikan
                           </span>
                         </div>
                       ) : (
