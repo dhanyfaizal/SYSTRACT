@@ -9,7 +9,7 @@ import { generateCourseDescription, generateCplForCourse, generateCpmk, generate
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 import { SPA_LAYOUT_LABELS } from '@/lib/spaBlocks'
 import { parseWebSlideHtml, WebSlideImportError } from '@/lib/webslideImport'
-import { COLORS, SEMESTERS, BLANK_COURSE_FORM, ATTACH_TYPES, BLANK_ATTACH, BLANK_MATERIAL_FORM, typeOf } from './mataKuliah/konstanta'
+import { COLORS, SEMESTERS, BLANK_COURSE_FORM, ATTACH_TYPES, BLANK_ATTACH, BLANK_MATERIAL_FORM, typeOf, pecahKompetensi } from './mataKuliah/konstanta'
 import AttachRow from './mataKuliah/AttachRow'
 import { groupMaterialsIntoModules } from '@/lib/modules'
 import BebanBelajarFields from '@/components/dosen/BebanBelajarFields'
@@ -322,6 +322,7 @@ export default function DosenMataKuliah() {
       semester:    c.semester || SEMESTERS[0],
       cover_color: c.cover_color || '#4f46e5',
       dosen_id:    c.dosen_id || '',
+      kompetensi_teks: (c.kompetensi_singkat || []).join(', '),
     })
     setEditingCourseId(c.id)
     setCourseModal(true)
@@ -332,8 +333,10 @@ export default function DosenMataKuliah() {
     if (isAdmin && !courseForm.dosen_id) { toast.error('Pilih dosen pengampu terlebih dahulu'); return }
 
     setSavingCourse(true)
+    const { kompetensi_teks, ...isiForm } = courseForm
     const payload = {
-      ...courseForm,
+      ...isiForm,
+      kompetensi_singkat: pecahKompetensi(kompetensi_teks),
       dosen_id: isAdmin ? courseForm.dosen_id : user.id,
     }
 
@@ -2844,6 +2847,13 @@ export default function DosenMataKuliah() {
               <div className="input-group">
                 <label className="input-label">Deskripsi</label>
                 <textarea className="input" rows={2} style={{ resize:'vertical' }} value={courseForm.description} onChange={e => setCourseForm(f=>({...f, description:e.target.value}))}/>
+              </div>
+              <div className="input-group">
+                <label className="input-label" htmlFor="kompetensi-singkat">Kompetensi singkat (tercetak di sertifikat)</label>
+                <input id="kompetensi-singkat" className="input" placeholder="cth: Excel, Word, PowerPoint" value={courseForm.kompetensi_teks || ''} onChange={e => setCourseForm(f=>({...f, kompetensi_teks:e.target.value}))}/>
+                <span className="input-hint">
+                  Pisahkan dengan koma, maks. 6 butir pendek.{pecahKompetensi(courseForm.kompetensi_teks).length > 0 && ` Tampil: ${pecahKompetensi(courseForm.kompetensi_teks).join(' · ')}`}
+                </span>
               </div>
               <div className="input-group">
                 <label className="input-label">Semester</label>

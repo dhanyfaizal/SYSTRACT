@@ -38,3 +38,14 @@ describe('beban belajar (1 SKS = 45 jam)', () => {
     expect(tebakJenisMateri([])).toBe('bacaan')
   })
 })
+
+import { pecahKompetensi } from '@/pages/dosen/mataKuliah/konstanta'
+
+describe('kompetensi singkat', () => {
+  it('dipecah dari teks, tanpa duplikat, maks. 6', () => {
+    expect(pecahKompetensi('Excel, Word ,  PowerPoint')).toEqual(['Excel', 'Word', 'PowerPoint'])
+    expect(pecahKompetensi('A; B · C\nD, A')).toEqual(['A', 'B', 'C', 'D'])
+    expect(pecahKompetensi('1,2,3,4,5,6,7,8')).toHaveLength(6)
+    expect(pecahKompetensi('')).toEqual([])
+  })
+})

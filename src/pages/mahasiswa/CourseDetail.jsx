@@ -603,7 +603,7 @@ export default function CourseDetail() {
     const ambil = (kolom) => supabase.from('certificates').select(kolom)
       .eq('student_id', user.id).eq('course_id', courseId).maybeSingle()
     ;(async () => {
-      let { data, error } = await ambil('certificate_code, issued_at, revoked_at, score, total_menit, sks_setara, rincian')
+      let { data, error } = await ambil('certificate_code, issued_at, revoked_at, score, total_menit, sks_setara, rincian, competencies')
       // kolom jam/rincian ada sejak migrasi 20261112200000; sebelum itu pakai kolom dasar
       if (error) ({ data } = await ambil('certificate_code, issued_at, revoked_at, score'))
       if (batal || !data) return
@@ -1360,6 +1360,7 @@ export default function CourseDetail() {
                     <SertifikatDepan
                       nama={profile?.full_name}
                       kursus={course.name}
+                      kompetensi={sertifikat?.competencies || []}
                       skor={sertifikat?.score}
                       terbit={sertifikat?.issued_at}
                       totalMenit={sertifikat?.total_menit}
