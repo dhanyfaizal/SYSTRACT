@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
+import { aturPenggunaGalat } from '@/lib/pantauGalat'
 
 const AuthContext = createContext(null)
 
@@ -9,6 +10,9 @@ export function AuthProvider({ children }) {
   const [loading,      setLoading]      = useState(true)
   const [profileReady, setProfileReady] = useState(false)  // true setelah fetch profile pertama selesai
   const currentUserRef = useRef(null)
+
+  // Pemantauan error: kelompokkan per pengguna lewat ID saja (tanpa email/nama).
+  useEffect(() => { aturPenggunaGalat(user?.id ?? null) }, [user?.id])
 
   // Load profile in BACKGROUND — does not block the loading state
   async function fetchProfile(userId, authUser = null) {

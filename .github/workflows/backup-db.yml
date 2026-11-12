@@ -1,0 +1,63 @@
+name: Backup database
+
+# Setiap hari pukul 02.00 WIB (19.00 UTC), dan bisa dijalankan manual dari tab Actions.
+# Butuh dua secret repositori: SUPABASE_DB_URL dan BACKUP_PASSPHRASE (lihat supabase/BACKUP.md).
+# Tanpa secret, alur ini selesai dengan peringatan dan tidak membuat apa pun.
+on:
+  schedule:
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-db
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: pg_dump terenkripsi
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Periksa secret
+        id: cek
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::warning::Secret SUPABASE_DB_URL / BACKUP_PASSPHRASE belum diisi; backup dilewati."
+            echo "jalan=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "jalan=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.cek.outputs.jalan == 'true'
+
+      - name: Pasang pg_dump 17
+        if: steps.cek.outputs.jalan == 'true'
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Backup
+        if: steps.cek.outputs.jalan == 'true'
+        run: bash supabase/scripts/backup.sh
+        env:
+          KELUARAN: backup
+
+      - name: Simpan sebagai artefak (30 hari)
+        if: steps.cek.outputs.jalan == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-db-${{ github.run_id }}
+          path: backup/
+          retention-days: 30
+          if-no-files-found: error
