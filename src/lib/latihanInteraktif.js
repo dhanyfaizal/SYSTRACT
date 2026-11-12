@@ -14,7 +14,7 @@ import { bacaProgres, simpanProgres } from './videoInteraktif.js'
  * @param {{ kunci?: string, onProgres?: (p: {terjawab: number, total: number}) => void }} opsi
  * @returns {() => void} pelepas
  */
-export function pasangLatihan(section, items, { kunci, onProgres } = {}) {
+export function pasangLatihan(section, items, { kunci, onProgres, onJawab } = {}) {
   const soalEl = Array.from(section.querySelectorAll('.sx-q'))
   const progres = bacaProgres(kunci)
   const pelepas = []
@@ -51,6 +51,7 @@ export function pasangLatihan(section, items, { kunci, onProgres } = {}) {
       if (!inp) return
       const pilih = () => {
         if (q.classList.contains('is-selesai')) return
+        onJawab?.({ soal: qi, pilihan: oi, benar: oi === kunciJawaban })
         if (oi === kunciJawaban) {
           tandaiBenar(oi)
           progres.terjawab.add(qi)

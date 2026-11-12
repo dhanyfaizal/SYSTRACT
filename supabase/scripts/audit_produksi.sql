@@ -23,7 +23,7 @@ expected_tables(name) AS (VALUES
   ('submissions'),('exams'),('questions'),('exam_answers'),('forums'),
   ('forum_replies'),('announcements'),('semesters'),
   ('program_studi'),('attendance_sessions'),('attendances'),
-  ('course_progress'),('material_views'),('final_grades'),('grade_configs'),
+  ('course_progress'),('progres_materi'),('jawaban_materi'),('material_views'),('final_grades'),('grade_configs'),
   ('course_grading_config'),('student_keaktifan'),('points_log'),
   ('shop_items'),('user_inventory'),('user_avatar_config'),
   ('course_leaderboard'),('exam_attempt_keys'),('exams_peserta'),('certificates')

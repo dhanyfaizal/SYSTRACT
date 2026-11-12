@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy, CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown, PlusCircle, Search, Bot, RefreshCw, Download, ChevronUp, Info, HelpCircle, Award, Clock, Link, Check, Upload, Video, FileText } from 'lucide-react'
+import { Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy, CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown, PlusCircle, Search, Bot, RefreshCw, Download, ChevronUp, Info, HelpCircle, Award, Clock, Link, Check, Upload, Video, FileText, BarChart3 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -16,6 +16,7 @@ import { groupMaterialsIntoModules } from '@/lib/modules'
 import BebanBelajarFields from '@/components/dosen/BebanBelajarFields'
 import PanelBebanBelajar from '@/components/dosen/PanelBebanBelajar'
 import EditorSoalVideo from '@/components/dosen/EditorSoalVideo'
+import LaporanProgresMateri from '@/components/dosen/LaporanProgresMateri'
 import { periksaSoal, rapikanSoal } from '@/lib/videoInteraktif'
 
 
@@ -106,6 +107,7 @@ export default function DosenMataKuliah() {
   const [regeneratingLayoutSlideNo, setRegeneratingLayoutSlideNo] = useState(null)
   const [slideBaruNo, setSlideBaruNo] = useState(null) // slide sisipan yang belum pernah disimpan
   const [snapshotSlide, setSnapshotSlide] = useState('') // isi outline+SPA terakhir yang tersimpan di database
+  const [laporanMateri, setLaporanMateri] = useState(null) // materi yang laporan progresnya sedang dibuka
   const [menuSisip, setMenuSisip] = useState(null)     // posisi menu "Sisipkan slide" yang sedang terbuka
 
   const isOutlineEmpty = !slideOutline || !slideOutline.slides || slideOutline.slides.length === 0
@@ -2138,6 +2140,12 @@ export default function DosenMataKuliah() {
                                             <Bot size={12} color="var(--indigo-600)" />
                                             {isExam ? 'Soal AI' : 'Slide AI'}
                                           </button>
+                                          {m.webslide_content?.slides?.length > 0 && (
+                                            <button className="btn btn-secondary btn-sm" onClick={() => setLaporanMateri(m)} title="Progres peserta: waktu baca, soal video, latihan"
+                                              style={{ gap: 4, fontSize: 11, padding: '4px 8px' }}>
+                                              <BarChart3 size={12} /> Progres
+                                            </button>
+                                          )}
                                           <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditMaterial(m)} title="Edit"><Edit2 size={13}/></button>
                                           <button className="btn btn-ghost btn-icon btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteMaterial(m.id)} title="Hapus"><Trash2 size={13}/></button>
                                         </div>
@@ -3234,6 +3242,8 @@ export default function DosenMataKuliah() {
       )}
 
       {/* ── MODAL: AI Slide / WebSlide / Essay Generator ── */}
+      {laporanMateri && <LaporanProgresMateri materi={laporanMateri} onClose={() => setLaporanMateri(null)} />}
+
       {slideModal && activeMeeting && (
         <div className="modal-overlay">
           <div className="modal" style={{ maxWidth: 800, maxHeight: '85vh', overflow: 'auto' }}>

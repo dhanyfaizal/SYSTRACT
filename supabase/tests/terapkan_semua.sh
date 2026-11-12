@@ -23,6 +23,9 @@ for putaran in 1 2; do
   done
 done
 
+echo "Uji perilaku:"
+psql -v ON_ERROR_STOP=1 -q -f tests/uji_progres_materi.sql
+
 echo "Audit:"
 psql -v ON_ERROR_STOP=1 -At -f scripts/audit_produksi.sql | cut -d'|' -f1
 echo "Semua migrasi berhasil diterapkan dua kali."
