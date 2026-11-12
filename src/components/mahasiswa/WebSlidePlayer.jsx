@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useEffect, useLayoutEffect } from 'react'
-import { ExternalLink, Menu, X, ChevronLeft, ChevronRight, ArrowUp, AlertCircle } from 'lucide-react'
+import { ExternalLink, Menu, X, ChevronLeft, ChevronRight, ArrowUp, AlertCircle, Presentation, ScrollText } from 'lucide-react'
 import { prepareDeck, renderSections, SPA_CSS } from '@/lib/spaBlocks'
 import { pasangVideoInteraktif } from '@/lib/videoInteraktif'
 import { pasangLatihan } from '@/lib/latihanInteraktif'
@@ -171,8 +171,59 @@ export default function WebSlidePlayer({
     })
   }, [soalBagian, selesaiBagian, targetBaca])
 
+  // ── Mode slide: satu bagian per layar (bawaan di layar sempit; pilihan disimpan per perangkat) ──
+  const [modeSlide, setModeSlide] = useState(() => {
+    try {
+      const simpan = localStorage.getItem('sy_mode_slide')
+      if (simpan !== null) return simpan === '1'
+    } catch { /* abaikan */ }
+    return typeof window !== 'undefined' && window.innerWidth < 768
+  })
+  const gantiMode = () => {
+    setModeSlide((m) => {
+      try { localStorage.setItem('sy_mode_slide', m ? '0' : '1') } catch { /* abaikan */ }
+      return !m
+    })
+  }
+  const activeIdxRef = useRef(0)
+  useEffect(() => { activeIdxRef.current = activeIdx }, [activeIdx])
+
+  // Tandai bagian aktif (mode slide menampilkan hanya bagian itu). Dijalankan ulang setelah isi ditulis ulang.
+  useLayoutEffect(() => {
+    const isi = isiRef.current
+    if (!isi) return
+    isi.classList.toggle('sx-mode-slide', modeSlide)
+    isi.querySelectorAll('.sx-sec').forEach((sec, i) => sec.classList.toggle('is-aktif', i === activeIdx))
+  }, [modeSlide, activeIdx, sectionsHtml, versiProgres])
+
+  // Kembali ke mode gulir: langsung ke bagian yang sedang dibaca.
+  useEffect(() => {
+    if (modeSlide) { paneRef.current?.scrollTo({ top: 0 }); return }
+    const el = isiRef.current?.querySelector(`#sx-sec-${activeIdxRef.current}`)
+    const pane = paneRef.current
+    if (el && pane) pane.scrollTo({ top: el.offsetTop - pane.offsetTop - 12 })
+  }, [modeSlide])
+
+  // Tinggi maksimal video mengikuti tinggi panel yang sebenarnya (judul + video + status muat).
+  useEffect(() => {
+    const pane = paneRef.current
+    if (!pane || typeof ResizeObserver === 'undefined') return undefined
+    const atur = () => pane.style.setProperty('--sx-video-maks-h', `${Math.max(200, pane.clientHeight - 210)}px`)
+    atur()
+    const ro = new ResizeObserver(atur)
+    ro.observe(pane)
+    return () => ro.disconnect()
+  }, [])
+
+  // Detik baca bagian aktif (untuk cincin di tombol Berikutnya), diperbarui tiap detik.
+  const [detikAktif, setDetikAktif] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setDetikAktif(bacaRef.current[activeIdxRef.current] || 0), 1000)
+    return () => clearInterval(id)
+  }, [])
+
   const handleScroll = (e) => {
-    if (isScrollingRef.current) return
+    if (isScrollingRef.current || modeSlide) return
     const container = e.currentTarget
     let current = 0
     for (let i = 0; i < slides.length; i++) {
@@ -183,8 +234,14 @@ export default function WebSlidePlayer({
   }
 
   const scrollToSection = (idx) => {
-    const el = document.getElementById(`sx-sec-${idx}`)
     const container = paneRef.current
+    if (modeSlide) {
+      setActiveIdx(idx)
+      setDetikAktif(bacaRef.current[idx] || 0)
+      container?.scrollTo({ top: 0 })
+      return
+    }
+    const el = document.getElementById(`sx-sec-${idx}`)
     if (!el || !container) return
     isScrollingRef.current = true
     setActiveIdx(idx)
@@ -226,8 +283,6 @@ export default function WebSlidePlayer({
         borderRadius: 14,
         overflow: 'hidden',
         height: tinggi,
-        // Video dikecilkan secukupnya agar judul, video, dan baris status muat dalam satu layar.
-        '--sx-video-maks-h': `max(220px, calc(${tinggi} - 250px))`,
         border: '1px solid #DDE3DE',
         position: 'relative',
         fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif"
@@ -257,19 +312,29 @@ export default function WebSlidePlayer({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button type="button" aria-label="Bagian sebelumnya" disabled={atStart}
-            onClick={() => scrollToSection(Math.max(0, activeIdx - 1))}
-            style={{ ...BTN, opacity: atStart ? 0.4 : 1, cursor: atStart ? 'default' : 'pointer' }}>
-            <ChevronLeft size={16} />
+          <button type="button" onClick={gantiMode} aria-pressed={modeSlide}
+            title={modeSlide ? 'Tampilkan semua bagian dalam satu halaman gulir' : 'Tampilkan satu bagian per layar'}
+            style={{ ...BTN, width: 'auto', padding: '6px 10px', gap: 6, fontSize: 13, fontWeight: 600, marginRight: 4, background: modeSlide ? '#E6F4EC' : '#ffffff' }}>
+            {modeSlide ? <ScrollText size={15} /> : <Presentation size={15} />}
+            {modeSlide ? 'Mode gulir' : 'Mode slide'}
           </button>
+          {!modeSlide && (
+            <button type="button" aria-label="Bagian sebelumnya" disabled={atStart}
+              onClick={() => scrollToSection(Math.max(0, activeIdx - 1))}
+              style={{ ...BTN, opacity: atStart ? 0.4 : 1, cursor: atStart ? 'default' : 'pointer' }}>
+              <ChevronLeft size={16} />
+            </button>
+          )}
           <span style={{ fontSize: 13, color: '#3F5049', fontWeight: 600, minWidth: 52, textAlign: 'center' }} aria-live="polite">
             {activeIdx + 1} / {slides.length}
           </span>
-          <button type="button" aria-label="Bagian berikutnya" disabled={atEnd}
-            onClick={() => scrollToSection(Math.min(slides.length - 1, activeIdx + 1))}
-            style={{ ...BTN, opacity: atEnd ? 0.4 : 1, cursor: atEnd ? 'default' : 'pointer' }}>
-            <ChevronRight size={16} />
-          </button>
+          {!modeSlide && (
+            <button type="button" aria-label="Bagian berikutnya" disabled={atEnd}
+              onClick={() => scrollToSection(Math.min(slides.length - 1, activeIdx + 1))}
+              style={{ ...BTN, opacity: atEnd ? 0.4 : 1, cursor: atEnd ? 'default' : 'pointer' }}>
+              <ChevronRight size={16} />
+            </button>
+          )}
           {onOpenNewTab && (
             <button type="button" onClick={onOpenNewTab} title="Buka di tab baru" aria-label="Buka di tab baru" style={{ ...BTN, marginLeft: 4 }}>
               <ExternalLink size={15} />
@@ -319,12 +384,54 @@ export default function WebSlidePlayer({
         )}
 
         {/* Isi materi */}
-        <div ref={paneRef} onScroll={handleScroll} style={{ flex: 1, overflowY: 'auto', padding: 'clamp(12px, 2.5vw, 28px)' }}>
+        <div ref={paneRef} onScroll={handleScroll} style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: 'clamp(12px, 2.5vw, 28px)' }}>
           <div ref={isiRef} className="sx" onClick={handleContentClick} />
         </div>
       </div>
 
-      {activeIdx > 0 && (
+      {/* Mode slide: navigasi bawah. Berikutnya terbuka setelah bagian ini selesai dibaca/dijawab. */}
+      {modeSlide && (() => {
+        const t = targetBaca[activeIdx] || 0
+        const s = soalBagian[activeIdx]
+        const belum = selesaiBagian[activeIdx] === false
+        const sisa = Math.max(0, t - detikAktif)
+        const persen = s ? (s.total ? s.terjawab / s.total : 1) : t ? Math.min(1, detikAktif / t) : 1
+        const keterangan = !belum ? `Bagian ${activeIdx + 1} dari ${slides.length}`
+          : s ? `Jawab ${s.total - s.terjawab} pertanyaan lagi untuk lanjut`
+            : `Baca sekitar ${Math.floor(sisa / 60)}:${String(sisa % 60).padStart(2, '0')} lagi sebelum lanjut`
+        const r = 11
+        const keliling = 2 * Math.PI * r
+        return (
+          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 14, padding: '10px 16px', borderTop: '1px solid #DDE3DE', background: '#ffffff' }}>
+            <button type="button" disabled={atStart} onClick={() => scrollToSection(Math.max(0, activeIdx - 1))}
+              style={{ ...BTN, width: 'auto', height: 40, padding: '0 14px', gap: 4, fontSize: 13, fontWeight: 600, opacity: atStart ? 0.4 : 1, cursor: atStart ? 'default' : 'pointer' }}>
+              <ChevronLeft size={15} /> Sebelumnya
+            </button>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 4, width: '100%', maxWidth: Math.min(560, slides.length * 28), justifyContent: 'center' }} aria-hidden="true">
+                {slides.map((_, i) => (
+                  <span key={i} style={{ flex: 1, maxWidth: 24, height: 6, borderRadius: 3, background: i === activeIdx ? '#f59e0b' : selesaiBagian[i] === false ? '#DDE3DE' : '#047857' }} />
+                ))}
+              </div>
+              <span style={{ fontSize: 12, color: '#3F5049', textAlign: 'center' }} aria-live="polite">{keterangan}</span>
+            </div>
+            <button type="button" disabled={atEnd || belum} onClick={() => scrollToSection(Math.min(slides.length - 1, activeIdx + 1))}
+              title={belum ? keterangan : undefined}
+              style={{ ...BTN, width: 'auto', height: 40, padding: belum ? '0 14px 0 8px' : '0 14px', gap: 8, fontSize: 13, fontWeight: 700, border: 0,
+                background: atEnd ? '#F1F5F9' : belum ? '#D1FAE5' : '#047857', color: atEnd ? '#94a3b8' : belum ? '#065F46' : '#ffffff', cursor: atEnd || belum ? 'default' : 'pointer' }}>
+              {belum && !atEnd && (
+                <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle cx="13" cy="13" r={r} fill="none" stroke="#A7F3D0" strokeWidth="3" />
+                  <circle cx="13" cy="13" r={r} fill="none" stroke="#047857" strokeWidth="3" strokeDasharray={keliling} strokeDashoffset={keliling * (1 - persen)} style={{ transition: 'stroke-dashoffset .9s linear' }} />
+                </svg>
+              )}
+              Berikutnya <ChevronRight size={15} />
+            </button>
+          </div>
+        )
+      })()}
+
+      {activeIdx > 0 && !modeSlide && (
         <button
           type="button"
           onClick={() => scrollToSection(0)}
