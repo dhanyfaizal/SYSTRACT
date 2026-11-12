@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { X, Loader2, Sparkles, Wand2, Save, AlertTriangle, Info } from 'lucide-react'
+import { X, Loader2, Bot, Wand2, Save, AlertTriangle, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
 import { generateSaranBebanCpmk } from '@/lib/ai'
@@ -12,6 +12,13 @@ import {
 const LABEL_KATEGORI = Object.fromEntries(JENIS_AKTIVITAS.map((j) => [j.key, j.label]))
 LABEL_KATEGORI.materi = 'Materi'
 const JUDUL_GRUP = { materi: 'Materi', forum: 'Forum diskusi', tugas: 'Tugas / proyek', kuis: 'Kuis & latihan', evaluasi: 'Evaluasi akhir' }
+// callAi melaporkan teks biasa, atau { type: 'chunk', text } saat jawaban mengalir.
+function teksProgres(t) {
+  if (typeof t === 'string') return t
+  const n = (String(t?.text || '').match(/"id"\s*:/g) || []).length
+  return n ? `Menerima saran AI… ${n} aktivitas` : 'Menerima saran AI…'
+}
+
 const SUMBER = {
   isi: { teks: 'dari isi slide', warna: '#047857' },
   ai: { teks: 'saran AI', warna: '#7c3aed' },
@@ -78,7 +85,7 @@ export default function LengkapiBebanCpmk({ course, onClose, onSaved }) {
         sks: course.credits,
         cpmk: cpmkList.map((c) => ({ kode: c.kode, deskripsi: c.deskripsi })),
         aktivitas: dataUntukAi(baris),
-      }, (t) => setProses(t))
+      }, (t) => setProses(teksProgres(t)))
       const saran = normalkanSaranAi(res, baris, cpmkList.map((c) => c.kode))
       if (!saran.size) throw new Error('AI tidak mengembalikan saran yang bisa dipakai. Coba lagi.')
       setBaris((bs) => terapkanSaran(bs, saran, { timpa }))
@@ -151,7 +158,7 @@ export default function LengkapiBebanCpmk({ course, onClose, onSaved }) {
             )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <button type="button" className="btn btn-primary btn-sm" style={{ gap: 6 }} onClick={mintaSaranAi} disabled={sibuk || !baris.length}>
-                {proses && proses !== 'Menyimpan…' ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Sparkles size={13} />} Saran AI (CPMK &amp; menit)
+                {proses && proses !== 'Menyimpan…' ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Bot size={13} />} Saran AI (CPMK &amp; menit)
               </button>
               <button type="button" className="btn btn-secondary btn-sm" style={{ gap: 6 }} onClick={isiOtomatis} disabled={sibuk || !adaOtomatis}
                 title="Hitung menit materi slide dari jumlah kata, video, dan soal">

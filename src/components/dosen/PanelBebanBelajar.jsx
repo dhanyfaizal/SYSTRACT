@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Clock, CheckCircle2, AlertTriangle, Info, Sparkles } from 'lucide-react'
+import { Clock, CheckCircle2, AlertTriangle, Info, ListChecks } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { JENIS_AKTIVITAS, formatDurasi, formatJam, statusKelayakan } from '@/lib/bebanBelajar'
 
@@ -120,7 +120,7 @@ export default function PanelBebanBelajar({ courseId, muatUlang, onLengkapi }) {
       {onLengkapi && (
         <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button type="button" className={`btn btn-sm ${data.belum_diisi > 0 || cpmkKosong.length ? 'btn-primary' : 'btn-secondary'}`} style={{ gap: 6 }} onClick={onLengkapi}>
-            <Sparkles size={13} /> Lengkapi beban &amp; CPMK
+            <ListChecks size={13} /> Lengkapi beban &amp; CPMK
           </button>
           <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>Isi menit dan CPMK semua aktivitas sekaligus, dengan saran AI.</span>
         </div>
