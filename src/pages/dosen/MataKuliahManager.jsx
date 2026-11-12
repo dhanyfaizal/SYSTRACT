@@ -1121,7 +1121,7 @@ export default function DosenMataKuliah() {
     setEditTitle(slide.title)
     setEditContent(slide.content ? slide.content.join('\n') : '')
     setEditImageUrl(slide.image_url || '')
-    setEditSoal(Array.isArray(slide.soal_video) ? slide.soal_video.map(s => ({ ...s, opsi: [...(s.opsi || []), '', '', '', ''].slice(0, 4) })) : [])
+    setEditSoal(Array.isArray(slide.soal_video) ? slide.soal_video.map(s => ({ ...s, opsi: [...(s.opsi || []), '', '', '', '', ''].slice(0, 5) })) : [])
   }
 
   function handleSaveEditSlide(slideNo) {

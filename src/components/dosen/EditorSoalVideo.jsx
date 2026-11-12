@@ -7,9 +7,9 @@ import { buatAdapter,formatDetik, bacaDetik, periksaSoal, saranJumlahSoal, SOAL_
 // Editor soal di tengah video (dosen): putar video, tekan "Tambah pertanyaan di detik ini"
 // saat sebuah konsep selesai dijelaskan, lalu tulis soalnya.
 
-const soalKosong = (detik) => ({ detik: Math.max(1, Math.floor(detik || 1)), pertanyaan: '', opsi: ['', '', '', ''], jawaban: 0, penjelasan: '' })
+const soalKosong = (detik) => ({ detik: Math.max(1, Math.floor(detik || 1)), pertanyaan: '', opsi: ['', '', '', '', ''], jawaban: 0, penjelasan: '' })
 
-const HURUF = 'ABCD'
+const HURUF = 'ABCDE'
 const LABEL = { fontSize: 11, fontWeight: 600, color: 'var(--gray-500)' }
 
 export default function EditorSoalVideo({ url, soal, onChange, konteks = {} }) {
@@ -155,7 +155,7 @@ export default function EditorSoalVideo({ url, soal, onChange, konteks = {} }) {
                   style={{ flex: 1, padding: '4px 8px', fontSize: 12, borderRadius: 6 }}
                   value={s.opsi[oi] ?? ''}
                   onChange={(e) => { const opsi = [...s.opsi]; opsi[oi] = e.target.value; ubah(i, { opsi }) }}
-                  placeholder={oi < 2 ? `Pilihan ${h}` : `Pilihan ${h} (opsional)`}
+                  placeholder={`Pilihan ${h}`}
                 />
               </label>
             ))}
