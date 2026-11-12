@@ -4,7 +4,7 @@ import { Loader2, LogIn }     from 'lucide-react'
 import { useAuth }            from '@/contexts/AuthContext'
 import toast                  from 'react-hot-toast'
 
-const LOGO_URL = 'https://i.ibb.co.com/kgV7WDhF/Logo-SYS.png'
+const LOGO_URL = '/logo-stikom.webp'
 
 export default function Login() {
   const { user, loading, signInWithGoogle } = useAuth()
