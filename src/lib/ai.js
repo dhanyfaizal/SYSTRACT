@@ -540,6 +540,7 @@ Aturan pemetaan:
 - Petakan SELURUH slide pada outline di atas. Jumlah slide dan nilai "slide_no" harus sama persis dengan outline: jangan menambah, mengurangi, menggabung, atau mengubah urutan.
 - Pertahankan isi outline: SETIAP poin outline harus tetap muncul beserta rinciannya (contoh, alasan, angka, nama). Jangan memangkas poin menjadi frasa pendek dan jangan menambah fakta baru. Isi boleh disusun ulang agar cocok dengan layout.
 - Pilih layout yang menampung isi: poin panjang cocok untuk "list", "split", atau "accordion"; "grid" dan "steps" hanya bila setiap poin bisa ditulis utuh di kartu/langkah tanpa dipangkas (deskripsi kartu boleh 1–2 kalimat).
+- Bagian yang membandingkan dua hal atau lebih pada beberapa aspek (judul atau isinya memuat "perbandingan", "vs", "dibedakan dari", atau poin berpola "X — aspek: …; aspek: …") WAJIB memakai layout "table": satu kolom per hal yang dibandingkan, satu baris per aspek. Layout tabel tidak menampilkan teks di luar tabel, jadi pertimbangan memilih atau kesimpulan dimasukkan sebagai baris terakhir (mis. aspek "Cocok untuk"); maksimal 6 kolom dan 12 baris.
 - Gunakan tag <strong> untuk kata kunci penting dan <em> untuk istilah asing. Jangan memakai tag HTML lain.
 - Istilah asing cukup dijelaskan singkat di dalam slide yang sama.
 ${KATALOG_LAYOUT}
