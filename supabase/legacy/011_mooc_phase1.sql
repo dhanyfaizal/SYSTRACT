@@ -3,9 +3,10 @@
 -- Run this in Supabase SQL Editor
 -- ============================================================
 
--- Drop tables if they already exist to avoid column mismatch issues
-DROP TABLE IF EXISTS public.certificates CASCADE;
-DROP TABLE IF EXISTS public.course_progress CASCADE;
+-- [Dinonaktifkan 2026-11-11] Baris DROP TABLE di bawah menghapus seluruh progres & sertifikat
+-- bila file ini dijalankan ulang. Tabel sudah ada di produksi; jangan aktifkan kembali.
+-- DROP TABLE IF EXISTS public.certificates CASCADE;
+-- DROP TABLE IF EXISTS public.course_progress CASCADE;
 
 
 -- ── 1. Enable self-enrollment for students ──────────────────
