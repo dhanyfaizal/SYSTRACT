@@ -4,8 +4,12 @@
  * Browser tidak tahu (dan tidak menampilkan) nama model maupun penyedia aslinya.
  */
 import { supabase } from '@/lib/supabase'
+import { kelompokkanSlide, gabungSpa } from '@/lib/kelompokSpa'
 
 const LOG = '[AISYS]';
+
+/** Kabar progres saat AISYS mulai berpikir; halaman memakainya untuk memulai animasi langkah. */
+export const PROGRES_MENUNGGU = "AISYS sedang memikirkan materi & merumuskan konten (proses ini memakan waktu)...";
 
 // Kunci API AI tidak disimpan di browser. Semua panggilan lewat fungsi server
 // /api/ai (lihat api/ai.js) yang memegang kunci dan memeriksa sesi login Supabase.
@@ -21,7 +25,7 @@ export async function callAi(prompt, isJson = true, onProgress = null, system = 
   try {
     if (onProgress) onProgress("Menghubungi AISYS...");
     console.log(`${LOG} Mengirim permintaan...`);
-    if (onProgress) onProgress("AISYS sedang memikirkan materi & merumuskan konten (proses ini memakan waktu)...");
+    if (onProgress) onProgress(PROGRES_MENUNGGU);
 
     const response = await fetch('/api/ai', {
       method: 'POST',
@@ -348,8 +352,8 @@ Aturan isi (wajib):
 3. Fakta dan angka: definisi, rumus, konversi satuan, dan nilai yang ditetapkan standar boleh dipakai. Nama standar dan lembaga yang menjadi bagian materi (misalnya ASHRAE, Uptime Institute, TIA-942, ISO) boleh dan sebaiknya disebut. Persentase, biaya, besar penghematan, atau hasil studi hanya boleh bila angkanya dikenal luas dan stabil; bila ragu, tulis secara kualitatif (misalnya "dapat menurunkan konsumsi energi secara nyata"). Jangan mengutip angka dari studi, survei, atau laporan tertentu kecuali sumbernya ada di daftar pustaka.
 4. Rujukan: hanya boleh menyebut sumber dari daftar pustaka yang diberikan. Bila daftar pustaka kosong, jangan mencantumkan rujukan apa pun.
 5. Kalimat ringkas dan jelas dalam Bahasa Indonesia baku. Istilah asing yang lazim boleh dipakai, dengan penjelasan singkat saat pertama kali muncul.
-6. Setiap konsep dijelaskan di satu bagian saja; bagian lain cukup merujuk singkat tanpa mendefinisikan ulang.
-7. Setiap kalimat harus akurat secara teknis. Jangan menggabungkan dua teknologi atau konsep yang berbeda seolah-olah sejenis, dan jangan membuat pernyataan yang bertentangan dengan bagian lain.
+6. Sebuah konsep boleh dibahas lagi di bagian lain dari SUDUT BARU (sejarah, klasifikasi, cara kerja, perbandingan, penerapan, aspek operasional), tetapi definisi, daftar istilah, kalimat perbandingan, dan contoh yang sama tidak boleh ditulis ulang; cukup dirujuk singkat. Jelaskan setiap istilah sebelum dipakai di bagian lain.
+7. Setiap kalimat harus akurat secara teknis. Jangan menggabungkan dua teknologi atau konsep yang berbeda seolah-olah sejenis, dan jangan membuat pernyataan yang bertentangan dengan bagian lain. Sebut nama perusahaan, lembaga, atau produk sebagai contoh hanya bila Anda yakin perannya tepat; bila ragu, gunakan contoh umum (misalnya "operator telekomunikasi nasional").
 8. Keluarkan JSON murni tanpa teks lain.
 `;
 
@@ -385,19 +389,23 @@ ${daftarPustaka(references)}
 Catatan: bila kemampuan akhir tidak sejalan dengan topik pertemuan ini, utamakan TOPIK pertemuan ini dan jangan membahas materi milik pertemuan lain.
 
 Struktur:
-1. Buat 15 sampai 18 bagian. Setiap bagian membahas satu konsep; jangan mengulang isi bagian lain.
-2. Bagian 1 adalah pengantar yang menyapa peserta secara langsung (misalnya "Anda akan mempelajari …"): apa yang akan dipelajari dan mengapa penting (2–3 poin). Jangan memulai dengan "Bagian ini …".
-3. Bagian inti: 3–4 poin per bagian. Setiap poin satu kalimat, paling banyak sekitar 30 kata. Sertakan contoh konkret atau penerapan nyata pada sebagian bagian (konteks Indonesia bila relevan), serta perbandingan bila membantu. Bila topiknya memuat besaran atau rumus, sertakan minimal satu contoh perhitungan langkah demi langkah di bagian inti.
-4. Tiga bagian terakhir berurutan:
+1. Pecah topik dan kemampuan akhir pertemuan ini menjadi 4–6 sub-topik (tulis di "sub_topik"). Hanya sub-topik milik pertemuan ini.
+2. Bagian 1 adalah pengantar yang menyapa peserta secara langsung (misalnya "Anda akan mempelajari …"): apa yang akan dipelajari dan mengapa penting (3–4 poin). Jangan memulai dengan "Bagian ini …". Jangan membuat bagian "peta pembelajaran", indikator penilaian, atau aktivitas kelas.
+3. Bagian inti: setiap sub-topik dibahas dalam 4–6 bagian berurutan, masing-masing dari sudut yang berbeda, misalnya: pengertian dan konsep dasar; komponen atau cara kerja; jenis atau klasifikasi; perbandingan (cocok untuk tabel); penerapan atau contoh nyata (konteks Indonesia bila relevan); kelebihan, keterbatasan, atau tantangan. Pilih sudut yang memang relevan; jangan membuat bagian pengisi.
+4. Setiap bagian inti berisi 4–5 poin. Setiap poin satu kalimat informatif, paling banyak sekitar 35 kata (bukan frasa pendek). Bila topiknya memuat besaran atau rumus, sertakan minimal satu contoh perhitungan langkah demi langkah.
+5. Setelah bagian inti, satu bagian "Studi Kasus" yang memadukan beberapa sub-topik dalam satu skenario nyata (konteks, pilihan, pertimbangan, keputusan yang disarankan).
+6. Jumlah total 26–34 bagian (termasuk pengantar, studi kasus, dan tiga bagian penutup), mengikuti banyaknya sub-topik.
+7. Tiga bagian terakhir berurutan:
    a. "Diskusi": 2–3 pertanyaan pemantik reflektif yang mengajak peserta menerapkan atau menimbang materi. Tulis setiap poin dengan format: "Pertanyaan: … Petunjuk: …" (petunjuk berupa arah berpikir, bukan jawaban).
-   b. "Ringkasan": 3–5 poin inti.
-   c. "Latihan" berisi 3–4 soal untuk menguji pemahaman. Setiap soal hanya boleh menguji materi yang sudah dijelaskan di bagian sebelumnya; bila ada contoh perhitungan, sertakan satu soal hitungan serupa. Tulis setiap poin dengan format: "Soal: … Jawaban: …".
+   b. "Ringkasan": 4–6 poin inti, kira-kira satu poin per sub-topik.
+   c. "Latihan" berisi 5 soal untuk menguji pemahaman, tersebar ke sub-topik yang berbeda. Setiap soal hanya boleh menguji materi yang sudah dijelaskan di bagian sebelumnya; bila ada contoh perhitungan, sertakan satu soal hitungan serupa. Tulis setiap poin dengan format: "Soal: … Jawaban: …".
 
 Format JSON:
 {
   "title": "Judul materi pertemuan ini",
+  "sub_topik": ["Sub-topik 1", "Sub-topik 2"],
   "slides": [
-    { "slide_no": 1, "title": "Judul bagian", "content": ["Poin 1", "Poin 2", "Poin 3"] }
+    { "slide_no": 1, "title": "Judul bagian", "content": ["Poin 1", "Poin 2", "Poin 3", "Poin 4"] }
   ]
 }
 `;
@@ -478,19 +486,51 @@ Properti opsional untuk semua layout:
 `;
 
 // 8. Generate WebSlide Layouts
+// Outline panjang dipecah per kelompok (paralel) agar jawaban AI tidak terpotong; hasilnya digabung urut.
 export async function generateWebSlideData(courseName, prodiName, meetingNo, outlineData, onProgress = null) {
+  const semua = outlineData?.slides || [];
+  const kelompok = kelompokkanSlide(semua);
+  if (kelompok.length <= 1) {
+    return generateWebSlideKelompok({ courseName, prodiName, meetingNo, outlineData, onProgress });
+  }
+
+  const karakter = kelompok.map(() => 0);
+  let selesai = 0;
+  const lapor = () => onProgress?.(`AISYS membangun tata letak SPA: ${selesai}/${kelompok.length} kelompok selesai (${karakter.reduce((a, b) => a + b, 0).toLocaleString('id-ID')} karakter)...`);
+  const daftarJudul = semua.map(s => `${s.slide_no}. ${s.title || ''}`).join('\n');
+
+  const hasil = await Promise.all(kelompok.map((isi, i) =>
+    generateWebSlideKelompok({
+      courseName, prodiName, meetingNo,
+      outlineData: { title: outlineData.title, slides: isi },
+      konteks: { nomor: i + 1, total: kelompok.length, daftarJudul },
+      onProgress: (e) => { if (e?.type === 'chunk') { karakter[i] = e.text.length; lapor(); } },
+    }).then((r) => { selesai++; lapor(); return r; })
+  ));
+
+  const { slides, hilang } = gabungSpa(semua, hasil);
+  if (hilang.length) console.warn(`[AISYS] ${hilang.length} bagian tidak dipetakan, diganti tampilan daftar:`, hilang);
+  return { title: hasil.find(h => h?.title)?.title || outlineData.title, slides };
+}
+
+async function generateWebSlideKelompok({ courseName, prodiName, meetingNo, outlineData, konteks = null, onProgress = null }) {
+  const keteranganKelompok = konteks ? `
+Ini kelompok ${konteks.nomor} dari ${konteks.total} dari satu materi yang sama. Daftar judul seluruh materi (hanya sebagai konteks, JANGAN dipetakan):
+${konteks.daftarJudul}
+${konteks.nomor > 1 ? '- Kelompok ini bukan awal materi: jangan memakai layout "cover".\n' : ''}` : '';
+
   const prompt = `
 Ubah outline materi berikut menjadi SPA (halaman materi interaktif) dengan layout yang sesuai untuk setiap slide.
 
 Kursus: "${courseName}"
 Program Studi: "${prodiName}"
 Pertemuan: ${meetingNo}
-
+${keteranganKelompok}
 Outline (JSON):
 ${JSON.stringify(outlineData)}
 
 Aturan pemetaan:
-- Petakan SELURUH slide. Jumlah slide dan nilai "slide_no" harus sama persis dengan outline: jangan menambah, mengurangi, menggabung, atau mengubah urutan.
+- Petakan SELURUH slide pada outline di atas. Jumlah slide dan nilai "slide_no" harus sama persis dengan outline: jangan menambah, mengurangi, menggabung, atau mengubah urutan.
 - Pertahankan keringkasan teks outline; jangan memperpanjangnya. Isi boleh disusun ulang agar cocok dengan layout.
 - Gunakan tag <strong> untuk kata kunci penting dan <em> untuk istilah asing. Jangan memakai tag HTML lain.
 - Istilah asing cukup dijelaskan singkat di dalam slide yang sama.

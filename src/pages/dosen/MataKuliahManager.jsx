@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
-import { generateCourseDescription, generateCplForCourse, generateCpmk, generateWeeklyPlan, generateReferences, generateSlideContent, generateWebSlideData, generateMcqQuestions, generateSingleSlide, generateSingleWebSlideData } from '@/lib/ai'
+import { generateCourseDescription, generateCplForCourse, generateCpmk, generateWeeklyPlan, generateReferences, generateSlideContent, generateWebSlideData, generateMcqQuestions, generateSingleSlide, generateSingleWebSlideData, PROGRES_MENUNGGU } from '@/lib/ai'
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 import { parseWebSlideHtml, WebSlideImportError } from '@/lib/webslideImport'
 import { slideVideo, spaDariSlideVideo, terapkanSlideVideo } from '@/lib/sisipSlide'
@@ -969,7 +969,7 @@ export default function DosenMataKuliah() {
     const steps = [
       "Menganalisis Kemampuan Akhir & Bahan Kajian...",
       "Mengintegrasikan Referensi Pustaka RPS...",
-      "Merancang 15–18 bagian materi yang ringkas...",
+      "Memetakan sub-topik & merancang 26–34 bagian materi...",
       "Mengembangkan Contoh Kasus & Penerapan Industri...",
       "Menyusun Perbandingan Konsep & Penjelasan Detail...",
       "Mempersiapkan Output Draft Slide..."
@@ -978,7 +978,7 @@ export default function DosenMataKuliah() {
 
     const handleProgress = (event) => {
       if (typeof event === 'string') {
-        if (event === "AI sedang memikirkan materi & merumuskan konten (proses ini memakan waktu)...") {
+        if (event === PROGRES_MENUNGGU) {
           setAiSlideProgressText(steps[0])
           subTimer = setInterval(() => {
             currentStep++
@@ -1049,7 +1049,7 @@ export default function DosenMataKuliah() {
 
     const handleProgress = (event) => {
       if (typeof event === 'string') {
-        if (event === "AI sedang memikirkan materi & merumuskan konten (proses ini memakan waktu)...") {
+        if (event === PROGRES_MENUNGGU) {
           setAiSlideProgressText(steps[0])
           subTimer = setInterval(() => {
             currentStep++
