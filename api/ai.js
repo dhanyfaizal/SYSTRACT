@@ -2,12 +2,8 @@
 // Gerbang AI di server (Vercel Function).
 //
 // Kunci API AI hanya ada di server (env SUMOPOD_API_KEY), tidak pernah dikirim ke browser.
-// Hanya pengguna yang sedang login di SYSTRACT (token Supabase valid) yang boleh memakai.
-//
-// Mode:
-//   - default : memakai kunci SYSTRACT (SUMOPOD_API_KEY / SUMOPOD_API_URL).
-//   - byok    : pengguna membawa kunci & URL sendiri (endpoint kompatibel OpenAI).
-//               Hanya https, hanya ke /chat/completions, dan bukan alamat jaringan lokal.
+// AI dipakai di sisi instruktur (penyusunan RPS, CPMK, slide, soal): hanya pengguna yang login
+// dengan peran dosen atau admin yang boleh memakai. Peserta tidak punya akses AI.
 
 const DEFAULT_URL = 'https://ai.sumopod.com/v1'
 // Model server: utama SUMOPOD_MODEL, cadangan SUMOPOD_FALLBACK_MODEL (env); bila kosong, default di bawah.
@@ -16,17 +12,25 @@ const DEFAULT_MODEL = 'deepseek-v4-flash'
 const FALLBACK_MODEL = 'deepseek-flash'
 const MAX_BODY_CHARS = 400_000
 
-async function verifyUser(req) {
+const PERAN_AI = ['dosen', 'admin']
+
+// 'ok' | 'belum_login' | 'bukan_instruktur'
+async function periksaPengguna(req) {
   const auth = req.headers.authorization || ''
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
-  if (!token) return false
+  if (!token) return 'belum_login'
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
-  if (!supabaseUrl || !anonKey) return false
-  const r = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    headers: { apikey: anonKey, Authorization: `Bearer ${token}` },
-  })
-  return r.ok
+  if (!supabaseUrl || !anonKey) return 'belum_login'
+  const hdr = { apikey: anonKey, Authorization: `Bearer ${token}` }
+  const r = await fetch(`${supabaseUrl}/auth/v1/user`, { headers: hdr })
+  if (!r.ok) return 'belum_login'
+  const { id } = await r.json()
+  // Peran dibaca dengan token pengguna itu sendiri (RLS profiles mengizinkan membaca profil).
+  const pr = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=role`, { headers: hdr })
+  if (!pr.ok) return 'bukan_instruktur'
+  const [profil] = await pr.json()
+  return PERAN_AI.includes(profil?.role) ? 'ok' : 'bukan_instruktur'
 }
 
 // Gabungkan pesan sistem ke pesan pengguna untuk model yang tidak menerima peran "system".
@@ -38,17 +42,6 @@ function mergeSystem(messages) {
   return [{ ...first, content: `${sys}\n\n${first.content}` }, ...others]
 }
 
-function isPublicHttpsUrl(raw) {
-  let u
-  try { u = new URL(raw) } catch { return false }
-  if (u.protocol !== 'https:') return false
-  const h = u.hostname.toLowerCase()
-  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.internal') || h.endsWith('.local')) return false
-  // Tolak alamat IP langsung (IPv4/IPv6) agar tidak dipakai menjangkau jaringan internal.
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h) || h.includes(':') || h.startsWith('[')) return false
-  return true
-}
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST')
@@ -56,12 +49,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    if (!(await verifyUser(req))) {
-      return res.status(401).json({ error: 'Silakan masuk terlebih dahulu.' })
-    }
+    const akses = await periksaPengguna(req)
+    if (akses === 'belum_login') return res.status(401).json({ error: 'Silakan masuk terlebih dahulu.' })
+    if (akses !== 'ok') return res.status(403).json({ error: 'Fitur AI hanya tersedia untuk instruktur.' })
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { messages, model, response_format, stream, temperature, max_tokens, byok } = body
+    const { messages, response_format, stream, temperature, max_tokens } = body
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'messages wajib diisi.' })
@@ -70,28 +63,16 @@ export default async function handler(req, res) {
       return res.status(413).json({ error: 'Permintaan terlalu besar.' })
     }
 
-    let baseUrl
-    let apiKey
-    let modelsToTry
-    if (byok) {
-      if (!byok.key || !isPublicHttpsUrl(byok.url)) {
-        return res.status(400).json({ error: 'URL AI harus https dan bukan alamat lokal.' })
-      }
-      baseUrl = byok.url.replace(/\/+$/, '')
-      apiKey = byok.key
-      modelsToTry = [model]
-    } else {
-      apiKey = process.env.SUMOPOD_API_KEY
-      if (!apiKey) {
-        return res.status(500).json({ error: 'Kunci AI server belum dikonfigurasi (SUMOPOD_API_KEY).' })
-      }
-      baseUrl = (process.env.SUMOPOD_API_URL || DEFAULT_URL).replace(/\/+$/, '')
-      // Pengguna tidak bisa memilih model lain dengan kunci SYSTRACT.
-      modelsToTry = [...new Set([
-        process.env.SUMOPOD_MODEL || DEFAULT_MODEL,
-        process.env.SUMOPOD_FALLBACK_MODEL || FALLBACK_MODEL,
-      ])]
+    const apiKey = process.env.SUMOPOD_API_KEY
+    if (!apiKey) {
+      return res.status(500).json({ error: 'Kunci AI server belum dikonfigurasi (SUMOPOD_API_KEY).' })
     }
+    const baseUrl = (process.env.SUMOPOD_API_URL || DEFAULT_URL).replace(/\/+$/, '')
+    // Pengguna tidak bisa memilih model lain dengan kunci SYSTRACT.
+    const modelsToTry = [...new Set([
+      process.env.SUMOPOD_MODEL || DEFAULT_MODEL,
+      process.env.SUMOPOD_FALLBACK_MODEL || FALLBACK_MODEL,
+    ])]
 
     // Penyedia (LiteLLM di Sumopod) kadang memetakan model ke versi yang menolak parameter
     // tertentu ("Invalid param: not support for model"). Bila itu terjadi, coba ulang dengan

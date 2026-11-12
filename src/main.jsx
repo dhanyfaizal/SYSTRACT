@@ -2,7 +2,6 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider }  from '@/contexts/AuthContext'
-import { AIProvider }    from '@/contexts/AIContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import AppRouter         from '@/router/index'
 import '@/styles/index.css'
@@ -10,7 +9,6 @@ import '@/styles/index.css'
 ReactDOM.createRoot(document.getElementById('root')).render(
   <ThemeProvider>
     <AuthProvider>
-      <AIProvider>
         <AppRouter />
         <Toaster
           position="top-right"
@@ -24,7 +22,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             success: { iconTheme: { primary: '#4F46E5', secondary: '#fff' } },
           }}
         />
-      </AIProvider>
     </AuthProvider>
   </ThemeProvider>
 )

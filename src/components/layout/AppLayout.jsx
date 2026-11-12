@@ -5,7 +5,6 @@ import { filterNav }    from '@/shell/navUtils'
 import { useAuth }      from '@/contexts/AuthContext'
 import { supabase }     from '@/lib/supabase'
 import HeaderActions    from './Header'
-import AIAssistant      from '@/components/ai/AIAssistant'
 import { buildNav, ROLE_LABEL } from './navConfig'
 
 const LOGO_URL = '/logo-stikom.webp'
@@ -109,7 +108,6 @@ export default function AppLayout() {
           </ErrorBoundary>
         </AppShell>
       </div>
-      <AIAssistant />
     </SidebarContext.Provider>
   )
 }

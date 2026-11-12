@@ -49,3 +49,20 @@ describe('kompetensi singkat', () => {
     expect(pecahKompetensi('')).toEqual([])
   })
 })
+
+import { targetDetikMateri, lampiranVideo } from '@/hooks/useWaktuBelajarAktif'
+
+describe('waktu belajar aktif minimal', () => {
+  it('separuh estimasi dosen, dibagi per lampiran, dibatasi 1–30 menit', () => {
+    expect(targetDetikMateri(null)).toBe(180)          // estimasi belum diisi → 3 menit
+    expect(targetDetikMateri(60, 1)).toBe(1800)        // 60 menit → 30 menit
+    expect(targetDetikMateri(60, 2)).toBe(900)         // dibagi dua lampiran
+    expect(targetDetikMateri(1, 1)).toBe(60)           // minimal 1 menit
+    expect(targetDetikMateri(600, 1)).toBe(1800)       // maksimal 30 menit per lampiran
+  })
+  it('mengenali lampiran video', () => {
+    expect(lampiranVideo({ url: 'https://www.youtube.com/watch?v=x' })).toBe(true)
+    expect(lampiranVideo({ mime: 'video/mp4', url: 'x' })).toBe(true)
+    expect(lampiranVideo({ mime: 'application/pdf', url: 'x.pdf' })).toBe(false)
+  })
+})
