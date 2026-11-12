@@ -7,7 +7,7 @@
 const STATUS_LABEL = { hadir:'H', izin:'I', sakit:'S', alpha:'A' }
 const STATUS_COLOR  = { hadir:'#16a34a', izin:'#2563eb', sakit:'#d97706', alpha:'#dc2626' }
 
-export async function printPresensi({ supabase, courseId, userId }) {
+export async function printPresensi({ supabase, courseId }) {
   // ── Fetch semua data sekaligus ──────────────────────────────────
   const [{ data: course }, { data: sessions }, { data: enrollments }] = await Promise.all([
     supabase.from('courses')

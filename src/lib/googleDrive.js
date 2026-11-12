@@ -17,7 +17,7 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 const API_KEY   = import.meta.env.VITE_GOOGLE_API_KEY
 
 let tokenClient   = null
-let pickerInited  = false
+let _pickerInited = false
 let accessToken   = null
 
 // ── Load the Google Identity Services script ──────────────────────────────
@@ -39,7 +39,7 @@ function loadPickerScript() {
     script.src = 'https://apis.google.com/js/api.js'
     script.onload = () => {
       window.gapi.load('picker', () => {
-        pickerInited = true
+        _pickerInited = true
         resolve()
       })
     }

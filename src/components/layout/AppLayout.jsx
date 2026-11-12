@@ -1,4 +1,4 @@
-import { Component, createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { Component, Suspense, createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { AppShell }     from '@/shell/AppShell'
 import { filterNav }    from '@/shell/navUtils'
@@ -103,7 +103,9 @@ export default function AppLayout() {
           storageKey="systract-shell"
         >
           <ErrorBoundary>
-            <Outlet />
+            <Suspense fallback={<div style={{ display:'flex', justifyContent:'center', paddingTop:60 }}><div className="spinner" /></div>}>
+              <Outlet />
+            </Suspense>
           </ErrorBoundary>
         </AppShell>
       </div>

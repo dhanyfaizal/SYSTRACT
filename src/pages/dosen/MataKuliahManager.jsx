@@ -848,7 +848,7 @@ export default function DosenMataKuliah() {
     })
   }
 
-  function handleAddRefItem() {
+  function _handleAddRefItem() {
     setTempRefs(prev => [...prev, { teks: 'Nama Penulis. (Tahun). Judul Buku. Penerbit.', url: '' }])
   }
 
@@ -1361,7 +1361,7 @@ export default function DosenMataKuliah() {
     if (!url) return null
     
     const getYoutubeEmbedUrl = (link) => {
-      let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
+      let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/
       let match = link.match(regExp)
       if (match && match[2].length === 11) {
         return `https://www.youtube.com/embed/${match[2]}`
@@ -1635,7 +1635,7 @@ export default function DosenMataKuliah() {
   )
 
   // Group materials by week
-  const materialsByWeek = materials.reduce((acc, m) => {
+  const _materialsByWeek = materials.reduce((acc, m) => {
     const w = m.week_number || 0
     if (!acc[w]) acc[w] = []
     acc[w].push(m)
@@ -2501,7 +2501,7 @@ export default function DosenMataKuliah() {
                                   const itemText = isObj ? (r.teks || '') : r;
                                   const itemUrl = isObj ? (r.url || '') : '';
                                   
-                                  const isJurnal = itemText.toLowerCase().includes('journal') || 
+                                  const _isJurnal = itemText.toLowerCase().includes('journal') || 
                                                    itemText.toLowerCase().includes('jurnal') || 
                                                    itemText.toLowerCase().includes('doi:') || 
                                                    itemUrl.toLowerCase().includes('doi.org') || 
@@ -2818,7 +2818,7 @@ export default function DosenMataKuliah() {
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', maxHeight: 'calc(100vh - 360px)' }}>
-                        {enrollments.map((e, idx) => {
+                        {enrollments.map((e, _idx) => {
                           const isPending = e.status === 'pending'
                           return (
                             <div 

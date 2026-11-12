@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import AISettingsModal from './AISettingsModal'
 
 // System prompt adapts to user role
-function buildSystemPrompt(role, pageName = '') {
+function buildSystemPrompt(role, _pageName = '') {
   const base = `Kamu adalah Asisten AI SYSTRACT milik STIKOM Yos Sudarso. Jawab dalam Bahasa Indonesia yang ramah, sopan, dan solutif. Format respons menggunakan susunan markdown yang rapi (seperti tebal, list poin, dan blok kode pemrograman jika diperlukan) agar mudah dibaca oleh pengguna.`
   if (role === 'mahasiswa') return `${base} Bantu mahasiswa memahami materi kuliah, memberikan panduan pengerjaan tugas, dan memberikan tips belajar secara efektif.`
   if (role === 'dosen')     return `${base} Bantu dosen merancang rubrik penilaian tugas, menyusun butir soal ujian, membuat modul bahan ajar, dan memberikan inspirasi feedback konstruktif.`

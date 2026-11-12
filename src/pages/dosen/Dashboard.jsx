@@ -34,7 +34,7 @@ const ACTIVITY_META = {
 
 export default function DosenDashboard() {
   const { user, profile } = useAuth()
-  const navigate           = useNavigate()
+  const _navigate          = useNavigate()
 
   const [stats,    setStats]    = useState({ courses:0, students:0, activeTasks:0, ungraded:0 })
   const [loading,  setLoading]  = useState(true)

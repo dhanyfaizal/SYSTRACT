@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Navigate }           from 'react-router-dom'
 import { Loader2, LogIn }     from 'lucide-react'
 import { useAuth }            from '@/contexts/AuthContext'

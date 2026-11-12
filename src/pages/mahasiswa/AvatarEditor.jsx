@@ -41,7 +41,7 @@ export default function AvatarEditor() {
   const [loading,   setLoading]   = useState(true)
   const [saving,    setSaving]    = useState(false)
   const fileInputRef = useRef()
-  const [uploadingCustom, setUploadingCustom] = useState(false)
+  const [_uploadingCustom, setUploadingCustom] = useState(false)
 
   async function handleCustomUpload(e) {
     const file = e.target.files?.[0]

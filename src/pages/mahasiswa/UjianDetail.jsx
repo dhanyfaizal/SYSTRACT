@@ -90,7 +90,7 @@ export default function UjianDetail() {
     if (phase !== 'active') return
     if (!exam || !MONITOR_MODES.includes(exam.exam_mode || 'ujian')) return
 
-    function triggerViolation(reason) {
+    function triggerViolation(_reason) {
       if (phaseRef.current !== 'active') return
       // Debounce: ignore if within 2.5s of last violation
       const now = Date.now()
@@ -163,14 +163,14 @@ export default function UjianDetail() {
     startTimer(exam, data.started_at)
     // Request fullscreen for monitored modes
     if (MONITOR_MODES.includes(mode)) {
-      try { await document.documentElement.requestFullscreen() } catch (_) {}
+      try { await document.documentElement.requestFullscreen() } catch { /* fullscreen ditolak browser */ }
     }
   }
 
   const handleSubmit = useCallback(async (auto = false) => {
     if (phase !== 'active') return
     clearInterval(timerRef.current)
-    if (document.fullscreenElement) { try { await document.exitFullscreen() } catch (_) {} }
+    if (document.fullscreenElement) { try { await document.exitFullscreen() } catch { /* sudah keluar */ } }
     // Include violation metadata in answers for teacher review
     const vcount = violationsRef.current
     const savedAnswers = vcount > 0 ? { ...answers, _violations: vcount } : answers
@@ -204,13 +204,12 @@ export default function UjianDetail() {
   const submitted  = allAttempts.filter(a => a.submitted_at)
   const doneCount  = submitted.length
   const questions  = myAnswer?.questions_snapshot || []
-  const answered   = Object.keys(answers).length
+  const _answered   = Object.keys(answers).length
   const typeLabel  = { uts:'Evaluasi', uas:'Evaluasi', kuis:'Kuis' }
   const canRetry   = mode === 'quiz' || (mode === 'tryout' && doneCount < maxAtt) || (mode === 'ujian' && myAnswer?.score !== null && myAnswer?.score !== undefined && myAnswer.score < (exam.passing_grade ?? 70))
 
   /* ── Submitted view ─────────────────────────────────── */
   if (phase === 'submitted') {
-    const isBank     = !!exam.use_question_bank
     const mcTotal    = myAnswer?.mc_total ?? 0
     const mcCorrect  = myAnswer?.mc_correct ?? 0
     const finalScore = myAnswer?.score ?? null
@@ -230,8 +229,8 @@ export default function UjianDetail() {
             <p style={{ color:'var(--gray-500)', fontSize:13 }}>{exam.title}</p>
           </div>
 
-          {/* Score for bank soal */}
-          {isBank && finalScore !== null && (
+          {/* Skor (selalu persen 0–100, dihitung server) */}
+          {finalScore !== null && (
             <div style={{ textAlign:'center', background:'linear-gradient(135deg,#eef2ff,#f0fdf4)', border:'1px solid #c7d2fe', borderRadius:12, padding:'18px', marginBottom:20 }}>
               <div style={{ fontSize:40, fontWeight:900, color: scoreColor(finalScore), lineHeight:1 }}>{finalScore}</div>
               <div style={{ fontSize:11, color:'var(--gray-400)', marginTop:4 }}>dari 100 poin</div>

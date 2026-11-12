@@ -1,4 +1,4 @@
-/* global process, Buffer */ // Berjalan di Node (Vercel Function), bukan di browser.
+// Berjalan di Node (Vercel Function), bukan di browser.
 // Gerbang AI di server (Vercel Function).
 //
 // Kunci API AI hanya ada di server (env SUMOPOD_API_KEY), tidak pernah dikirim ke browser.

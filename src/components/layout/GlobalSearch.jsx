@@ -185,7 +185,7 @@ export default function GlobalSearch() {
                       <div style={{ padding:'10px 18px 4px', fontSize:10, fontWeight:800, color:'var(--gray-400)', textTransform:'uppercase', letterSpacing:.6 }}>
                         {cfg.label}
                       </div>
-                      {items.map((r, idx) => {
+                      {items.map((r, _idx) => {
                         const globalIdx = results.indexOf(r)
                         const isSel = globalIdx === selIdx
                         return (

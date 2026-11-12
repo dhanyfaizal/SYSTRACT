@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import CoursePicker from "@/components/dosen/CoursePicker"
 import {
@@ -20,7 +20,7 @@ const STATUS_OPTS = [
   { value: 'sakit', label: 'Sakit',  color: '#d97706', bg: '#fef3c7' },
   { value: 'alpha', label: 'Alpha',  color: '#dc2626', bg: '#fee2e2' },
 ]
-function statusStyle(s) { return STATUS_OPTS.find(o => o.value === s) || STATUS_OPTS[3] }
+function _statusStyle(s) { return STATUS_OPTS.find(o => o.value === s) || STATUS_OPTS[3] }
 
 function genCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'

@@ -12,7 +12,7 @@ import toast from 'react-hot-toast'
 
 export default function ProfilePage() {
   const { profile, user, refreshProfile } = useAuth()
-  const navigate = useNavigate()
+  const _navigate = useNavigate()
   const [editing,   setEditing]   = useState(false)
   const [saving,    setSaving]    = useState(false)
   const [form,      setForm]      = useState({})
@@ -20,7 +20,7 @@ export default function ProfilePage() {
   const [stats,     setStats]     = useState({ submissions:0, materialViews:0, forumPosts:0, courses:0, perfectScore:false })
   const [statsLoading, setStatsLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
-  const fileRef = useRef()
+  const _fileRef = useRef()
 
   useEffect(() => {
     if (profile) {
@@ -60,7 +60,7 @@ export default function ProfilePage() {
     setStatsLoading(false)
   }
 
-  async function handleAvatarChange(e) {
+  async function _handleAvatarChange(e) {
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 3 * 1024 * 1024) { toast.error('Maks 3MB'); return }
