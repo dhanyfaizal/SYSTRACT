@@ -3451,7 +3451,7 @@ export default function DosenMataKuliah() {
                                           <span style={{ fontSize: 11, color: 'var(--red-600)' }}>Tautan belum dikenali sebagai video YouTube atau berkas .mp4/.webm.</span>
                                         )}
                                         {urlVideoValid(editImageUrl) && (
-                                          <EditorSoalVideo url={editImageUrl.trim()} soal={editSoal} onChange={setEditSoal} />
+                                          <EditorSoalVideo url={editImageUrl.trim()} soal={editSoal} onChange={setEditSoal} konteks={{ kursus: selectedCourse?.name, judul: editTitle }} />
                                         )}
                                       </div>
                                     )}

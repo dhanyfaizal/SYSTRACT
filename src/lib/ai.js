@@ -610,6 +610,34 @@ Format output: satu objek JSON sesuai salah satu layout di atas.
   return callAi(prompt, true, onProgress, ATURAN_MATERI);
 }
 
+// 8.c. Soal di tengah video, dari transkrip yang ditempel dosen (bukan dari unduhan video).
+export async function generateSoalVideo({ kursus, judul, transkrip, jumlah, durasi }, onProgress = null) {
+  const prompt = `
+Buat ${jumlah} soal pilihan ganda yang akan MENJEDA sebuah video materi pada detik tertentu, untuk memastikan peserta menyimak.
+
+Kursus: "${kursus || '-'}"
+Judul video: "${judul || '-'}"
+Durasi video: ${durasi ? `${Math.round(durasi)} detik` : 'tidak diketahui (gunakan cap waktu transkrip)'}
+
+Transkrip video (format "[menit:detik] ucapan"):
+${transkrip}
+
+Aturan:
+- Setiap soal menguji SATU gagasan penting yang benar-benar diucapkan di video, bukan pengetahuan umum di luar video.
+- "detik" = waktu tepat SETELAH gagasan itu selesai dijelaskan (ambil dari cap waktu segmen berikutnya), dalam detik bulat. Jangan menaruh soal sebelum jawabannya disebut di video.
+- Sebar soal ke seluruh video secara merata; jarak antarsoal minimal 30 detik; urutkan menurut detik.
+- Tepat 4 pilihan, satu jawaban benar; pengecoh masuk akal dan diambil dari konteks video; sebarkan posisi jawaban benar.
+- "jawaban" adalah indeks pilihan benar (0–3).
+- "penjelasan" 1 kalimat yang merujuk isi video (boleh menyebut menitnya).
+- Bahasa Indonesia yang jelas dan singkat; pertanyaan maksimal 25 kata. Jangan menyebut "transkrip".
+
+Format output: JSON murni
+{ "soal": [ { "detik": 95, "pertanyaan": "...", "opsi": ["...", "...", "...", "..."], "jawaban": 2, "penjelasan": "..." } ] }
+`;
+
+  return callAi(prompt, true, onProgress);
+}
+
 // 9. Generate Soal Ujian Essay untuk UTS/UAS
 export async function generateEssayQuestions(courseName, examType, topic, capability, onProgress = null) {
   const prompt = `

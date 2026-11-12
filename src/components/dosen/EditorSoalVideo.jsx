@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Play, Clock } from 'lucide-react'
 import { youtubeId } from '@/lib/spaBlocks'
-import { buatAdapter, formatDetik, bacaDetik, periksaSoal, saranJumlahSoal, SOAL_MAKS_PER_VIDEO } from '@/lib/videoInteraktif'
+import PanelAiSoalVideo from './PanelAiSoalVideo'
+import { buatAdapter,formatDetik, bacaDetik, periksaSoal, saranJumlahSoal, SOAL_MAKS_PER_VIDEO } from '@/lib/videoInteraktif'
 
 // Editor soal di tengah video (dosen): putar video, tekan "Tambah pertanyaan di detik ini"
 // saat sebuah konsep selesai dijelaskan, lalu tulis soalnya.
@@ -11,7 +12,7 @@ const soalKosong = (detik) => ({ detik: Math.max(1, Math.floor(detik || 1)), per
 const HURUF = 'ABCD'
 const LABEL = { fontSize: 11, fontWeight: 600, color: 'var(--gray-500)' }
 
-export default function EditorSoalVideo({ url, soal, onChange }) {
+export default function EditorSoalVideo({ url, soal, onChange, konteks = {} }) {
   const mediaRef = useRef(null)
   const adapterRef = useRef(null)
   const [waktu, setWaktu] = useState(0)
@@ -91,6 +92,13 @@ export default function EditorSoalVideo({ url, soal, onChange }) {
         </button>
         {penuh && <span style={{ fontSize: 11, color: 'var(--gray-500)' }}>Maksimal {SOAL_MAKS_PER_VIDEO} pertanyaan per video.</span>}
       </div>
+
+      <PanelAiSoalVideo
+        durasi={durasi}
+        konteks={konteks}
+        sisaKuota={SOAL_MAKS_PER_VIDEO - soal.length}
+        onHasil={(baru) => onChange(urut([...soal, ...baru]).slice(0, SOAL_MAKS_PER_VIDEO))}
+      />
 
       {soal.length === 0 && (
         <p style={{ margin: 0, fontSize: 12, color: 'var(--gray-500)' }}>
