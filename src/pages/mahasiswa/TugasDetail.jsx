@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Send, Loader2, Eye, CheckCircle2, Link2, Info } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { useMuatData } from '@/hooks/useMuatData'
 import toast from 'react-hot-toast'
 
 function fileInfo(name = '') {
@@ -16,30 +17,29 @@ function fileInfo(name = '') {
   return { icon:'🔗', color:'#4285f4' }
 }
 
+// Tugas dan pengumpulan milik peserta ini.
+async function muatTugas(id, userId) {
+  const [{ data: assignment }, { data: submission }] = await Promise.all([
+    supabase.from('assignments').select('*, course:courses(name,code)').eq('id', id).single(),
+    supabase.from('submissions').select('*').eq('assignment_id', id).eq('student_id', userId).maybeSingle(),
+  ])
+  return { assignment, submission }
+}
+
 export default function TugasDetail() {
   const { id }   = useParams()
   const { user } = useAuth()
   const navigate = useNavigate()
 
-  const [assignment, setAssignment] = useState(null)
-  const [submission, setSubmission] = useState(null)
-  const [loading,    setLoading]    = useState(true)
+  const tugas = useMuatData(user ? `${id}:${user.id}` : null, () => muatTugas(id, user.id))
+  const assignment = tugas.data?.assignment ?? null
+  const submission = tugas.data?.submission ?? null
+  const loading = !user || tugas.loading
+  const fetchData = tugas.muatUlang
   const [submitting, setSubmitting] = useState(false)
 
   const [linkUrl,  setLinkUrl]  = useState('')
   const [linkName, setLinkName] = useState('')
-
-  useEffect(() => { fetchData() }, [id, user])
-
-  async function fetchData() {
-    const [{ data: a }, { data: s }] = await Promise.all([
-      supabase.from('assignments').select('*, course:courses(name,code)').eq('id', id).single(),
-      supabase.from('submissions').select('*').eq('assignment_id', id).eq('student_id', user.id).maybeSingle(),
-    ])
-    setAssignment(a)
-    setSubmission(s)
-    setLoading(false)
-  }
 
   async function handleSubmit() {
     if (!linkUrl.trim()) { toast.error('Masukkan link Google Drive terlebih dahulu'); return }

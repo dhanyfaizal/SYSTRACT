@@ -6,9 +6,30 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { useMuatData } from '@/hooks/useMuatData'
 import toast from 'react-hot-toast'
 
 
+
+const STATS_KOSONG = { submissions:0, materialViews:0, forumPosts:0, courses:0, perfectScore:false }
+
+// Ringkasan aktivitas peserta: tugas dikumpulkan, materi dibuka, balasan forum, kursus, nilai sempurna.
+async function muatStatistik(userId) {
+  const [subRes, mvRes, fpRes, crRes, perfRes] = await Promise.all([
+    supabase.from('submissions').select('id', { count:'exact', head:true }).eq('student_id', userId),
+    supabase.from('material_views').select('id', { count:'exact', head:true }).eq('student_id', userId),
+    supabase.from('forum_replies').select('id', { count:'exact', head:true }).eq('author_id', userId),
+    supabase.from('enrollments').select('id', { count:'exact', head:true }).eq('student_id', userId),
+    supabase.from('submissions').select('score').eq('student_id', userId).eq('score', 100).limit(1),
+  ])
+  return {
+    submissions:   subRes.count || 0,
+    materialViews: mvRes.count  || 0,
+    forumPosts:    fpRes.count  || 0,
+    courses:       crRes.count  || 0,
+    perfectScore:  (perfRes.data || []).length > 0,
+  }
+}
 
 export default function ProfilePage() {
   const { profile, user, refreshProfile } = useAuth()
@@ -17,48 +38,24 @@ export default function ProfilePage() {
   const [saving,    setSaving]    = useState(false)
   const [form,      setForm]      = useState({})
   const [prodiList, setProdiList] = useState([])
-  const [stats,     setStats]     = useState({ submissions:0, materialViews:0, forumPosts:0, courses:0, perfectScore:false })
-  const [statsLoading, setStatsLoading] = useState(true)
+  // Statistik aktivitas hanya untuk peserta.
+  const statistik = useMuatData(profile?.role === 'mahasiswa' ? user?.id : null, muatStatistik)
+  const stats = statistik.data || STATS_KOSONG
+  const statsLoading = !statistik.data
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef()
 
-  useEffect(() => {
-    if (profile) {
-      setForm({ ...profile })
-      if (profile.role === 'mahasiswa') fetchStats()
-    }
-  }, [profile])
+  // Isi ulang form setiap kali data profil dimuat ulang (mis. setelah disimpan).
+  const [profilSumber, setProfilSumber] = useState(null)
+  if (profile && profile !== profilSumber) {
+    setProfilSumber(profile)
+    setForm({ ...profile })
+  }
 
   useEffect(() => {
     supabase.from('program_studi').select('id,name,code').order('name')
       .then(({ data }) => setProdiList(data || []))
   }, [user])
-
-  async function fetchStats() {
-    if (!user) return
-    setStatsLoading(true)
-    const [subRes, mvRes, fpRes, crRes, perfRes] = await Promise.all([
-      // Submissions
-      supabase.from('submissions').select('id', { count:'exact', head:true }).eq('student_id', user.id),
-      // Material views
-      supabase.from('material_views').select('id', { count:'exact', head:true }).eq('student_id', user.id),
-      // Forum posts + replies
-      supabase.from('forum_replies').select('id', { count:'exact', head:true }).eq('author_id', user.id),
-      // Courses enrolled
-      supabase.from('enrollments').select('id', { count:'exact', head:true }).eq('student_id', user.id),
-      // Perfect scores
-      supabase.from('submissions').select('score').eq('student_id', user.id).eq('score', 100).limit(1),
-    ])
-
-    setStats({
-      submissions:   subRes.count || 0,
-      materialViews: mvRes.count  || 0,
-      forumPosts:    fpRes.count  || 0,
-      courses:       crRes.count  || 0,
-      perfectScore:  (perfRes.data || []).length > 0,
-    })
-    setStatsLoading(false)
-  }
 
   // Bucket 'avatars': maks 2 MB, hanya gambar; pengguna hanya boleh menulis avatars/<id-nya>*.
   async function handleAvatarChange(e) {

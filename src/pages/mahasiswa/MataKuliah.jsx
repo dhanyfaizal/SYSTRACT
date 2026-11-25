@@ -1,53 +1,49 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, Users, ChevronRight, Plus, Search } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { useMuatData } from '@/hooks/useMuatData'
 
 const COLORS = ['#4f46e5','#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4']
+
+async function muatKursusDiikuti(userId) {
+  // Step 1: ambil course_id dari enrollments mahasiswa ini
+  const { data: enrollData, error: enrollErr } = await supabase
+    .from('enrollments')
+    .select('course_id')
+    .eq('student_id', userId)
+    .eq('status', 'approved')
+
+  if (enrollErr) {
+    console.error('[EduSYS] enrollments query error:', enrollErr)
+    return []
+  }
+
+  const courseIds = (enrollData || []).map(e => e.course_id)
+
+  if (courseIds.length === 0) {
+    return []
+  }
+
+  // Step 2: ambil detail courses berdasarkan ID
+  const { data: courseData, error: courseErr } = await supabase
+    .from('courses')
+    .select('id, code, name, description, credits, semester, cover_color, dosen:profiles!courses_dosen_id_fkey(full_name, avatar_url)')
+    .in('id', courseIds)
+    .order('name')
+
+  if (courseErr) console.error('[EduSYS] courses query error:', courseErr)
+  return courseData || []
+}
 
 export default function MahasiswaMataKuliah() {
   const { user } = useAuth()
   const navigate  = useNavigate()
-  const [courses, setCourses] = useState([])
-  const [loading, setLoading] = useState(true)
+  const kursus = useMuatData(user?.id, muatKursusDiikuti)
+  const courses = kursus.data || []
+  const loading = !user || kursus.loading
   const [search,  setSearch]  = useState('')
-
-  useEffect(() => { if (user) fetchCourses() }, [user])
-
-  async function fetchCourses() {
-    // Step 1: ambil course_id dari enrollments mahasiswa ini
-    const { data: enrollData, error: enrollErr } = await supabase
-      .from('enrollments')
-      .select('course_id')
-      .eq('student_id', user.id)
-      .eq('status', 'approved')
-
-    if (enrollErr) {
-      console.error('[EduSYS] enrollments query error:', enrollErr)
-      setLoading(false)
-      return
-    }
-
-    const courseIds = (enrollData || []).map(e => e.course_id)
-
-    if (courseIds.length === 0) {
-      setCourses([])
-      setLoading(false)
-      return
-    }
-
-    // Step 2: ambil detail courses berdasarkan ID
-    const { data: courseData, error: courseErr } = await supabase
-      .from('courses')
-      .select('id, code, name, description, credits, semester, cover_color, dosen:profiles!courses_dosen_id_fkey(full_name, avatar_url)')
-      .in('id', courseIds)
-      .order('name')
-
-    if (courseErr) console.error('[EduSYS] courses query error:', courseErr)
-    setCourses(courseData || [])
-    setLoading(false)
-  }
 
   const filtered = courses.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||

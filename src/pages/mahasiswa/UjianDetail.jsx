@@ -9,11 +9,29 @@ import toast from 'react-hot-toast'
 const MODE_LABEL = { ujian:'Ujian', tryout:'Try Out', quiz:'Quiz' }
 const MODE_COLOR = { ujian:'var(--indigo-600)', tryout:'#0891b2', quiz:'#7c3aed' }
 
+// Mode ujian yang diawasi (pindah tab / keluar layar penuh dihitung pelanggaran).
+const MONITOR_MODES = ['ujian', 'tryout']
+
+// exams_peserta: data ujian tanpa soal/kunci jawaban. Soal datang dari snapshot percobaan.
+async function muatUjian(id, userId) {
+  const [{ data: e }, { data: aList }] = await Promise.all([
+    supabase.from('exams_peserta').select('*').eq('id', id).maybeSingle(),
+    supabase.from('exam_answers')
+      .select('*').eq('exam_id', id).eq('student_id', userId)
+      .order('attempt_number', { ascending: true }),
+  ])
+  if (e) {
+    const { data: course } = await supabase.from('courses').select('name,code').eq('id', e.course_id).maybeSingle()
+    e.course = course
+  }
+  return { exam: e, attempts: aList || [] }
+}
+
 export default function UjianDetail() {
   const { id } = useParams()
   const { user } = useAuth()
   const navigate    = useNavigate()
-  const { setOpen: setSidebarOpen, setExamMode } = useSidebar()
+  const { setExamMode } = useSidebar()
   const [exam,        setExam]        = useState(null)
   const [allAttempts, setAllAttempts] = useState([])
   const [myAnswer,    setMyAnswer]    = useState(null)
@@ -30,32 +48,10 @@ export default function UjianDetail() {
   const violationsRef    = useRef(0)          // ref so event handlers get fresh value
   const lastViolationRef = useRef(0)          // debounce timestamp
   const phaseRef         = useRef('loading')  // ref so event handlers get fresh phase
-  const MONITOR_MODES    = ['ujian', 'tryout']
+  // Timer & pengumpulan paksa selalu memanggil handleSubmit terbaru (fase & jawaban terkini).
+  const submitRef        = useRef(null)
+  const sedangKumpulRef  = useRef(false)      // cegah pengumpulan ganda (timer + tombol bersamaan)
   const MAX_VIOLATIONS   = 3
-
-  useEffect(() => { fetchExam() }, [id])
-
-  async function fetchExam() {
-    // exams_peserta: data ujian tanpa soal/kunci jawaban. Soal datang dari snapshot percobaan.
-    const [{ data: e }, { data: aList }] = await Promise.all([
-      supabase.from('exams_peserta').select('*').eq('id', id).maybeSingle(),
-      supabase.from('exam_answers')
-        .select('*').eq('exam_id', id).eq('student_id', user.id)
-        .order('attempt_number', { ascending: true }),
-    ])
-    if (e) {
-      const { data: course } = await supabase.from('courses').select('name,code').eq('id', e.course_id).maybeSingle()
-      e.course = course
-    }
-    setExam(e)
-    const attempts = aList || []
-    setAllAttempts(attempts)
-    const latest = attempts[attempts.length - 1] || null
-    setMyAnswer(latest)
-    if (!latest)                    { setPhase('preview') }
-    else if (latest.submitted_at)   { setPhase('submitted'); setAnswers(latest.answers || {}) }
-    else                            { setPhase('active'); setAnswers(latest.answers || {}); startTimer(e, latest.started_at) }
-  }
 
   function startTimer(examData, startedAt) {
     if (!examData?.duration_minutes) return
@@ -63,12 +59,29 @@ export default function UjianDetail() {
     function tick() {
       const left = Math.max(0, Math.ceil((endTime - Date.now()) / 1000))
       setTimeLeft(left)
-      if (left <= 0) { clearInterval(timerRef.current); handleSubmit(true) }
+      if (left <= 0) { clearInterval(timerRef.current); submitRef.current?.(true) }
     }
     tick()
     timerRef.current = setInterval(tick, 1000)
   }
   useEffect(() => () => clearInterval(timerRef.current), [])
+
+  // Muat ujian dan percobaan peserta; lanjutkan percobaan yang belum dikumpulkan.
+  useEffect(() => {
+    if (!user?.id) return undefined
+    let batal = false
+    muatUjian(id, user.id).then(({ exam: e, attempts }) => {
+      if (batal) return
+      setExam(e)
+      setAllAttempts(attempts)
+      const latest = attempts[attempts.length - 1] || null
+      setMyAnswer(latest)
+      if (!latest)                    { setPhase('preview') }
+      else if (latest.submitted_at)   { setPhase('submitted'); setAnswers(latest.answers || {}) }
+      else                            { setPhase('active'); setAnswers(latest.answers || {}); startTimer(e, latest.started_at) }
+    })
+    return () => { batal = true }
+  }, [id, user?.id])
 
   // Keep phaseRef in sync
   useEffect(() => { phaseRef.current = phase }, [phase])
@@ -76,14 +89,13 @@ export default function UjianDetail() {
   // ── Sidebar hide/restore during active exam ────────────────────
   useEffect(() => {
     if (phase === 'active') {
-      setSidebarOpen(false)   // tutup sidebar
-      setExamMode(true)       // disable toggle button
+      setExamMode(true)       // sembunyikan sidebar & nonaktifkan tombolnya selama ujian
     } else {
       setExamMode(false)      // re-enable toggle
       // Tidak restore sidebar — biarkan user kontrol sendiri
     }
     return () => setExamMode(false)  // cleanup saat halaman ditinggal
-  }, [phase])
+  }, [phase, setExamMode])
 
   // ── Focus / integrity monitoring ───────────────────────────
   useEffect(() => {
@@ -123,7 +135,7 @@ export default function UjianDetail() {
     const onFullscreen = () => {
       if (!document.fullscreenElement) triggerViolation('fullscreen_exit')
     }
-    const onForceSubmit = () => handleSubmit(true)
+    const onForceSubmit = () => submitRef.current?.(true)
 
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('blur', onBlur)
@@ -168,7 +180,8 @@ export default function UjianDetail() {
   }
 
   const handleSubmit = useCallback(async (auto = false) => {
-    if (phase !== 'active') return
+    if (phase !== 'active' || sedangKumpulRef.current) return
+    sedangKumpulRef.current = true
     clearInterval(timerRef.current)
     if (document.fullscreenElement) { try { await document.exitFullscreen() } catch { /* sudah keluar */ } }
     // Include violation metadata in answers for teacher review
@@ -179,7 +192,8 @@ export default function UjianDetail() {
       p_attempt_id: myAnswer.id,
       p_answers: savedAnswers,
     })
-    if (error) { toast.error('Gagal mengumpulkan ujian: ' + error.message); return }
+    if (error) { sedangKumpulRef.current = false; toast.error('Gagal mengumpulkan ujian: ' + error.message); return }
+    sedangKumpulRef.current = false
     setMyAnswer(updated)
     setAllAttempts(prev => prev.map(a => a.id === myAnswer.id ? updated : a))
     setPhase('submitted')
@@ -187,6 +201,7 @@ export default function UjianDetail() {
     else if (vcount >= MAX_VIOLATIONS) { /* already toasted */ }
     else toast('Waktu habis — dikumpulkan otomatis', { icon: '⏰' })
   }, [phase, myAnswer, answers])
+  useEffect(() => { submitRef.current = handleSubmit })
 
   function formatTime(s) {
     if (s === null) return '--:--'

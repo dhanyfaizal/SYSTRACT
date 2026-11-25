@@ -1,8 +1,9 @@
 // Hook bersama tab Penilaian: daftar kursus yang diampu dan data per kursus terpilih.
 // Status "memuat" diturunkan dari data (bukan setState di dalam efek), dan respons yang datang
 // terlambat setelah kursus diganti diabaikan.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useMuatData } from '@/hooks/useMuatData'
 
 /**
  * Kursus yang diampu instruktur; kursus pertama terpilih otomatis.
@@ -30,38 +31,5 @@ export function useKursusDiampu(userId) {
   return { courses, courseId, setCourseId: setPilihan, siap }
 }
 
-/**
- * Muat data untuk satu kursus. `muat(courseId)` mengembalikan Promise berisi data.
- * Panggil `muatUlang()` untuk memuat lagi (mis. setelah menyimpan nilai); selama memuat ulang,
- * data lama kursus yang sama tetap ditampilkan.
- * @returns {{ data: any, loading: boolean, muatUlang: Function }}
- */
-export function useDataKursus(courseId, muat) {
-  const [versi, setVersi] = useState(0)
-  const [hasil, setHasil] = useState({ kunci: null, cid: null, data: null })
-  const muatRef = useRef(muat)
-  useEffect(() => { muatRef.current = muat })
-
-  const kunci = courseId ? `${courseId}:${versi}` : null
-
-  useEffect(() => {
-    if (!courseId) return undefined
-    let batal = false
-    Promise.resolve()
-      .then(() => muatRef.current(courseId))
-      .then(
-        (data) => { if (!batal) setHasil({ kunci: `${courseId}:${versi}`, cid: courseId, data }) },
-        (err) => {
-          console.error('[SYSTRACT] muat data kursus:', err)
-          if (!batal) setHasil((h) => ({ kunci: `${courseId}:${versi}`, cid: courseId, data: h.cid === courseId ? h.data : null }))
-        },
-      )
-    return () => { batal = true }
-  }, [courseId, versi])
-
-  return {
-    data: hasil.cid === courseId ? hasil.data : null,
-    loading: !!kunci && hasil.kunci !== kunci,
-    muatUlang: () => setVersi((v) => v + 1),
-  }
-}
+/** Data untuk satu kursus; lihat useMuatData. */
+export const useDataKursus = useMuatData

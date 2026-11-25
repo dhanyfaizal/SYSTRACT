@@ -1,11 +1,32 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Users, ChevronRight, Plus, Search, Check, Loader2 } from 'lucide-react'
+import { BookOpen, Users, Search, Check } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
 const COLORS = ['#4f46e5', '#7c3aed', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
+
+// Kursus aktif dan id kursus yang sudah didaftari peserta (termasuk yang menunggu persetujuan).
+async function muatKatalog(userId) {
+  const { data: courseData, error: courseErr } = await supabase
+    .from('courses')
+    .select(`
+      id, code, name, description, credits, semester, cover_color,
+      dosen:profiles!courses_dosen_id_fkey(full_name, avatar_url)
+    `)
+    .eq('is_active', true)
+    .order('name')
+  if (courseErr) throw courseErr
+
+  const { data: enrollData, error: enrollErr } = await supabase
+    .from('enrollments')
+    .select('course_id')
+    .eq('student_id', userId)
+  if (enrollErr) throw enrollErr
+
+  return { courses: courseData || [], terdaftar: new Set((enrollData || []).map(e => e.course_id)) }
+}
 
 export default function KatalogKursus() {
   const { user } = useAuth()
@@ -17,43 +38,22 @@ export default function KatalogKursus() {
   const [search, setSearch] = useState('')
 
   useEffect(() => {
-    if (user) {
-      fetchCoursesAndEnrollments()
-    }
+    if (!user) return undefined
+    let batal = false
+    muatKatalog(user.id)
+      .then(({ courses: daftar, terdaftar }) => {
+        if (batal) return
+        setCourses(daftar)
+        setEnrolledIds(terdaftar)
+      })
+      .catch((err) => {
+        console.error('[SYSTRACT] Error fetching catalog:', err)
+        if (!batal) toast.error('Gagal memuat katalog kursus')
+      })
+      .finally(() => { if (!batal) setLoading(false) })
+    return () => { batal = true }
   }, [user])
 
-  async function fetchCoursesAndEnrollments() {
-    setLoading(true)
-    try {
-      // 1. Fetch all active courses
-      const { data: courseData, error: courseErr } = await supabase
-        .from('courses')
-        .select(`
-          id, code, name, description, credits, semester, cover_color,
-          dosen:profiles!courses_dosen_id_fkey(full_name, avatar_url)
-        `)
-        .eq('is_active', true)
-        .order('name')
-
-      if (courseErr) throw courseErr
-
-      // 2. Fetch enrollments for current student
-      const { data: enrollData, error: enrollErr } = await supabase
-        .from('enrollments')
-        .select('course_id')
-        .eq('student_id', user.id)
-
-      if (enrollErr) throw enrollErr
-
-      setCourses(courseData || [])
-      setEnrolledIds(new Set((enrollData || []).map(e => e.course_id)))
-    } catch (err) {
-      console.error('[SYSTRACT] Error fetching catalog:', err)
-      toast.error('Gagal memuat katalog kursus')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   async function _handleEnroll(courseId, courseName) {
     setEnrollingMap(prev => ({ ...prev, [courseId]: true }))

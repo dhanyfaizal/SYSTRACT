@@ -4,6 +4,7 @@ import { ArrowLeft, ClipboardList, MessageSquare, ExternalLink, CheckCircle2, Fi
 import { useAuth } from '@/contexts/AuthContext'
 import { useSidebar } from '@/components/layout/AppLayout'
 import { supabase } from '@/lib/supabase'
+import { useMuatData } from '@/hooks/useMuatData'
 import toast from 'react-hot-toast'
 import WebSlidePlayer from '@/components/mahasiswa/WebSlidePlayer'
 import CoursePreview from '@/components/mahasiswa/CoursePreview'
@@ -14,6 +15,21 @@ import { urlVerifikasi, buatQrDataUrl, unduhSertifikatPdf } from '@/lib/sertifik
 import { SertifikatDepan, SertifikatBelakang, SkalaHalaman } from './courseDetail/SertifikatDesainB'
 import { groupMaterialsIntoModules } from '@/lib/modules'
 
+
+// Daftar diskusi forum kursus (yang disematkan di atas).
+async function muatForum(courseId) {
+  const { data, error } = await supabase
+    .from('forums')
+    .select('*, author:profiles(full_name), reply_count:forum_replies(count)')
+    .eq('course_id', courseId)
+    .order('is_pinned', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) {
+    toast.error('Gagal memuat diskusi forum')
+    throw error
+  }
+  return data || []
+}
 
 export default function CourseDetail() {
   const { id: courseId } = useParams()
@@ -110,16 +126,19 @@ export default function CourseDetail() {
   const [submittingTugas, setSubmittingTugas] = useState(false)
 
   // State untuk Forum Diskusi
-  const [forumItems, setForumItems] = useState([])
-  const [forumLoading, setForumLoading] = useState(false)
+  const forum = useMuatData(subTab === 'diskusi' ? courseId : null, muatForum)
+  const forumItems = forum.data || []
+  const forumLoading = forum.loading && !forum.data
+  const fetchForumDiskusi = forum.muatUlang
   const [newTitle, setNewTitle] = useState('')
   const [newBody, setNewBody] = useState('')
   const [creatingForum, setCreatingForum] = useState(false)
 
+  // fetchCourseAndSyllabus dipanggil lewat ref agar efek tidak bergantung pada fungsi yang dibuat ulang tiap render.
+  const muatKursusRef = useRef(null)
+  useEffect(() => { muatKursusRef.current = fetchCourseAndSyllabus })
   useEffect(() => {
-    if (user && courseId) {
-      fetchCourseAndSyllabus()
-    }
+    if (user && courseId) muatKursusRef.current?.()
   }, [courseId, user])
 
   // Waktu belajar aktif per lampiran: hanya berjalan saat tab terlihat dan peserta berinteraksi
@@ -533,25 +552,6 @@ export default function CourseDetail() {
   }
 
   // Load Forum Diskusi
-  async function fetchForumDiskusi() {
-    setForumLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from('forums')
-        .select('*, author:profiles(full_name), reply_count:forum_replies(count)')
-        .eq('course_id', courseId)
-        .order('is_pinned', { ascending: false })
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      setForumItems(data || [])
-    } catch (_err) {
-      toast.error('Gagal memuat diskusi forum')
-    } finally {
-      setForumLoading(false)
-    }
-  }
-
   async function handleCreateForum(e) {
     e.preventDefault()
     if (!newTitle.trim() || !newBody.trim()) {
@@ -579,12 +579,6 @@ export default function CourseDetail() {
       setCreatingForum(false)
     }
   }
-
-  useEffect(() => {
-    if (subTab === 'diskusi') {
-      fetchForumDiskusi()
-    }
-  }, [subTab])
 
   // Hitung persentase progress keseluruhan kursus
   const totalSteps = syllabusItems.length

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { BarChart2, TrendingUp, Award, ChevronDown, ChevronUp, Lock, Eye } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { useMuatData } from '@/hooks/useMuatData'
 import Sk from '@/components/ui/Skeleton'
 
 const GRADES = [
@@ -16,28 +17,25 @@ const GRADES = [
 ]
 function gradeOf(s) { return GRADES.find(g => s >= g.min) || GRADES[4] }
 
+// Nilai tugas yang sudah dinilai dan nilai akhir yang sudah diterbitkan untuk satu peserta.
+async function muatNilai(userId) {
+  const [{ data: subs }, { data: finals }] = await Promise.all([
+    supabase.from('submissions')
+      .select('id,grade,status,graded_at,feedback,assignment:assignments(title,max_score,course:courses(id,name,code))')
+      .eq('student_id', userId).eq('status','graded').order('graded_at',{ascending:false}),
+    supabase.from('final_grades')
+      .select('*,course:courses(id,name,code)').eq('student_id', userId).eq('published', true),
+  ])
+  return { grades: subs || [], finalGrades: finals || [] }
+}
+
 export default function Nilai() {
   const { user } = useAuth()
-  const [grades,      setGrades]      = useState([])
-  const [finalGrades, setFinalGrades] = useState([])
-  const [loading,     setLoading]     = useState(true)
+  const nilai = useMuatData(user?.id, muatNilai)
+  const grades = nilai.data?.grades || []
+  const finalGrades = nilai.data?.finalGrades || []
+  const loading = !user || nilai.loading
   const [expanded,    setExpanded]    = useState(null)
-
-  useEffect(() => { if (user) fetchAll() }, [user])
-
-  async function fetchAll() {
-    setLoading(true)
-    const [{ data: subs }, { data: finals }] = await Promise.all([
-      supabase.from('submissions')
-        .select('id,grade,status,graded_at,feedback,assignment:assignments(title,max_score,course:courses(id,name,code))')
-        .eq('student_id', user.id).eq('status','graded').order('graded_at',{ascending:false}),
-      supabase.from('final_grades')
-        .select('*,course:courses(id,name,code)').eq('student_id', user.id).eq('published', true),
-    ])
-    setGrades(subs||[])
-    setFinalGrades(finals||[])
-    setLoading(false)
-  }
 
   const avg = grades.length
     ? (grades.reduce((s,g)=>s+(g.grade/g.assignment?.max_score*100),0)/grades.length).toFixed(1) : 0
