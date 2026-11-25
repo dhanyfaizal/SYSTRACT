@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy, CheckCircle2, Circle, BookMarked, ExternalLink, ChevronDown, PlusCircle, Search, Bot, RefreshCw, ChevronUp, Info, HelpCircle, Award, Clock, Link, Check, BarChart3 } from 'lucide-react'
+import { Plus, BookOpen, Users, Edit2, Trash2, Loader2, X, Copy, CheckCircle2, Circle, BookMarked, ExternalLink, Search, Bot, RefreshCw, Info, HelpCircle, Award, Clock, Link, Check } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -9,14 +9,14 @@ import { generateCourseDescription, generateCplForCourse, generateCpmk, generate
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 import { parseWebSlideHtml, WebSlideImportError } from '@/lib/webslideImport'
 import { slideVideo, spaDariSlideVideo, terapkanSlideVideo } from '@/lib/sisipSlide'
-import { COLORS, SEMESTERS, BLANK_COURSE_FORM, ATTACH_TYPES, BLANK_ATTACH, BLANK_MATERIAL_FORM, typeOf, pecahKompetensi } from './mataKuliah/konstanta'
-import AttachRow from './mataKuliah/AttachRow'
-import { groupMaterialsIntoModules } from '@/lib/modules'
-import BebanBelajarFields from '@/components/dosen/BebanBelajarFields'
-import PanelBebanBelajar from '@/components/dosen/PanelBebanBelajar'
+import { COLORS, SEMESTERS, BLANK_COURSE_FORM, pecahKompetensi } from './mataKuliah/konstanta'
 import LaporanProgresMateri from '@/components/dosen/LaporanProgresMateri'
 import LengkapiBebanCpmk from '@/components/dosen/LengkapiBebanCpmk'
 import StudioSlide from './mataKuliah/StudioSlide'
+import TabRingkasan from './mataKuliah/TabRingkasan'
+import TabPendaftar from './mataKuliah/TabPendaftar'
+import TabSilabus from './mataKuliah/TabSilabus'
+import BatasGalat from '@/components/ui/BatasGalat'
 
 // Pertemuan 8 dan 16 adalah UTS/UAS: jendela soal pilihan ganda, bukan studio slide.
 const pertemuanUjian = (m) => +m?.week_number === 8 || +m?.week_number === 16
@@ -56,17 +56,8 @@ export default function DosenMataKuliah() {
   // ── Materials states ────────────────────────────────────────
   const [materials, setMaterials] = useState([])
   const [loadingMaterials, setLoadingMaterials] = useState(false)
-  const [materialModal, setMaterialModal] = useState(false)
-  const [editingMaterialId, setEditingMaterialId] = useState(null)
-  const [savingMaterial, setSavingMaterial] = useState(false)
-  const [materialForm, setMaterialForm] = useState(BLANK_MATERIAL_FORM())
-  const [expandedModules, setExpandedModules] = useState({
-    0: true, 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 99: true
-  })
 
   // ── Enrollments states ──────────────────────────────────────
-  const [enrollments, setEnrollments] = useState([])
-  const [loadingEnrollments, setLoadingEnrollments] = useState(false)
 
   // ── AI Assistant states ─────────────────────────────────────
   const [aiProgressText, setAiProgressText] = useState('')
@@ -174,73 +165,6 @@ export default function DosenMataKuliah() {
       setAiActiveStep(1)
     }
   }, [selectedCourseId])
-
-  // Fetch enrollments when courseId or activeTab is active
-  useEffect(() => {
-    if (selectedCourseId && activeTab === 'enrollments') {
-      fetchEnrollments(selectedCourseId)
-    }
-  }, [selectedCourseId, activeTab])
-
-  async function fetchEnrollments(courseId) {
-    setLoadingEnrollments(true)
-    try {
-      const { data, error } = await supabase
-        .from('enrollments')
-        .select('*, student:profiles!student_id(id, full_name, nim, email, avatar_url)')
-        .eq('course_id', courseId)
-        .order('enrolled_at', { ascending: false })
-      if (error) throw error
-      setEnrollments(data || [])
-    } catch (e) {
-      console.error('[SYSTRACT] Error fetching enrollments:', e)
-      toast.error('Gagal memuat daftar pendaftaran mahasiswa')
-    } finally {
-      setLoadingEnrollments(false)
-    }
-  }
-
-  async function handleApproveEnrollment(enrollId) {
-    const toastId = toast.loading('Menyetujui pendaftaran...')
-    try {
-      const { error } = await supabase
-        .from('enrollments')
-        .update({ status: 'approved' })
-        .eq('id', enrollId)
-      if (error) throw error
-      toast.success('Pendaftaran disetujui! 🎉', { id: toastId })
-      if (selectedCourseId) fetchEnrollments(selectedCourseId)
-      fetchCourses(selectedCourseId) // refresh course count in left sidebar
-    } catch (e) {
-      console.error('[SYSTRACT] Error approving enrollment:', e)
-      toast.error('Gagal menyetujui pendaftaran', { id: toastId })
-    }
-  }
-
-  async function handleRejectEnrollment(enrollId, studentName) {
-    const ok = await showConfirm({
-      title: 'Tolak / Batalkan Pendaftaran?',
-      message: `Apakah Anda yakin ingin menolak/membatalkan pendaftaran untuk mahasiswa ${studentName}?`,
-      confirmLabel: 'Ya, Batalkan/Tolak',
-      variant: 'danger',
-    })
-    if (!ok) return
-
-    const toastId = toast.loading('Memproses penolakan...')
-    try {
-      const { error } = await supabase
-        .from('enrollments')
-        .delete()
-        .eq('id', enrollId)
-      if (error) throw error
-      toast.success('Pendaftaran ditolak/dihapus.', { id: toastId })
-      if (selectedCourseId) fetchEnrollments(selectedCourseId)
-      fetchCourses(selectedCourseId) // refresh course count in left sidebar
-    } catch (e) {
-      console.error('[SYSTRACT] Error rejecting enrollment:', e)
-      toast.error('Gagal menolak pendaftaran', { id: toastId })
-    }
-  }
 
   // ── Database Fetch functions ─────────────────────────────────
   async function fetchCourses(selectId = null) {
@@ -491,113 +415,6 @@ export default function DosenMataKuliah() {
   }
 
   // ── Material & Attachments Handlers ──────────────────────────
-  function openNewMaterial() {
-    setMaterialForm(BLANK_MATERIAL_FORM())
-    setEditingMaterialId(null)
-    setMaterialModal(true)
-  }
-
-  function openEditMaterial(m) {
-    const attachments = (m.attachments && m.attachments.length > 0)
-      ? m.attachments
-      : m.webview_link ? [{ mime: m.mime_type || ATTACH_TYPES[0].mime, url: m.webview_link, label: '' }]
-      : [BLANK_ATTACH()]
-    setMaterialForm({ title: m.title, description: m.description||'', week_number: m.week_number||1, attachments,
-      estimasi_menit: m.estimasi_menit ?? null, jenis_aktivitas: m.jenis_aktivitas ?? null, cpmk_kode: m.cpmk_kode || [] })
-    setEditingMaterialId(m.id)
-    setMaterialModal(true)
-  }
-
-  function updateAttach(idx, key, val) {
-    setMaterialForm(f => {
-      const arr = [...f.attachments]
-      arr[idx] = { ...arr[idx], [key]: val }
-      return { ...f, attachments: arr }
-    })
-  }
-
-  const addAttach = () => setMaterialForm(f => ({ ...f, attachments: [...f.attachments, BLANK_ATTACH()] }))
-  const removeAttach = (idx) => setMaterialForm(f => ({ ...f, attachments: f.attachments.filter((_,i) => i !== idx) }))
-
-  async function handleSaveMaterial() {
-    if (!materialForm.title.trim()) { toast.error('Judul wajib diisi'); return }
-    const filled = materialForm.attachments.filter(a => a.url.trim())
-    if (filled.length === 0) { toast.error('Tambahkan minimal 1 lampiran dengan URL'); return }
-    setSavingMaterial(true)
-    const first = filled[0]
-
-    const payload = {
-      title: materialForm.title,
-      description: materialForm.description,
-      week_number: materialForm.week_number,
-      attachments: filled,
-      webview_link: first.url,
-      mime_type: first.mime,
-      estimasi_menit: materialForm.estimasi_menit ?? null,
-      jenis_aktivitas: materialForm.jenis_aktivitas || null,
-      cpmk_kode: materialForm.cpmk_kode || [],
-    }
-
-    let error
-    if (editingMaterialId) {
-      ;({ error } = await supabase.from('materials').update(payload).eq('id', editingMaterialId))
-    } else {
-      ;({ error } = await supabase.from('materials').insert({
-        ...payload,
-        course_id: selectedCourseId,
-        uploaded_by: user.id
-      }))
-    }
-
-    // Fallback if column not found
-    if (error && error.message?.includes('attachments')) {
-      toast('⚠️ Kolom attachments belum ada di server. Menyimpan dengan link tunggal...', { duration: 5000 })
-      const fallbackPayload = {
-        title: materialForm.title,
-        description: materialForm.description,
-        week_number: materialForm.week_number,
-        webview_link: first.url,
-        mime_type: first.mime
-      }
-      if (editingMaterialId) {
-        ;({ error } = await supabase.from('materials').update(fallbackPayload).eq('id', editingMaterialId))
-      } else {
-        ;({ error } = await supabase.from('materials').insert({
-          ...fallbackPayload,
-          course_id: selectedCourseId,
-          uploaded_by: user.id
-        }))
-      }
-    }
-
-    if (error) {
-      toast.error('Gagal menyimpan: ' + error.message)
-    } else {
-      toast.success(editingMaterialId ? 'Materi diperbarui' : 'Materi ditambahkan')
-      setMaterialModal(false)
-      setEditingMaterialId(null)
-      fetchMaterials(selectedCourseId)
-    }
-    setSavingMaterial(false)
-  }
-
-  async function handleDeleteMaterial(id) {
-    const ok = await showConfirm({
-      title: 'Hapus Materi?',
-      message: 'Materi dan semua file terkait akan dihapus. Tindakan ini tidak bisa dibatalkan.',
-      confirmLabel: 'Ya, Hapus',
-      variant: 'danger',
-    })
-    if (!ok) return
-    const { error } = await supabase.from('materials').delete().eq('id', id)
-    if (error) {
-      toast.error('Gagal menghapus: ' + error.message)
-    } else {
-      toast('Materi dihapus', { icon: '🗑️' })
-      fetchMaterials(selectedCourseId)
-    }
-  }
-
   // ── AI Assistant Actions ─────────────────────────────────────
   async function handleAiGenerateDesc() {
     setTopicsModal(false)
@@ -1700,262 +1517,23 @@ export default function DosenMataKuliah() {
 
                 {/* ── TAB 0: OVERVIEW ── */}
                 {activeTab === 'overview' && (
-                  <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-                    {/* Left Column (Main Content) */}
-                    <div style={{ flex: '2 1 500px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-                      <PanelBebanBelajar courseId={selectedCourseId} muatUlang={materials} onLengkapi={() => setLengkapiBeban(true)} />
-                      
-                      {/* Deskripsi Kursus */}
-                      <div className="card" style={{ padding: 20 }}>
-                        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 12 }}>Deskripsi Kursus</h3>
-                        <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--gray-600)', whiteSpace: 'pre-wrap', margin: 0 }}>
-                          {selectedCourse.description || 'Deskripsi belum dirumuskan untuk kursus ini. Gunakan tab "Generator RPS & slide (AI)" untuk menyusunnya.'}
-                        </p>
-                      </div>
-
-                      {/* Yang akan dipelajari: ringkasan materi per pertemuan */}
-                      <div className="card" style={{ padding: 20 }}>
-                        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 12 }}>Yang akan dipelajari</h3>
-                        {materials.length === 0 ? (
-                          <p style={{ fontSize: 13, color: 'var(--gray-500)', margin: 0 }}>
-                            Belum ada materi. Tambahkan di tab "Silabus & materi".
-                          </p>
-                        ) : (
-                          <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                            {[...materials].sort((a,b) => a.week_number - b.week_number).map((m, index) => (
-                              <li key={m.id || index} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '10px 0', borderTop: index ? '1px solid var(--gray-100)' : 'none' }}>
-                                <span style={{ flex: '0 0 92px', fontSize: 12, fontWeight: 600, color: 'var(--gray-500)', paddingTop: 1 }}>
-                                  Pertemuan {m.week_number}
-                                </span>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--gray-800)', lineHeight: 1.4 }}>{m.title}</div>
-                                  {m.description && (
-                                    <div style={{ fontSize: 13, color: 'var(--gray-500)', marginTop: 2, lineHeight: 1.5 }}>{m.description}</div>
-                                  )}
-                                </div>
-                              </li>
-                            ))}
-                          </ol>
-                        )}
-                      </div>
-
-                    </div>
-
-                    {/* Right Column (Sidebar Widgets) */}
-                    <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-                      
-                      {/* Data kursus yang benar-benar tersimpan */}
-                      <div className="card" style={{ padding: 18 }}>
-                        <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 10 }}>Info kursus</h3>
-                        <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', margin: 0, fontSize: 13 }}>
-                          <dt style={{ color: 'var(--gray-500)' }}>Kode</dt><dd style={{ margin: 0, color: 'var(--gray-800)', fontWeight: 600 }}>{selectedCourse.code}</dd>
-                          <dt style={{ color: 'var(--gray-500)' }}>Periode</dt><dd style={{ margin: 0, color: 'var(--gray-800)', fontWeight: 600 }}>{selectedCourse.semester || '–'}</dd>
-                          <dt style={{ color: 'var(--gray-500)' }}>Materi</dt><dd style={{ margin: 0, color: 'var(--gray-800)', fontWeight: 600 }}>{materials.length}</dd>
-                          <dt style={{ color: 'var(--gray-500)' }}>Peserta</dt><dd style={{ margin: 0, color: 'var(--gray-800)', fontWeight: 600 }}>{selectedCourse.enrollments?.[0]?.count || 0}</dd>
-                        </dl>
-                      </div>
-
-                      {/* Capaian pembelajaran (CPMK) */}
-                      <div className="card" style={{ padding: 18 }}>
-                        <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 10 }}>Capaian pembelajaran (CPMK)</h3>
-                        {selectedCourse.cpmk && selectedCourse.cpmk.length > 0 ? (
-                          <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: 'var(--gray-600)', lineHeight: 1.5 }}>
-                            {selectedCourse.cpmk.map((c, idx) => <li key={idx}>{c.deskripsi}</li>)}
-                          </ul>
-                        ) : (
-                          <p style={{ fontSize: 13, color: 'var(--gray-500)', margin: 0 }}>Belum ada CPMK.</p>
-                        )}
-                      </div>
-
-                    </div>
-                  </div>
+                  <BatasGalat key={selectedCourseId} nama="Tab Ringkasan">
+                    <TabRingkasan course={selectedCourse} materials={materials} onLengkapi={() => setLengkapiBeban(true)} />
+                  </BatasGalat>
                 )}
 
                 {/* ── TAB 1: CURRICULUM (SILABUS & MATERI) ── */}
                 {activeTab === 'curriculum' && (
-                  <>
-
-                    {/* Syllabus Area Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid var(--gray-100)', paddingBottom: 10, marginTop: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <BookMarked size={16} color="var(--indigo-600)"/>
-                        <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)', margin: 0 }}>Silabus & Dokumen Materi</h3>
-                      </div>
-                      <button className="btn btn-primary btn-sm" onClick={openNewMaterial} style={{ gap: 6, fontSize: 12 }}>
-                        <Plus size={13}/> Tambah Materi
-                      </button>
-                    </div>
-
-                    {/* Materials List */}
-                    {loadingMaterials ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: 8 }}>
-                        <Loader2 size={24} className="spinner" style={{ animation: 'spin 1s linear infinite', color: 'var(--indigo-600)' }} />
-                        <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Memuat materi silabus...</span>
-                      </div>
-                    ) : materials.length === 0 ? (
-                      <div className="empty-state card" style={{ padding: 48, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'var(--surface)', border: '2px dashed var(--gray-200)' }}>
-                        <BookMarked size={40} color="var(--gray-300)" style={{ marginBottom: 12 }} />
-                        <p className="empty-state-text" style={{ fontWeight: 600, fontSize: 14, color: 'var(--gray-600)', margin: 0 }}>Belum Ada Materi</p>
-                        <p className="empty-state-sub" style={{ fontSize: 12, color: 'var(--gray-400)', marginTop: 4, marginBottom: 16 }}>Gunakan fitur AI RPS Assistant atau klik tombol di bawah untuk menambah materi silabus.</p>
-                        <button className="btn btn-primary btn-sm" onClick={openNewMaterial}><Plus size={13}/> Tambah Materi</button>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', maxHeight: 'calc(100vh - 360px)', paddingRight: 4 }}>
-                        {groupMaterialsIntoModules(materials).map((mod) => {
-                          const isExpanded = !!expandedModules[mod.id]
-                          return (
-                            <div key={mod.id} className="card" style={{ flexShrink: 0, padding: 0, overflow: 'hidden', border: '1px solid var(--gray-200)', borderRadius: 10 }}>
-                              
-                              {/* Module Header Toggle */}
-                              <div 
-                                onClick={() => setExpandedModules(prev => ({ ...prev, [mod.id]: !prev[mod.id] }))}
-                                style={{ 
-                                  background: 'var(--gray-50)', 
-                                  padding: '12px 18px', 
-                                  borderBottom: isExpanded ? '1px solid var(--gray-200)' : 'none', 
-                                  display: 'flex', 
-                                  justifyContent: 'space-between', 
-                                  alignItems: 'center',
-                                  cursor: 'pointer',
-                                  userSelect: 'none'
-                                }}
-                              >
-                                <span style={{ fontWeight: 750, fontSize: 13, color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                                  <div style={{
-                                    width: 20, 
-                                    height: 20, 
-                                    borderRadius: '50%', 
-                                    background: '#dcfce7', 
-                                    color: '#15803d', 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    justifyContent: 'center',
-                                    border: '1px solid #bbf7d0',
-                                    fontSize: 10,
-                                    fontWeight: 800
-                                  }}>
-                                    ✓
-                                  </div>
-                                  {mod.name}
-                                </span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                  <span className="badge-pill badge-slate" style={{ fontSize: 10, padding: '2px 8px' }}>
-                                    {mod.items.length} Materi
-                                  </span>
-                                  {isExpanded ? <ChevronUp size={16} color="var(--gray-400)"/> : <ChevronDown size={16} color="var(--gray-400)"/>}
-                                </div>
-                              </div>
-                              
-                              {/* Module Items (Collapsable) */}
-                              {isExpanded && (
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  {mod.items.sort((a,b) => (a.week_number || 0) - (b.week_number || 0)).map((m, idx) => {
-                                    const links = (m.attachments && m.attachments.length)
-                                      ? m.attachments
-                                      : m.webview_link ? [{ mime: m.mime_type, url: m.webview_link, label: '' }]
-                                      : []
-                                      
-                                    const isExam = m.week_number === 8 || m.week_number === 16
-
-                                    return (
-                                      <div key={m.id} style={{
-                                        padding: '14px 18px',
-                                        borderTop: idx > 0 ? '1px solid var(--gray-100)' : 'none',
-                                        transition: 'background 0.2s',
-                                        display: 'flex',
-                                        alignItems: 'flex-start',
-                                        gap: 16
-                                      }}>
-                                        <div style={{
-                                          fontSize: 11, 
-                                          fontWeight: 800, 
-                                          color: 'var(--gray-400)', 
-                                          marginTop: 2, 
-                                          width: 32, 
-                                          textAlign: 'right', 
-                                          flexShrink: 0 
-                                        }}>
-                                          {m.week_number === 0 ? 'P' : `${m.week_number}.0`}
-                                        </div>
-                                        
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-900)' }}>{m.title}</div>
-                                          {m.description && (
-                                            <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4, lineHeight: 1.4 }}>
-                                              {m.description}
-                                            </div>
-                                          )}
-                                          
-                                          {/* AI slide availability */}
-                                          {(m.slide_content || m.webslide_content) && (
-                                            <div style={{ marginTop: 8, background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 8, padding: '8px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--indigo-700)', fontWeight: 600 }}>
-                                              <Bot size={11} color="var(--indigo-600)" /> 
-                                              Slide AI Tersedia!
-                                              {m.webslide_content && <span style={{ color: '#10b981' }}>(WebSlide Aktif)</span>}
-                                            </div>
-                                          )}
-
-                                          {/* Attachment chips */}
-                                          {links.length > 0 && (
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                                              {links.map((a, ai) => {
-                                                const t = typeOf(a.mime)
-                                                return (
-                                                  <a key={ai} href={a.url} target="_blank" rel="noopener noreferrer"
-                                                    style={{
-                                                      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px',
-                                                      borderRadius: 20, fontSize: 11, fontWeight: 600, textDecoration: 'none',
-                                                      color: t.color, background: t.bg, border: `1px solid ${t.color}25`,
-                                                      cursor: 'pointer', transition: 'all 0.15s',
-                                                    }}
-                                                  >
-                                                    <span style={{ fontSize: 12 }}>{t.icon}</span>
-                                                    {a.label || t.label}
-                                                    <ExternalLink size={10} style={{ opacity: 0.7 }}/>
-                                                  </a>
-                                                )
-                                              })}
-                                            </div>
-                                          )}
-                                        </div>
-                                        
-                                        {/* Slide Generator Actions */}
-                                        <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
-                                          <button
-                                            className="btn btn-secondary btn-sm"
-                                            onClick={() => openSlideGenerator(m)}
-                                            style={{
-                                              gap: 4,
-                                              fontSize: 11,
-                                              padding: '4px 8px',
-                                              borderColor: 'var(--indigo-300)',
-                                              background: '#f8f8ff',
-                                              color: 'var(--indigo-700)'
-                                            }}
-                                          >
-                                            <Bot size={12} color="var(--indigo-600)" />
-                                            {isExam ? 'Soal AI' : 'Slide AI'}
-                                          </button>
-                                          {m.webslide_content?.slides?.length > 0 && (
-                                            <button className="btn btn-secondary btn-sm" onClick={() => setLaporanMateri(m)} title="Progres peserta: waktu baca, soal video, latihan"
-                                              style={{ gap: 4, fontSize: 11, padding: '4px 8px' }}>
-                                              <BarChart3 size={12} /> Progres
-                                            </button>
-                                          )}
-                                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEditMaterial(m)} title="Edit"><Edit2 size={13}/></button>
-                                          <button className="btn btn-ghost btn-icon btn-sm" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteMaterial(m.id)} title="Hapus"><Trash2 size={13}/></button>
-                                        </div>
-                                      </div>
-                                    )
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </>
+                  <BatasGalat key={selectedCourseId} nama="Tab Silabus & materi">
+                    <TabSilabus
+                      course={selectedCourse}
+                      materials={materials}
+                      loading={loadingMaterials}
+                      onBerubah={() => fetchMaterials(selectedCourseId)}
+                      onSlideAi={openSlideGenerator}
+                      onProgres={setLaporanMateri}
+                    />
+                  </BatasGalat>
                 )}
 
                 {/* ── TAB 2: AI RPS & SLIDE ASSISTANT ── */}
@@ -2644,89 +2222,9 @@ export default function DosenMataKuliah() {
 
                 {/* ── TAB 3: ENROLLMENTS (PERSERTA / PENDAFTARAN) ── */}
                 {activeTab === 'enrollments' && (
-                  <div className="card" style={{ padding: 20 }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 4 }}>Persetujuan Mahasiswa</h3>
-                    <p style={{ fontSize: 12, color: 'var(--gray-400)', marginBottom: 20 }}>Kelola dan konfirmasi pendaftaran mahasiswa ke dalam kursus ini.</p>
-
-                    {loadingEnrollments ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: 8 }}>
-                        <Loader2 size={24} className="spinner" style={{ animation: 'spin 1s linear infinite', color: 'var(--indigo-600)' }} />
-                        <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Memuat pendaftaran...</span>
-                      </div>
-                    ) : enrollments.length === 0 ? (
-                      <div className="empty-state" style={{ padding: 48, textAlign: 'center', border: '1px dashed var(--gray-200)', borderRadius: 10 }}>
-                        <Users size={32} color="var(--gray-300)" style={{ marginBottom: 8 }} />
-                        <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--gray-600)', margin: 0 }}>Belum Ada Mahasiswa</p>
-                        <p style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 4, marginBottom: 0 }}>Belum ada mahasiswa yang terdaftar atau mengajukan pendaftaran di kursus ini.</p>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', maxHeight: 'calc(100vh - 360px)' }}>
-                        {enrollments.map((e, _idx) => {
-                          const isPending = e.status === 'pending'
-                          return (
-                            <div 
-                              key={e.id} 
-                              style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: 14, 
-                                padding: '12px 18px', 
-                                background: isPending ? '#fffbeb' : '#fff', 
-                                border: isPending ? '1px solid #fde68a' : '1px solid var(--gray-200)',
-                                borderRadius: 10,
-                                transition: 'all 0.2s'
-                              }}
-                            >
-                              <div className="avatar" style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--indigo-50)', color: 'var(--indigo-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
-                                {e.student?.full_name?.[0] || 'M'}
-                              </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-900)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  {e.student?.full_name}
-                                  {isPending && (
-                                    <span style={{ fontSize: 9, background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: 12, fontWeight: 700, border: '1px solid #fde68a' }}>
-                                      Menunggu Konfirmasi
-                                    </span>
-                                  )}
-                                </div>
-                                <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 2 }}>
-                                  NIM: {e.student?.nim || '-'} · Email: {e.student?.email || '-'}
-                                </div>
-                              </div>
-                              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                                {isPending ? (
-                                  <>
-                                    <button 
-                                      className="btn btn-primary btn-sm" 
-                                      style={{ background: 'var(--success)', borderColor: 'var(--success)', fontSize: 11, padding: '5px 12px', fontWeight: 700 }}
-                                      onClick={() => handleApproveEnrollment(e.id)}
-                                    >
-                                      Setujui
-                                    </button>
-                                    <button 
-                                      className="btn btn-secondary btn-sm" 
-                                      style={{ fontSize: 11, padding: '5px 12px' }}
-                                      onClick={() => handleRejectEnrollment(e.id, e.student?.full_name)}
-                                    >
-                                      Tolak
-                                    </button>
-                                  </>
-                                ) : (
-                                  <button 
-                                    className="btn btn-ghost btn-sm" 
-                                    style={{ color: 'var(--danger)', fontSize: 11, padding: '5px 12px' }}
-                                    onClick={() => handleRejectEnrollment(e.id, e.student?.full_name)}
-                                  >
-                                    Hapus Akses
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <BatasGalat key={selectedCourseId} nama="Tab Pendaftar">
+                    <TabPendaftar courseId={selectedCourseId} onBerubah={() => fetchCourses(selectedCourseId)} />
+                  </BatasGalat>
                 )}
               </>
           </div>
@@ -2902,72 +2400,6 @@ export default function DosenMataKuliah() {
         </div>
       )}
 
-      {/* ── MODAL: Tambah / Edit Materi ── */}
-      {materialModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth:540, maxHeight:'85vh', overflow:'auto' }}>
-            <div className="modal-header" style={{ position:'sticky', top:0, background:'var(--surface)', zIndex:1 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <BookMarked size={16} color="var(--indigo-600)"/>
-                <span className="modal-title">{editingMaterialId ? 'Edit Materi' : 'Tambah Materi'}</span>
-              </div>
-              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setMaterialModal(false)}><X size={14}/></button>
-            </div>
-            <div className="modal-body">
-              <div className="input-group">
-                <label className="input-label">Judul Materi *</label>
-                <input className="input" placeholder="cth: Pengantar Jaringan Komputer" value={materialForm.title} onChange={e => setMaterialForm(f=>({...f,title:e.target.value}))}/>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Deskripsi</label>
-                <textarea className="input" rows={2} style={{ resize:'vertical' }} value={materialForm.description} onChange={e => setMaterialForm(f=>({...f,description:e.target.value}))}/>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Nomor Topik</label>
-                <input className="input" type="number" min={0} max={16} value={materialForm.week_number} onChange={e => setMaterialForm(f=>({...f,week_number:+e.target.value}))}/>
-                <span className="input-hint">Isi 0 untuk materi umum / pendahuluan kelas</span>
-              </div>
-
-              <BebanBelajarFields
-                value={materialForm}
-                onChange={(v) => setMaterialForm(f => ({ ...f, estimasi_menit: v.estimasi_menit, jenis_aktivitas: v.jenis_aktivitas, cpmk_kode: v.cpmk_kode }))}
-                cpmkList={(selectedCourse?.cpmk || []).filter(c => c?.kode)}
-                denganJenis
-                petunjukMenit="Total waktu menonton, membaca, atau praktik semua lampiran materi ini."
-              />
-
-              <div>
-                <div style={{ display:'flex', alignItems:'center', justifyContent: 'space-between', marginBottom:10 }}>
-                  <label className="input-label" style={{ margin:0 }}>
-                    Lampiran Berkas ({materialForm.attachments.length})
-                  </label>
-                  <button className="btn btn-ghost btn-sm" onClick={addAttach} style={{ gap:5, color:'var(--indigo-600)', padding: '2px 8px', fontSize: 12 }}>
-                    <PlusCircle size={13}/> Tambah Lampiran
-                  </button>
-                </div>
-
-                {materialForm.attachments.map((a, i) => (
-                  <AttachRow
-                    key={i}
-                    attach={a}
-                    idx={i}
-                    onChange={updateAttach}
-                    onRemove={removeAttach}
-                    canRemove={materialForm.attachments.length > 1}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="modal-footer" style={{ position:'sticky', bottom:0, background:'var(--surface)', zIndex:1 }}>
-              <button className="btn btn-secondary btn-sm" onClick={() => setMaterialModal(false)}>Batal</button>
-              <button className="btn btn-primary btn-sm" onClick={handleSaveMaterial} disabled={savingMaterial}>
-                {savingMaterial ? <Loader2 size={13} style={{ animation:'spin .7s linear infinite' }}/> : editingMaterialId ? <Edit2 size={13}/> : <Plus size={13}/>}
-                {editingMaterialId ? 'Simpan Materi' : 'Tambahkan'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── MODAL: Input Topik untuk Deskripsi ── */}
       {topicsModal && (
