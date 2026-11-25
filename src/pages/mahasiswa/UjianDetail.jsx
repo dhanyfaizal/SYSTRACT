@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Clock, AlertTriangle, ChevronRight, CheckCircle2, RotateCcw, Trophy, Target } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
-import { useSidebar } from '@/components/layout/AppLayout'
+import { useAuth } from '@/contexts/auth'
+import { useSidebar } from '@/components/layout/sidebar'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 

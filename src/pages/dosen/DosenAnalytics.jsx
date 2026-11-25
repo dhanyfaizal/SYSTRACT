@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { BarChart2, TrendingUp, Users, ClipboardList, CheckCircle2, AlertTriangle, Award } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useMuatData } from '@/hooks/useMuatData'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import Sk from '@/components/ui/Skeleton'
 
 const GRADE_BANDS = [

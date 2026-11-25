@@ -2,11 +2,11 @@ import { useState, useEffect, useEffectEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import CoursePicker from "@/components/dosen/CoursePicker"
 import { ClipboardList, Plus, Edit2, Trash2, X, Loader2, Clock, Users, Star, Eye, CheckCircle2, FileText, ChevronLeft, ChevronRight, Search } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import { supabase } from '@/lib/supabase'
 import { withRetry } from '@/lib/withRetry'
 import toast from 'react-hot-toast'
-import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useConfirm } from '@/components/ui/useConfirm'
 import BebanBelajarFields from '@/components/dosen/BebanBelajarFields'
 import { useCpmkKursus } from '@/hooks/useCpmkKursus'
 

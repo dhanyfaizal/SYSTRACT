@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Trash2, GraduationCap, Loader2, X, AlertTriangle, Edit2, Save } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
-import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useConfirm } from '@/components/ui/useConfirm'
 
 export default function ProgramStudiManager() {
   const [list,    setList]    = useState([])

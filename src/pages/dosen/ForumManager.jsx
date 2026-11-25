@@ -2,10 +2,10 @@ import { useState, useEffect, useEffectEvent } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import CoursePicker from "@/components/dosen/CoursePicker"
 import { MessageSquare, Plus, Trash2, X, Loader2, Pin, MessageCircle, ExternalLink } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
-import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useConfirm } from '@/components/ui/useConfirm'
 import BebanBelajarFields from '@/components/dosen/BebanBelajarFields'
 import { useCpmkKursus } from '@/hooks/useCpmkKursus'
 

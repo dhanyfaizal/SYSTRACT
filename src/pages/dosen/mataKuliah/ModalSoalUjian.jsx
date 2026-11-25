@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { X, Loader2, Bot, Copy, RefreshCw, Check, HelpCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import { generateMcqQuestions, PROGRES_MENUNGGU } from '@/lib/ai'
 
 /**

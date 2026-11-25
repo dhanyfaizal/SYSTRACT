@@ -35,11 +35,13 @@ export function useWaktuBelajarAktif({ aktif, kunci, targetDetik, pantauDiam = t
   const [dijeda, setDijeda] = useState(null)
   const interaksiTerakhir = useRef(0) // diisi saat efek berjalan (Date.now tidak boleh dipanggil saat render)
 
-  // Ganti lampiran → muat akumulasi milik lampiran itu.
-  useEffect(() => {
+  // Ganti lampiran → muat akumulasi milik lampiran itu (dihitung saat render, tanpa efek).
+  const [kunciSebelumnya, setKunciSebelumnya] = useState(kunci)
+  if (kunci !== kunciSebelumnya) {
+    setKunciSebelumnya(kunci)
     setTerpakai(kunci ? baca(kunci) : 0)
-    interaksiTerakhir.current = Date.now()
-  }, [kunci])
+  }
+  useEffect(() => { interaksiTerakhir.current = Date.now() }, [kunci])
 
   useEffect(() => {
     if (!aktif || !kunci) return undefined

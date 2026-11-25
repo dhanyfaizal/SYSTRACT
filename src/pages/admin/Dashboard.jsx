@@ -1,5 +1,5 @@
 import { Users, BookOpen, Clock, GraduationCap, Shield, Megaphone } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import { supabase } from '@/lib/supabase'
 import { useMuatData } from '@/hooks/useMuatData'
 import { useNavigate } from 'react-router-dom'

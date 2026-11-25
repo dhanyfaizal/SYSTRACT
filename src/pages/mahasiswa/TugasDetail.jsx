@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Send, Loader2, Eye, CheckCircle2, Link2, Info } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import { supabase } from '@/lib/supabase'
 import { useMuatData } from '@/hooks/useMuatData'
 import toast from 'react-hot-toast'

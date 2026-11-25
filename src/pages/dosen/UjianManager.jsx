@@ -1,9 +1,9 @@
 import { useState, useEffect, useEffectEvent } from 'react'
 import { FileQuestion, Plus, Edit2, Trash2, X, Loader2, Clock, Eye, EyeOff, Database, Users } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
-import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useConfirm } from '@/components/ui/useConfirm'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import CoursePicker from "@/components/dosen/CoursePicker"
 import BebanBelajarFields from '@/components/dosen/BebanBelajarFields'

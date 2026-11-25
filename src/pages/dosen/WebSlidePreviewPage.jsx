@@ -1,21 +1,21 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import WebSlidePlayer from '@/components/mahasiswa/WebSlidePlayer'
 
 // Tampilan SPA di tab sendiri (pratinjau dosen dan "Buka di tab baru" peserta).
 // Memakai halaman aplikasi (bukan file blob:) agar video YouTube bisa diputar dan soal video tetap aktif.
-export default function WebSlidePreviewPage() {
-  const [previewData, setPreviewData] = useState(null)
-
-  useEffect(() => {
+function bacaDataPratinjau() {
+  try {
     const raw = localStorage.getItem('webslide_preview_data')
-    if (raw) {
-      try {
-        setPreviewData(JSON.parse(raw))
-      } catch (e) {
-        console.error('Failed to parse preview data:', e)
-      }
-    }
-  }, [])
+    return raw ? JSON.parse(raw) : null
+  } catch (e) {
+    console.error('Failed to parse preview data:', e)
+    return null
+  }
+}
+
+export default function WebSlidePreviewPage() {
+  // Data pratinjau dititipkan halaman pembuka lewat localStorage; dibaca sekali saat halaman dibuka.
+  const [previewData] = useState(bacaDataPratinjau)
 
   if (!previewData) {
     return (

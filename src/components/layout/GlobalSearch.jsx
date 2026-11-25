@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, BookOpen, ClipboardList, FileText, MessageSquare, Megaphone, X, Command } from 'lucide-react'
+import { Search, BookOpen, ClipboardList, MessageSquare, Megaphone, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/contexts/AuthContext'
+import { useMuatData } from '@/hooks/useMuatData'
+import { useAuth } from '@/contexts/auth'
 
 const TYPE_CONFIG = {
   course:       { label:'Mata Kuliah',  icon: BookOpen,      color:'#6366f1', route: (r,_) => `/${r.role==='mahasiswa'?'mata-kuliah':'mata-kuliah'}` },
@@ -21,16 +22,74 @@ function useDebounce(val, delay) {
   return debounced
 }
 
+const TANPA_HASIL = []
+
+// Cari kursus, materi, tugas, forum, dan pengumuman yang boleh dilihat pengguna ini.
+async function cariSemua(q, userId, role) {
+  const like = `%${q}%`
+
+  // Build course filter for non-admin
+  let courseIds = null
+  if (role === 'mahasiswa') {
+    const { data } = await supabase.from('enrollments').select('course_id').eq('student_id', userId)
+    courseIds = (data||[]).map(e => e.course_id)
+  } else if (role === 'dosen') {
+    const { data } = await supabase.from('courses').select('id').eq('dosen_id', userId)
+    courseIds = (data||[]).map(c => c.id)
+  }
+
+  const inIds = (table, col='course_id') =>
+    courseIds ? supabase.from(table).select('*').in(col, courseIds) : supabase.from(table).select('*')
+
+  const promises = [
+    // Courses
+    (courseIds
+      ? supabase.from('courses').select('id,code,name').in('id', courseIds||[])
+      : supabase.from('courses').select('id,code,name')
+    ).ilike('name', like).limit(4),
+
+    // Materials
+    inIds('materials').ilike('title', like).select('id,title,course_id').limit(4),
+
+    // Assignments
+    inIds('assignments').ilike('title', like).select('id,title,course_id,due_date').limit(4),
+
+    // Forums
+    inIds('forums').ilike('title', like).select('id,title,course_id').limit(4),
+
+    // Announcements
+    supabase.from('announcements').select('id,title').ilike('title', like).limit(3),
+  ]
+
+  const [courses, materials, assignments, forums, announcements] = await Promise.all(promises)
+
+  const all = [
+    ...(courses.data||[]).map(r => ({ ...r, _type:'course',     _label:r.name,  _sub:r.code })),
+    ...(materials.data||[]).map(r => ({ ...r, _type:'materi',   _label:r.title, _sub:'Materi' })),
+    ...(assignments.data||[]).map(r => ({ ...r, _type:'tugas',  _label:r.title, _sub: r.due_date ? `Deadline: ${new Date(r.due_date).toLocaleDateString('id-ID')}` : 'Tugas' })),
+    ...(forums.data||[]).map(r => ({ ...r, _type:'forum',       _label:r.title, _sub:'Diskusi Forum' })),
+    ...(announcements.data||[]).map(r => ({ ...r, _type:'pengumuman', _label:r.title, _sub:'Pengumuman' })),
+  ]
+  return all
+}
+
 export default function GlobalSearch() {
   const { user, role } = useAuth()
   const navigate = useNavigate()
   const [open,    setOpen]    = useState(false)
   const [query,   setQuery]   = useState('')
-  const [results, setResults] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [selIdx,  setSelIdx]  = useState(0)
   const inputRef = useRef(null)
   const debouncedQ = useDebounce(query, 280)
+  // Hasil mengikuti kata kunci terakhir; respons kata kunci lama yang tiba belakangan diabaikan.
+  const q = debouncedQ.trim()
+  const kunciCari = q.length >= 2 && user ? `${role}:${user.id}:${q}` : null
+  const pencarian = useMuatData(kunciCari, () => cariSemua(q, user.id, role))
+  const results = (kunciCari && pencarian.data) || TANPA_HASIL
+  const loading = pencarian.loading
+  // Pilihan (panah atas/bawah) kembali ke hasil pertama setiap kali kata kunci berganti.
+  const [pilihan, setPilihan] = useState({ kunci: null, i: 0 })
+  const selIdx = pilihan.kunci === kunciCari ? pilihan.i : 0
+  const setSelIdx = (f) => setPilihan((p) => ({ kunci: kunciCari, i: typeof f === 'function' ? f(p.kunci === kunciCari ? p.i : 0) : f }))
 
   // Ctrl+K / Cmd+K shortcut
   useEffect(() => {
@@ -44,61 +103,6 @@ export default function GlobalSearch() {
 
   useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 50) }, [open])
 
-  useEffect(() => {
-    if (debouncedQ.trim().length >= 2) doSearch(debouncedQ.trim())
-    else setResults([])
-  }, [debouncedQ])
-
-  const doSearch = useCallback(async (q) => {
-    setLoading(true)
-    const like = `%${q}%`
-
-    // Build course filter for non-admin
-    let courseIds = null
-    if (role === 'mahasiswa') {
-      const { data } = await supabase.from('enrollments').select('course_id').eq('student_id', user.id)
-      courseIds = (data||[]).map(e => e.course_id)
-    } else if (role === 'dosen') {
-      const { data } = await supabase.from('courses').select('id').eq('dosen_id', user.id)
-      courseIds = (data||[]).map(c => c.id)
-    }
-
-    const inIds = (table, col='course_id') =>
-      courseIds ? supabase.from(table).select('*').in(col, courseIds) : supabase.from(table).select('*')
-
-    const promises = [
-      // Courses
-      (courseIds
-        ? supabase.from('courses').select('id,code,name').in('id', courseIds||[])
-        : supabase.from('courses').select('id,code,name')
-      ).ilike('name', like).limit(4),
-
-      // Materials
-      inIds('materials').ilike('title', like).select('id,title,course_id').limit(4),
-
-      // Assignments
-      inIds('assignments').ilike('title', like).select('id,title,course_id,due_date').limit(4),
-
-      // Forums
-      inIds('forums').ilike('title', like).select('id,title,course_id').limit(4),
-
-      // Announcements
-      supabase.from('announcements').select('id,title').ilike('title', like).limit(3),
-    ]
-
-    const [courses, materials, assignments, forums, announcements] = await Promise.all(promises)
-
-    const all = [
-      ...(courses.data||[]).map(r => ({ ...r, _type:'course',     _label:r.name,  _sub:r.code })),
-      ...(materials.data||[]).map(r => ({ ...r, _type:'materi',   _label:r.title, _sub:'Materi' })),
-      ...(assignments.data||[]).map(r => ({ ...r, _type:'tugas',  _label:r.title, _sub: r.due_date ? `Deadline: ${new Date(r.due_date).toLocaleDateString('id-ID')}` : 'Tugas' })),
-      ...(forums.data||[]).map(r => ({ ...r, _type:'forum',       _label:r.title, _sub:'Diskusi Forum' })),
-      ...(announcements.data||[]).map(r => ({ ...r, _type:'pengumuman', _label:r.title, _sub:'Pengumuman' })),
-    ]
-    setResults(all)
-    setSelIdx(0)
-    setLoading(false)
-  }, [user, role])
 
   function go(r) {
     const cfg = TYPE_CONFIG[r._type]
@@ -106,7 +110,6 @@ export default function GlobalSearch() {
     navigate(cfg.route({ role }, r.id, r.course_id))
     setOpen(false)
     setQuery('')
-    setResults([])
   }
 
   function onKeyDown(e) {

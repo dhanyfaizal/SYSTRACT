@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import TabBar from './penilaian/TabBar'
 import TugasTab from './penilaian/TugasTab'
 import UjianTab from './penilaian/UjianTab'

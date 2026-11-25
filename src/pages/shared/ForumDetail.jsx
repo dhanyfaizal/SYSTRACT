@@ -1,7 +1,7 @@
 import { useState, useEffect, useEffectEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Send, Loader2, MessageSquare, Coins } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 

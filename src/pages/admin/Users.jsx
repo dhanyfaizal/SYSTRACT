@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useEffectEvent } from 'react'
 import { Users, Search, Edit2, Loader2, X, Shield, CheckSquare, Square, ChevronDown, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useConfirm } from '@/components/ui/useConfirm'
 import toast from 'react-hot-toast'
 
 const ROLES = ['mahasiswa','dosen','admin','guest']

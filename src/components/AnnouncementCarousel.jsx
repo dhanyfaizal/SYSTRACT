@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Megaphone, ExternalLink, X, Calendar, User }
 import { supabase } from '@/lib/supabase'
 import { useMuatData } from '@/hooks/useMuatData'
 import { queryCache } from '@/lib/queryCache'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 
 
 const GRADIENTS = [

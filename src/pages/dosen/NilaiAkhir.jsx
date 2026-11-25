@@ -1,7 +1,7 @@
 import { useState, useEffect, useEffectEvent } from 'react'
 import { Award, Settings2, Save, Loader2, BookOpen, TrendingUp, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import toast from 'react-hot-toast'
 import Sk from '@/components/ui/Skeleton'
 

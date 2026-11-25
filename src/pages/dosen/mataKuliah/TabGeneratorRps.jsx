@@ -6,8 +6,8 @@ import { useState } from 'react'
 import { Plus, Trash2, Loader2, X, BookMarked, Bot, Info, Award, Clock, Link, ExternalLink, BookOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/contexts/AuthContext'
-import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useAuth } from '@/contexts/auth'
+import { useConfirm } from '@/components/ui/useConfirm'
 import { generateCourseDescription, generateCplForCourse, generateCpmk, generateWeeklyPlan, generateReferences } from '@/lib/ai'
 
 /**

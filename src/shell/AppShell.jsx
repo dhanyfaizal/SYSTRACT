@@ -82,11 +82,14 @@ function ShellSidebar({ nav, brand, top, footer, rail, navigateOnOpen, onExpand,
   const active = useMemo(() => findActive(nav, location.pathname, location.search), [nav, location.pathname, location.search]);
 
   // Modul yang sedang dibuka di sidebar. Ikut URL setiap kali URL berpindah.
-  const [drillId, setDrillId] = useState(active.module?.id ?? null);
+  const modulAktif = active.module?.id ?? null;
+  const [drillId, setDrillId] = useState(modulAktif);
   const [direction, setDirection] = useState('in');
-  useEffect(() => {
-    setDrillId(active.module?.id ?? null);
-  }, [active.module?.id]);
+  const [modulSebelumnya, setModulSebelumnya] = useState(modulAktif);
+  if (modulAktif !== modulSebelumnya) {
+    setModulSebelumnya(modulAktif);
+    setDrillId(modulAktif);
+  }
 
   const drilled = !rail && drillId ? nav.find((n) => n.id === drillId && n.children) : null;
 
@@ -174,8 +177,12 @@ export function AppShell({ nav, brand, sidebarTop, sidebarFooter, headerRight, s
   });
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Tutup drawer setiap pindah halaman
-  useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
+  // Tutup drawer setiap pindah halaman (dihitung saat render, tanpa efek).
+  const [halamanSebelumnya, setHalamanSebelumnya] = useState(location.pathname);
+  if (location.pathname !== halamanSebelumnya) {
+    setHalamanSebelumnya(location.pathname);
+    setDrawerOpen(false);
+  }
 
   useEffect(() => {
     if (!drawerOpen) return undefined;

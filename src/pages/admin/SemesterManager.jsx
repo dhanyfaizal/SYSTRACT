@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
-import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useConfirm } from '@/components/ui/useConfirm'
 
 const PERIOD_LABEL = { ganjil: 'Ganjil', genap: 'Genap' }
 const EMPTY = { name:'', year: new Date().getFullYear(), period:'ganjil', started_at:'', ended_at:'' }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate }           from 'react-router-dom'
 import { Loader2, LogIn }     from 'lucide-react'
-import { useAuth }            from '@/contexts/AuthContext'
+import { useAuth }            from '@/contexts/auth'
 import toast                  from 'react-hot-toast'
 
 const LOGO_URL = '/logo-stikom.webp'

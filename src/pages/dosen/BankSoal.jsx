@@ -2,11 +2,11 @@ import { useState, useEffect, useRef, useEffectEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import CoursePicker from "@/components/dosen/CoursePicker"
 import { Database, Plus, Edit2, Trash2, X, Loader2, ChevronDown, Search, Upload, FileDown, AlertTriangle, CheckCircle2 } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import { supabase } from '@/lib/supabase'
 import { withRetry } from '@/lib/withRetry'
 import toast from 'react-hot-toast'
-import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useConfirm } from '@/components/ui/useConfirm'
 
 const DIFFICULTIES = [
   { value: 'mudah',  label: 'Mudah',  bg: '#dcfce7', color: '#16a34a' },

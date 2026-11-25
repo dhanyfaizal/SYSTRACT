@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Loader2, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
-import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useConfirm } from '@/components/ui/useConfirm'
 
 /** onBerubah: dipanggil setelah status pendaftaran berubah (untuk menyegarkan jumlah peserta). */
 export default function TabPendaftar({ courseId, onBerubah }) {

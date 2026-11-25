@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { BadgeCheck, ShieldAlert, SearchX, Search, Loader2, Printer, Info } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useMuatData } from '@/hooks/useMuatData'
 import { rapikanNomor } from '@/lib/sertifikat'
 import { formatJam } from '@/lib/bebanBelajar'
 
@@ -14,28 +15,29 @@ const tglJam = (v) => new Date(v).toLocaleString('id-ID', { day: 'numeric', mont
 const label = { color: 'var(--gray-500)', fontSize: 13 }
 const judulBagian = { margin: '0 0 10px', fontSize: 12, fontWeight: 700, letterSpacing: '.5px', textTransform: 'uppercase', color: 'var(--gray-500)' }
 
+// Periksa nomor sertifikat ke server (data publik yang aman ditampilkan).
+async function periksaSertifikat(kode) {
+  const { data: hasil, error } = await supabase.rpc('verifikasi_sertifikat', { p_kode: rapikanNomor(kode) })
+  if (error) throw error
+  return { hasil, waktu: new Date() }
+}
+
 export default function VerifikasiSertifikat() {
   const { kode } = useParams()
   const navigate = useNavigate()
   const [input, setInput] = useState(kode || '')
-  const [status, setStatus] = useState(kode ? 'memuat' : 'kosong') // kosong | memuat | ada | tidak-ada | galat
-  const [data, setData] = useState(null)
-  const [diperiksa, setDiperiksa] = useState(null)
+  // Nomor di URL berganti (mis. dari pencarian) → kolom isian ikut berganti.
+  const [kodeSebelumnya, setKodeSebelumnya] = useState(kode)
+  if (kode !== kodeSebelumnya) {
+    setKodeSebelumnya(kode)
+    if (kode) setInput(kode)
+  }
 
-  useEffect(() => {
-    if (!kode) { setStatus('kosong'); setData(null); return }
-    let batal = false
-    setStatus('memuat')
-    setInput(kode)
-    supabase.rpc('verifikasi_sertifikat', { p_kode: rapikanNomor(kode) }).then(({ data: hasil, error }) => {
-      if (batal) return
-      if (error) { setStatus('galat'); return }
-      setData(hasil)
-      setDiperiksa(new Date())
-      setStatus(hasil ? 'ada' : 'tidak-ada')
-    })
-    return () => { batal = true }
-  }, [kode])
+  const cek = useMuatData(kode || null, periksaSertifikat)
+  const data = kode ? cek.data?.hasil ?? null : null
+  const diperiksa = cek.data?.waktu ?? null
+  // kosong | memuat | ada | tidak-ada | galat
+  const status = !kode ? 'kosong' : cek.loading ? 'memuat' : cek.galat ? 'galat' : data ? 'ada' : 'tidak-ada'
 
   function cari(e) {
     e.preventDefault()

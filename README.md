@@ -39,7 +39,7 @@ Backup database harian (GitHub Actions) dan cara memulihkannya: [`supabase/BACKU
 |---|---|
 | `npm run dev` | Server pengembangan |
 | `npm run build` | Build produksi ke `dist/` (halaman dimuat per kebutuhan) |
-| `npm run lint` | ESLint (harus 0 error; peringatan boleh) |
+| `npm run lint` | ESLint, harus 0 error **dan** 0 peringatan (CI gagal bila ada peringatan baru) |
 | `npm test` | Tes unit Vitest (`src/__tests__/`) |
 
 CI GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) menjalankan lint, tes, build,

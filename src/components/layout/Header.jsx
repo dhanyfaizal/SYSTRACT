@@ -4,8 +4,8 @@ import {
   Bell, LogOut, User, ChevronDown,
   Sun, Moon, Megaphone, BookOpen, ClipboardList
 } from 'lucide-react'
-import { useAuth }    from '@/contexts/AuthContext'
-import { useTheme }   from '@/contexts/ThemeContext'
+import { useAuth }    from '@/contexts/auth'
+import { useTheme }   from '@/contexts/theme'
 import GlobalSearch   from './GlobalSearch'
 import { supabase }   from '@/lib/supabase'
 
@@ -135,7 +135,7 @@ export default function HeaderActions() {
   }, [user, profile])
 
   // Load saat pertama kali user tersedia
-  useEffect(() => { if (user && profile) fetchNotifs() }, [fetchNotifs])
+  useEffect(() => { if (user && profile) fetchNotifs() }, [fetchNotifs, user, profile])
 
   function handleOpenNotif() {
     const next = !notifOpen

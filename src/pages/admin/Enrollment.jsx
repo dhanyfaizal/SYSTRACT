@@ -2,7 +2,7 @@ import { useState, useEffect, useEffectEvent } from 'react'
 import { Plus, Trash2, Search, Loader2, X, GraduationCap } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
-import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useConfirm } from '@/components/ui/useConfirm'
 
 export default function AdminEnrollment() {
   const [courses,   setCourses]   = useState([])

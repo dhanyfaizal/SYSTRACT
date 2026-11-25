@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { BarChart2, TrendingUp, Award, ChevronDown, ChevronUp, Lock, Eye } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import { supabase } from '@/lib/supabase'
 import { useMuatData } from '@/hooks/useMuatData'
 import Sk from '@/components/ui/Skeleton'

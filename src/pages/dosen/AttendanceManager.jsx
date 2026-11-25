@@ -7,7 +7,7 @@ import {
   BarChart2, ClipboardEdit, Printer
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { useAuth }  from '@/contexts/AuthContext'
+import { useAuth }  from '@/contexts/auth'
 import { withRetry } from '@/lib/withRetry'
 import { printPresensi } from '@/utils/printPresensi'
 import toast from 'react-hot-toast'

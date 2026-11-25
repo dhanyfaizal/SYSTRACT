@@ -1,8 +1,9 @@
-import { Component, Suspense, createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { Component, Suspense, useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { AppShell }     from '@/shell/AppShell'
 import { filterNav }    from '@/shell/navUtils'
-import { useAuth }      from '@/contexts/AuthContext'
+import { useAuth }      from '@/contexts/auth'
+import { SidebarContext } from './sidebar'
 import { supabase }     from '@/lib/supabase'
 import HeaderActions    from './Header'
 import { buildNav, ROLE_LABEL } from './navConfig'
@@ -11,10 +12,6 @@ import { laporGalat } from '@/lib/pantauGalat'
 const LOGO_URL = '/logo-stikom.webp'
 const BRAND = { name: 'SYSTRACT', sub: 'STIKOM Yos Sudarso', logo: LOGO_URL }
 
-// Dipakai halaman ujian untuk menyembunyikan sidebar selama ujian berlangsung.
-// `open`/`setOpen` dipertahankan agar pemanggil lama tetap berjalan.
-export const SidebarContext = createContext({ open: true, toggle: () => {}, setOpen: () => {}, examMode: false, setExamMode: () => {}, focusMode: false, setFocusMode: () => {} })
-export const useSidebar = () => useContext(SidebarContext)
 
 /** Error Boundary */
 class ErrorBoundary extends Component {

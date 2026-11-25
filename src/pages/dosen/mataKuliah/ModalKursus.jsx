@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { X, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import { COLORS, SEMESTERS, BLANK_COURSE_FORM, pecahKompetensi } from './konstanta'
 
 function formDariKursus(c, isAdmin, userId) {

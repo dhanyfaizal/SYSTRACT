@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { ChevronLeft, ChevronRight, Calendar, ClipboardList, FileText, CheckCircle2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useMuatData } from '@/hooks/useMuatData'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import Sk from '@/components/ui/Skeleton'
 
 // Event type config

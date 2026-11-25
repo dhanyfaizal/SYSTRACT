@@ -3,9 +3,9 @@ import {
   Plus, Pencil, Trash2, Image, Loader2, X, Upload, Eye, EyeOff, ToggleLeft, ToggleRight
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import toast from 'react-hot-toast'
-import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useConfirm } from '@/components/ui/useConfirm'
 
 const EMPTY_FORM = { title:'', content:'', course_id:'', image_url:'', is_active:true, priority:0, expires_at:'' }
 

@@ -4,7 +4,7 @@ import {
   FileText, MessageSquare, Upload, CheckCircle2,
   Clock, AlertCircle, ChevronRight, Activity
 } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import { supabase } from '@/lib/supabase'
 import { useMuatData } from '@/hooks/useMuatData'
 import AnnouncementCarousel from '@/components/AnnouncementCarousel'

@@ -1,7 +1,7 @@
 import { useState, useEffect, useEffectEvent } from 'react'
 import { Save, Loader2, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/auth'
 import toast from 'react-hot-toast'
 
 const OPTS = [
