@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useEffectEvent } from 'react'
 import {
   Plus, Pencil, Trash2, Image, Loader2, X, Upload, Eye, EyeOff, ToggleLeft, ToggleRight
 } from 'lucide-react'
@@ -24,7 +24,9 @@ export default function AnnouncementManager() {
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef()
 
-  useEffect(() => { fetchAll() }, [user])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah = useEffectEvent(() => { fetchAll() })
+  useEffect(() => { muatSaatBerubah() }, [user])
 
   async function fetchAll() {
     setLoading(true)

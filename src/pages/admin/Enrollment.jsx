@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useEffectEvent } from 'react'
 import { Plus, Trash2, Search, Loader2, X, GraduationCap } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -19,9 +19,11 @@ export default function AdminEnrollment() {
     supabase.from('profiles').select('id,full_name,nim,email').eq('role','mahasiswa').order('full_name').then(({data}) => setStudents(data||[]))
   }, [])
 
-  useEffect(() => {
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah = useEffectEvent(() => {
     if (selCourse) fetchEnrolled()
-  }, [selCourse])
+  })
+  useEffect(() => { muatSaatBerubah() }, [selCourse])
 
   async function fetchEnrolled() {
     setLoading(true)

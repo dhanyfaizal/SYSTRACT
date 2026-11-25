@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useEffectEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import CoursePicker from "@/components/dosen/CoursePicker"
 import { Database, Plus, Edit2, Trash2, X, Loader2, ChevronDown, Search, Upload, FileDown, AlertTriangle, CheckCircle2 } from 'lucide-react'
@@ -54,8 +54,12 @@ export default function BankSoal() {
   const [editingTopic,  setEditingTopic]  = useState(null)
   const fileRef = useRef(null)
 
-  useEffect(() => { if (user) fetchCourses() }, [user])
-  useEffect(() => { if (courseId) fetchQuestions() }, [courseId])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah1 = useEffectEvent(() => { if (user) fetchCourses() })
+  useEffect(() => { muatSaatBerubah1() }, [user])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah2 = useEffectEvent(() => { if (courseId) fetchQuestions() })
+  useEffect(() => { muatSaatBerubah2() }, [courseId])
 
   async function fetchCourses() {
     const { data } = await supabase.from('courses').select('id,code,name').eq('dosen_id', user.id).order('name')

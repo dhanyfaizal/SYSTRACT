@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useEffectEvent } from 'react'
 import { Users, Search, Edit2, Loader2, X, Shield, CheckSquare, Square, ChevronDown, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
@@ -27,7 +27,9 @@ export default function AdminUsers() {
   const searchTimer = useRef(null)
   const { confirmDialog, showConfirm } = useConfirm()
 
-  useEffect(() => { fetchUsers(0, '', ''); fetchProdi(); fetchRoleCounts() }, [])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah = useEffectEvent(() => { fetchUsers(0, '', ''); fetchProdi(); fetchRoleCounts() })
+  useEffect(() => { muatSaatBerubah() }, [])
 
   async function fetchUsers(pageNum = page, q = search, role = filterRole) {
     setLoading(true)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useEffectEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import CoursePicker from "@/components/dosen/CoursePicker"
 import { ClipboardList, Plus, Edit2, Trash2, X, Loader2, Clock, Users, Star, Eye, CheckCircle2, FileText, ChevronLeft, ChevronRight, Search } from 'lucide-react'
@@ -23,7 +23,9 @@ function GradingPanel({ assignment, onClose }) {
   const [filter,      setFilter]      = useState('all') // all|ungraded|graded|missing
   const [search,      setSearch]      = useState('')
 
-  useEffect(() => { fetchData() }, [assignment.id])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah = useEffectEvent(() => { fetchData() })
+  useEffect(() => { muatSaatBerubah() }, [assignment.id])
 
   async function fetchData() {
     setLoading(true)
@@ -352,8 +354,12 @@ export default function DosenTugasManager() {
   const [form,        setForm]        = useState(BLANK)
   const cpmkKursus = useCpmkKursus(courseId)
 
-  useEffect(() => { if (user) fetchCourses() }, [user])
-  useEffect(() => { if (courseId) fetchAssignments() }, [courseId])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah1 = useEffectEvent(() => { if (user) fetchCourses() })
+  useEffect(() => { muatSaatBerubah1() }, [user])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah2 = useEffectEvent(() => { if (courseId) fetchAssignments() })
+  useEffect(() => { muatSaatBerubah2() }, [courseId])
 
   async function fetchCourses() {
     const { data } = await supabase.from('courses').select('id,code,name').eq('dosen_id', user.id).order('name')

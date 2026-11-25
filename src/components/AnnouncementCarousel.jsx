@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Megaphone, ExternalLink, X, Calendar, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useMuatData } from '@/hooks/useMuatData'
 import { queryCache } from '@/lib/queryCache'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -14,19 +15,35 @@ const GRADIENTS = [
   'linear-gradient(135deg, #d97706 0%, #dc2626 100%)',
 ]
 
+// Pengumuman aktif terbaru (disimpan sementara 5 menit).
+async function muatPengumuman() {
+  const data = await queryCache.get(
+    'announcements',
+    () => supabase
+      .from('announcements')
+      .select('*, author:profiles(full_name), course:courses(name,code)')
+      .eq('is_active', true)
+      .order('priority', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(10),
+    5 * 60 * 1000
+  )
+  return data || []
+}
+
 export default function AnnouncementCarousel({ showManage = false, managePath = '/pengumuman' }) {
   const { user, role } = useAuth()
   const navigate        = useNavigate()
-  const [slides,       setSlides]       = useState([])
+  const pengumuman = useMuatData(user?.id, muatPengumuman)
+  const slides = pengumuman.data || []
   const [current,      setCurrent]      = useState(0)
-  const [loading,      setLoading]      = useState(true)
+  const loading = !user || pengumuman.loading
   const [paused,       setPaused]       = useState(false)
   const [animDir,      setAnimDir]      = useState('right')
   const [_visible,     _setVisible]     = useState(true)
   const [detailSlide,  setDetailSlide]  = useState(null)  // null = closed
   const timerRef = useRef(null)
 
-  useEffect(() => { if (user) fetchAnnouncements() }, [user])
 
   // Close modal on Escape key
   useEffect(() => {
@@ -35,21 +52,6 @@ export default function AnnouncementCarousel({ showManage = false, managePath = 
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  async function fetchAnnouncements() {
-    const data = await queryCache.get(
-      'announcements',
-      () => supabase
-        .from('announcements')
-        .select('*, author:profiles(full_name), course:courses(name,code)')
-        .eq('is_active', true)
-        .order('priority', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(10),
-      5 * 60 * 1000
-    )
-    setSlides(data || [])
-    setLoading(false)
-  }
 
   const goTo = useCallback((idx, dir = 'right') => {
     setAnimDir(dir)

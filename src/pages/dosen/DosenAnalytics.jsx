@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
-import { BarChart2, TrendingUp, Users, ClipboardList, CheckCircle2, AlertTriangle, Award, BookOpen } from 'lucide-react'
+import { BarChart2, TrendingUp, Users, ClipboardList, CheckCircle2, AlertTriangle, Award } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useMuatData } from '@/hooks/useMuatData'
 import { useAuth } from '@/contexts/AuthContext'
 import Sk from '@/components/ui/Skeleton'
 
@@ -53,60 +54,64 @@ function ProgressRow({ label, value, max, color='var(--indigo-600)', suffix='%' 
   )
 }
 
+const DATA_KOSONG = {
+  students:[], assignments:[], submissions:[], finalGrades:[],
+  materials:[], progress:[], exams:[], examAnswers:[],
+}
+
+// Data analitik satu kursus: peserta, tugas & pengumpulan, nilai akhir, materi & progres, ujian.
+async function muatAnalitik(courseId) {
+  const [
+    { data: enr }, { data: assignments }, { data: materials },
+    { data: finalGrades }, { data: exams },
+  ] = await Promise.all([
+    supabase.from('enrollments').select('student:profiles!student_id(id,full_name,nim)').eq('course_id', courseId),
+    supabase.from('assignments').select('id,title,due_date,max_score').eq('course_id', courseId).order('due_date'),
+    supabase.from('materials').select('id,title,week_number').eq('course_id', courseId).order('week_number'),
+    supabase.from('final_grades').select('*').eq('course_id', courseId),
+    supabase.from('exams').select('id,title,type').eq('course_id', courseId),
+  ])
+  const students = (enr||[]).map(e=>e.student).filter(Boolean)
+  const assignIds  = (assignments||[]).map(a=>a.id)
+  const examIds    = (exams||[]).map(e=>e.id)
+
+  const [{ data: subs }, { data: progress }, { data: examAns }] = await Promise.all([
+    assignIds.length
+      ? supabase.from('submissions').select('id,student_id,assignment_id,grade,status,submitted_at').in('assignment_id', assignIds)
+      : Promise.resolve({ data:[] }),
+    supabase.from('course_progress').select('material_id,student_id').eq('course_id', courseId),
+    examIds.length
+      ? supabase.from('exam_answers').select('student_id,exam_id,score,submitted_at').in('exam_id', examIds)
+      : Promise.resolve({ data:[] }),
+  ])
+  return {
+    students,
+    assignments: assignments||[],
+    submissions: subs||[],
+    finalGrades: finalGrades||[],
+    materials: materials||[],
+    progress: progress||[],
+    exams: exams||[],
+    examAnswers: examAns||[]
+  }
+}
+
 export default function DosenAnalytics() {
   const { user } = useAuth()
   const [courses, setCourses] = useState([])
   const [courseId, setCourseId] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [data, setData] = useState({
-    students:[], assignments:[], submissions:[], finalGrades:[],
-    materials:[], progress:[], exams:[], examAnswers:[],
-  })
+  const [kursusSiap, setKursusSiap] = useState(false)
+  const analitik = useMuatData(courseId, muatAnalitik)
+  const data = analitik.data ?? DATA_KOSONG
+  // Tanpa kursus: berhenti memuat setelah daftar kursus tiba (sebelumnya berputar terus).
+  const loading = courseId ? analitik.loading : !kursusSiap
 
   useEffect(() => {
     supabase.from('courses').select('id,code,name').eq('dosen_id', user?.id).eq('is_active', true)
-      .then(({ data }) => { setCourses(data||[]); if (data?.length) setCourseId(data[0].id) })
+      .then(({ data }) => { setCourses(data||[]); if (data?.length) setCourseId(data[0].id); setKursusSiap(true) })
   }, [user])
 
-  useEffect(() => { if (courseId) fetchAll() }, [courseId])
 
-  async function fetchAll() {
-    setLoading(true)
-    const [
-      { data: enr }, { data: assignments }, { data: materials },
-      { data: finalGrades }, { data: exams },
-    ] = await Promise.all([
-      supabase.from('enrollments').select('student:profiles!student_id(id,full_name,nim)').eq('course_id', courseId),
-      supabase.from('assignments').select('id,title,due_date,max_score').eq('course_id', courseId).order('due_date'),
-      supabase.from('materials').select('id,title,week_number').eq('course_id', courseId).order('week_number'),
-      supabase.from('final_grades').select('*').eq('course_id', courseId),
-      supabase.from('exams').select('id,title,type').eq('course_id', courseId),
-    ])
-    const students = (enr||[]).map(e=>e.student).filter(Boolean)
-    const assignIds  = (assignments||[]).map(a=>a.id)
-    const examIds    = (exams||[]).map(e=>e.id)
-
-    const [{ data: subs }, { data: progress }, { data: examAns }] = await Promise.all([
-      assignIds.length
-        ? supabase.from('submissions').select('id,student_id,assignment_id,grade,status,submitted_at').in('assignment_id', assignIds)
-        : Promise.resolve({ data:[] }),
-      supabase.from('course_progress').select('material_id,student_id').eq('course_id', courseId),
-      examIds.length
-        ? supabase.from('exam_answers').select('student_id,exam_id,score,submitted_at').in('exam_id', examIds)
-        : Promise.resolve({ data:[] }),
-    ])
-    setData({
-      students,
-      assignments: assignments||[],
-      submissions: subs||[],
-      finalGrades: finalGrades||[],
-      materials: materials||[],
-      progress: progress||[],
-      exams: exams||[],
-      examAnswers: examAns||[]
-    })
-    setLoading(false)
-  }
 
   const { students, assignments, submissions, finalGrades, materials, progress } = data
 

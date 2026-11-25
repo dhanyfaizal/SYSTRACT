@@ -1,53 +1,57 @@
-import { useState, useEffect } from 'react'
 import { TrendingUp, AlertTriangle, Award } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useMuatData } from '@/hooks/useMuatData'
 import { useAuth } from '@/contexts/AuthContext'
 
 const THRESHOLD = 75 // minimum kehadiran %
 
+const TANPA_DATA = []
+
+// Rekap kehadiran per peserta untuk sesi presensi milik instruktur di satu kursus.
+async function muatRekapKehadiran(courseId, userId, students) {
+  const [{ data: sess }, { data: atts }] = await Promise.all([
+    supabase.from('attendance_sessions')
+      .select('id,meeting_number,title,created_at')
+      .eq('course_id', courseId)
+      .eq('dosen_id', userId)
+      .order('meeting_number'),
+    supabase.from('attendances')
+      .select('student_id,status,session_id')
+      .in('session_id',
+        // subquery: get session ids for this course
+        (await supabase.from('attendance_sessions')
+          .select('id').eq('course_id', courseId).eq('dosen_id', userId)
+        ).data?.map(s => s.id) || []
+      ),
+  ])
+
+  const total = (sess || []).length
+  // Build per-student summary
+  const summary = students.map(st => {
+    const mine = (atts || []).filter(a => a.student_id === st.id)
+    const cnt = s => mine.filter(a => a.status === s).length
+    const hadir = cnt('hadir')
+    const izin  = cnt('izin')
+    const sakit = cnt('sakit')
+    const alpha = cnt('alpha')
+    const pct = total > 0 ? Math.round(hadir / total * 100) : 0
+    return { ...st, hadir, izin, sakit, alpha, total, pct }
+  }).sort((a, b) => b.pct - a.pct)
+
+  return { summary, sessions: sess || [] }
+}
+
 export default function AttendanceAnalytics({ courseId, students }) {
   const { user } = useAuth()
-  const [data,    setData]    = useState([]) // per student summary
-  const [sessions, setSessions] = useState([])
-  const [loading, setLoading] = useState(true)
+  // Dimuat ulang bila kursus atau daftar peserta berubah.
+  const kunci = courseId && students.length && user ? `${courseId}:${students.map(s => s.id).join(',')}` : null
+  const rekap = useMuatData(kunci, () => muatRekapKehadiran(courseId, user.id, students))
+  const data     = rekap.data?.summary ?? TANPA_DATA // per student summary
+  const sessions = rekap.data?.sessions ?? TANPA_DATA
+  // Seperti sebelumnya: tetap "memuat" sampai ada kursus & peserta.
+  const loading  = !kunci || rekap.loading
 
-  useEffect(() => { if (courseId && students.length) fetchData() }, [courseId, students])
 
-  async function fetchData() {
-    setLoading(true)
-    const [{ data: sess }, { data: atts }] = await Promise.all([
-      supabase.from('attendance_sessions')
-        .select('id,meeting_number,title,created_at')
-        .eq('course_id', courseId)
-        .eq('dosen_id', user.id)
-        .order('meeting_number'),
-      supabase.from('attendances')
-        .select('student_id,status,session_id')
-        .in('session_id',
-          // subquery: get session ids for this course
-          (await supabase.from('attendance_sessions')
-            .select('id').eq('course_id', courseId).eq('dosen_id', user.id)
-          ).data?.map(s => s.id) || []
-        ),
-    ])
-
-    const total = (sess || []).length
-    // Build per-student summary
-    const summary = students.map(st => {
-      const mine = (atts || []).filter(a => a.student_id === st.id)
-      const cnt = s => mine.filter(a => a.status === s).length
-      const hadir = cnt('hadir')
-      const izin  = cnt('izin')
-      const sakit = cnt('sakit')
-      const alpha = cnt('alpha')
-      const pct = total > 0 ? Math.round(hadir / total * 100) : 0
-      return { ...st, hadir, izin, sakit, alpha, total, pct }
-    }).sort((a, b) => b.pct - a.pct)
-
-    setData(summary)
-    setSessions(sess || [])
-    setLoading(false)
-  }
 
   if (loading) return <div style={{ padding:60, display:'flex', justifyContent:'center' }}><div className="spinner"/></div>
 

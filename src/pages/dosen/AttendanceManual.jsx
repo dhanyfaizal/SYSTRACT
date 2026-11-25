@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useEffectEvent } from 'react'
 import { Save, Loader2, Users } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -21,8 +21,12 @@ export default function AttendanceManual({ courseId, students }) {
   const [newMeeting, setNewMeeting] = useState({ title:'', meeting_number:1 })
   const [showNew, setShowNew] = useState(false)
 
-  useEffect(() => { if (courseId) fetchSessions() }, [courseId])
-  useEffect(() => { if (selSession) loadExisting() }, [selSession])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah1 = useEffectEvent(() => { if (courseId) fetchSessions() })
+  useEffect(() => { muatSaatBerubah1() }, [courseId])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah2 = useEffectEvent(() => { if (selSession) loadExisting() })
+  useEffect(() => { muatSaatBerubah2() }, [selSession])
 
   async function fetchSessions() {
     const { data } = await supabase

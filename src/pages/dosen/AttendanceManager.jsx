@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useEffectEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import CoursePicker from "@/components/dosen/CoursePicker"
 import {
@@ -44,7 +44,8 @@ export default function AttendanceManager() {
   const [sessions, setSessions] = useState([])
   const [students, setStudents] = useState([])
   const [showForm,    setShowForm]    = useState(false)
-  const [loading,     setLoading]     = useState(false)
+  const [termuatUntuk, setTermuatUntuk] = useState(null) // id kursus yang sesi & pesertanya sudah dimuat
+  const loading = !!courseId && termuatUntuk !== courseId
   const [saving,      setSaving]      = useState(false)
   const [expanded,    setExpanded]    = useState(null)
   const [form,        setForm]        = useState({ title: '', meeting_number: 1, duration: 30 })
@@ -55,23 +56,27 @@ export default function AttendanceManager() {
   const [printing,    setPrinting]    = useState(false)
 
   // Load courses taught by dosen
+  // Kursus dari ?courseId= bila ada, selain itu kursus pertama (dibaca saat data tiba).
+  const pilihKursusAwal = useEffectEvent((data) => {
+    setCourses(data || [])
+    const paramId = searchParams.get('courseId')
+    const match   = paramId && data?.find(c => c.id === paramId)
+    setCourseId(match ? paramId : (data?.[0]?.id || ''))
+  })
   useEffect(() => {
+    let batal = false
     supabase.from('courses').select('id,code,name').eq('dosen_id', user?.id).eq('is_active', true)
-      .then(({ data }) => {
-        setCourses(data || [])
-        const paramId = searchParams.get('courseId')
-        const match   = paramId && data?.find(c => c.id === paramId)
-        setCourseId(match ? paramId : (data?.[0]?.id || ''))
-      })
+      .then(({ data }) => { if (!batal) pilihKursusAwal(data) })
+    return () => { batal = true }
   }, [user])
 
+  // Sesi & peserta kursus terpilih dimuat paralel; "memuat" sampai keduanya selesai untuk kursus ini.
+  const muatSesiDanPeserta = useEffectEvent(() => Promise.all([ fetchSessions(), fetchStudents() ]))
   useEffect(() => {
-    if (courseId) {
-      // Parallel: fetch sessions + students sekaligus
-      setLoading(true)
-      Promise.all([ fetchSessions(), fetchStudents() ])
-        .finally(() => setLoading(false))
-    }
+    if (!courseId) return undefined
+    let batal = false
+    muatSesiDanPeserta().finally(() => { if (!batal) setTermuatUntuk(courseId) })
+    return () => { batal = true }
   }, [courseId])
 
   async function fetchSessions() {

@@ -1,41 +1,39 @@
-import { useState, useEffect } from 'react'
-import { Users, BookOpen, Clock, TrendingUp, UserCheck, GraduationCap, Shield, Megaphone } from 'lucide-react'
+import { Users, BookOpen, Clock, GraduationCap, Shield, Megaphone } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { useMuatData } from '@/hooks/useMuatData'
 import { useNavigate } from 'react-router-dom'
 import AnnouncementCarousel from '@/components/AnnouncementCarousel'
+
+// Jumlah pengguna & kursus, pengguna menunggu peran, dan pendaftar terbaru.
+async function muatRingkasanAdmin() {
+  const [
+    { count: userCount },
+    { count: courseCount },
+    { data: pendingRoles },
+    { data: recentUsers },
+  ] = await Promise.all([
+    supabase.from('profiles').select('*', { count: 'exact', head: true }),
+    supabase.from('courses').select('*',   { count: 'exact', head: true }),
+    supabase.from('profiles').select('id').eq('role', 'guest'),
+    supabase.from('profiles').select('id, full_name, email, role, avatar_url, created_at')
+      .order('created_at', { ascending: false }).limit(6),
+  ])
+  return {
+    stats: { users: userCount, courses: courseCount, pending: pendingRoles?.length || 0 },
+    recent: recentUsers || [],
+  }
+}
 
 export default function AdminDashboard() {
   const { profile } = useAuth()
   const navigate    = useNavigate()
-  const [stats,   setStats]   = useState({ users: null, courses: null, pending: null })
-  const [recent,  setRecent]  = useState([])
-  const [loading, setLoading] = useState(true)
+  const ringkasan = useMuatData('admin', muatRingkasanAdmin)
+  const stats   = ringkasan.data?.stats || { users: null, courses: null, pending: null }
+  const recent  = ringkasan.data?.recent || []
+  const loading = ringkasan.loading
 
-  useEffect(() => { fetchStats() }, [])
 
-  async function fetchStats() {
-    const [
-      { count: userCount },
-      { count: courseCount },
-      { data: pendingRoles },
-      { data: recentUsers },
-    ] = await Promise.all([
-      supabase.from('profiles').select('*', { count: 'exact', head: true }),
-      supabase.from('courses').select('*',   { count: 'exact', head: true }),
-      supabase.from('profiles').select('id').eq('role', 'guest'),
-      supabase.from('profiles').select('id, full_name, email, role, avatar_url, created_at')
-        .order('created_at', { ascending: false }).limit(6),
-    ])
-
-    setStats({
-      users:   userCount,
-      courses: courseCount,
-      pending: pendingRoles?.length || 0,
-    })
-    setRecent(recentUsers || [])
-    setLoading(false)
-  }
 
   const hour = new Date().getHours()
   const greeting = hour < 11 ? 'Selamat Pagi' : hour < 15 ? 'Selamat Siang' : hour < 18 ? 'Selamat Sore' : 'Selamat Malam'

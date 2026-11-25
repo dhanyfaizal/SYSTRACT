@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useEffectEvent } from 'react'
 import { Award, Settings2, Save, Loader2, BookOpen, TrendingUp, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -39,7 +39,9 @@ export default function NilaiAkhir() {
       .then(({ data }) => { setCourses(data||[]); if (data?.length) setCourseId(data[0].id) })
   }, [user])
 
-  useEffect(() => { if (courseId) { fetchConfig(); fetchData() } }, [courseId])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah = useEffectEvent(() => { if (courseId) { fetchConfig(); fetchData() } })
+  useEffect(() => { muatSaatBerubah() }, [courseId])
 
   async function fetchConfig() {
     const { data } = await supabase.from('grade_configs').select('*').eq('course_id', courseId).maybeSingle()

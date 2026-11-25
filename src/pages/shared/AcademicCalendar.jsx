@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, Calendar, Clock, BookOpen, ClipboardList, FileText, CheckCircle2 } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { ChevronLeft, ChevronRight, Calendar, ClipboardList, FileText, CheckCircle2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useMuatData } from '@/hooks/useMuatData'
 import { useAuth } from '@/contexts/AuthContext'
 import Sk from '@/components/ui/Skeleton'
 
@@ -20,74 +21,77 @@ function daysInMonth(d)  { return new Date(d.getFullYear(), d.getMonth()+1, 0).g
 const DAYS = ['Min','Sen','Sel','Rab','Kam','Jum','Sab']
 const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 
+const TANPA_DATA = [] // referensi tetap agar useMemo tidak dihitung ulang tiap render
+
+// Tenggat tugas, jadwal ujian, dan pertemuan dari kursus yang diikuti (peserta) atau diampu (instruktur).
+async function muatKalender(userId, role) {
+  let courseIds = []
+  let courses = []
+
+  if (role === 'mahasiswa') {
+    const { data } = await supabase.from('enrollments').select('course_id,course:courses(id,name,code)').eq('student_id', userId)
+    courseIds = (data||[]).map(e => e.course_id)
+    courses = (data||[]).map(e => e.course).filter(Boolean)
+  } else if (role === 'dosen') {
+    const { data } = await supabase.from('courses').select('id,name,code').eq('dosen_id', userId).eq('is_active', true)
+    courseIds = (data||[]).map(c => c.id)
+    courses = data || []
+  }
+
+  if (!courseIds.length) return { courses, events: [] }
+
+  // exams_peserta & sesi_presensi_peserta: view tanpa kunci jawaban / kode presensi.
+  // View tidak bisa di-embed ke courses, jadi nama kursus diambil dari courseMap.
+  const [{ data: assignments }, { data: examRows }, { data: sessionRows }, { data: courseRows }] = await Promise.all([
+    supabase.from('assignments').select('id,title,due_date,course_id,course:courses(name,code)')
+      .in('course_id', courseIds).not('due_date','is',null),
+    supabase.from('exams_peserta').select('id,title,start_at,end_at,course_id')
+      .in('course_id', courseIds).not('start_at','is',null),
+    supabase.from('sesi_presensi_peserta').select('id,title,meeting_number,created_at,course_id')
+      .in('course_id', courseIds),
+    supabase.from('courses').select('id,name,code').in('id', courseIds),
+  ])
+  const courseMap = Object.fromEntries((courseRows || []).map(c => [c.id, c]))
+  const exams    = (examRows || []).map(e => ({ ...e, start_time: e.start_at, course: courseMap[e.course_id] }))
+  const sessions = (sessionRows || []).map(s => ({ ...s, course: courseMap[s.course_id] }))
+
+  const ev = [
+    ...(assignments||[]).map(a => ({
+      id:`t-${a.id}`, type:'tugas', title:a.title,
+      date: new Date(a.due_date), course_id: a.course_id,
+      courseName: a.course?.name, courseCode: a.course?.code,
+      detail: `Deadline: ${new Date(a.due_date).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}`,
+    })),
+    ...(exams||[]).map(e => ({
+      id:`u-${e.id}`, type:'ujian', title:e.title,
+      date: new Date(e.start_time), course_id: e.course_id,
+      courseName: e.course?.name, courseCode: e.course?.code,
+      detail: `Mulai: ${new Date(e.start_time).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}`,
+    })),
+    ...(sessions||[]).map(s => ({
+      id:`p-${s.id}`, type:'pertemuan', title:`P${s.meeting_number} – ${s.title}`,
+      date: new Date(s.created_at), course_id: s.course_id,
+      courseName: s.course?.name, courseCode: s.course?.code,
+      detail: new Date(s.created_at).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}),
+    })),
+  ].filter(e => !isNaN(e.date))
+  .sort((a,b) => a.date - b.date)
+
+  return { courses, events: ev }
+}
+
 export default function AcademicCalendar() {
   const { user, role } = useAuth()
   const [today]   = useState(new Date())
   const [current, setCurrent] = useState(new Date())
-  const [events,  setEvents]  = useState([])
-  const [loading, setLoading] = useState(true)
+  const kalender = useMuatData(user && role ? `${user.id}:${role}` : null, () => muatKalender(user.id, role))
+  const events  = kalender.data?.events ?? TANPA_DATA
+  const loading = !user || kalender.loading
   const [selDay,  setSelDay]  = useState(null)
-  const [courses, setCourses] = useState([])
+  const courses = kalender.data?.courses ?? TANPA_DATA
   const [filterCourse, setFilterCourse] = useState('all')
 
-  useEffect(() => { fetchEvents() }, [user, role])
 
-  async function fetchEvents() {
-    setLoading(true)
-    let courseIds = []
-
-    if (role === 'mahasiswa') {
-      const { data } = await supabase.from('enrollments').select('course_id,course:courses(id,name,code)').eq('student_id', user.id)
-      courseIds = (data||[]).map(e => e.course_id)
-      setCourses((data||[]).map(e => e.course).filter(Boolean))
-    } else if (role === 'dosen') {
-      const { data } = await supabase.from('courses').select('id,name,code').eq('dosen_id', user.id).eq('is_active', true)
-      courseIds = (data||[]).map(c => c.id)
-      setCourses(data||[])
-    }
-
-    if (!courseIds.length) { setLoading(false); return }
-
-    // exams_peserta & sesi_presensi_peserta: view tanpa kunci jawaban / kode presensi.
-    // View tidak bisa di-embed ke courses, jadi nama kursus diambil dari courseMap.
-    const [{ data: assignments }, { data: examRows }, { data: sessionRows }, { data: courseRows }] = await Promise.all([
-      supabase.from('assignments').select('id,title,due_date,course_id,course:courses(name,code)')
-        .in('course_id', courseIds).not('due_date','is',null),
-      supabase.from('exams_peserta').select('id,title,start_at,end_at,course_id')
-        .in('course_id', courseIds).not('start_at','is',null),
-      supabase.from('sesi_presensi_peserta').select('id,title,meeting_number,created_at,course_id')
-        .in('course_id', courseIds),
-      supabase.from('courses').select('id,name,code').in('id', courseIds),
-    ])
-    const courseMap = Object.fromEntries((courseRows || []).map(c => [c.id, c]))
-    const exams    = (examRows || []).map(e => ({ ...e, start_time: e.start_at, course: courseMap[e.course_id] }))
-    const sessions = (sessionRows || []).map(s => ({ ...s, course: courseMap[s.course_id] }))
-
-    const ev = [
-      ...(assignments||[]).map(a => ({
-        id:`t-${a.id}`, type:'tugas', title:a.title,
-        date: new Date(a.due_date), course_id: a.course_id,
-        courseName: a.course?.name, courseCode: a.course?.code,
-        detail: `Deadline: ${new Date(a.due_date).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}`,
-      })),
-      ...(exams||[]).map(e => ({
-        id:`u-${e.id}`, type:'ujian', title:e.title,
-        date: new Date(e.start_time), course_id: e.course_id,
-        courseName: e.course?.name, courseCode: e.course?.code,
-        detail: `Mulai: ${new Date(e.start_time).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}`,
-      })),
-      ...(sessions||[]).map(s => ({
-        id:`p-${s.id}`, type:'pertemuan', title:`P${s.meeting_number} – ${s.title}`,
-        date: new Date(s.created_at), course_id: s.course_id,
-        courseName: s.course?.name, courseCode: s.course?.code,
-        detail: new Date(s.created_at).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}),
-      })),
-    ].filter(e => !isNaN(e.date))
-    .sort((a,b) => a.date - b.date)
-
-    setEvents(ev)
-    setLoading(false)
-  }
 
   const filtered = useMemo(() =>
     filterCourse === 'all' ? events : events.filter(e => e.course_id === filterCourse)

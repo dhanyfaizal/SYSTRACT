@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   BookOpen, Users, ClipboardList, BarChart2,
@@ -7,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { useMuatData } from '@/hooks/useMuatData'
 import AnnouncementCarousel from '@/components/AnnouncementCarousel'
 import Sk from '@/components/ui/Skeleton'
 
@@ -32,136 +32,136 @@ const ACTIVITY_META = {
   late:       { icon: AlertCircle,  color:'#f59e0b', bg:'#fef3c7', label:'Terlambat'       },
 }
 
+// Jumlah kursus, peserta, tugas aktif, dan pengumpulan yang belum dinilai.
+async function muatStatistikInstruktur(userId) {
+  // Courses milik dosen
+  const { data: courses } = await supabase.from('courses')
+    .select('id').eq('dosen_id', userId)
+  const courseIds = (courses || []).map(c => c.id)
+
+  if (!courseIds.length) return { courses:0, students:0, activeTasks:0, ungraded:0 }
+
+  // Total mahasiswa unik
+  const { count: students } = await supabase.from('enrollments')
+    .select('id', { count:'exact', head:true })
+    .in('course_id', courseIds)
+
+  // Tugas aktif (due_date >= hari ini ATAU tidak ada deadline)
+  const today = new Date().toISOString()
+  const { count: activeTasks } = await supabase.from('assignments')
+    .select('id', { count:'exact', head:true })
+    .in('course_id', courseIds)
+    .or(`due_date.gte.${today},due_date.is.null`)
+
+  // Submisi belum dinilai
+  // submissions tidak punya course_id: saring lewat tugasnya (assignments.course_id).
+  const { count: ungraded } = await supabase.from('submissions')
+    .select('id, assignment:assignments!inner(course_id)', { count:'exact', head:true })
+    .in('assignment.course_id', courseIds)
+    .eq('status', 'submitted')
+
+  return { courses: courseIds.length, students: students||0, activeTasks: activeTasks||0, ungraded: ungraded||0 }
+}
+
+async function muatAktivitasTerbaru(userId) {
+
+  const { data: courses } = await supabase.from('courses')
+    .select('id, name, code').eq('dosen_id', userId)
+  const courseIds = (courses || []).map(c => c.id)
+  const courseMap = Object.fromEntries((courses||[]).map(c => [c.id, c]))
+
+  if (!courseIds.length) return []
+
+  // Fetch 3 sumber aktivitas secara paralel
+  const [subRes, examRes, forumRes] = await Promise.all([
+    // Submisi tugas terbaru
+    supabase.from('submissions')
+      .select('id, submitted_at, status, assignment:assignments!inner(title, course_id), student:profiles!student_id(full_name, nim, avatar_url)')
+      .in('assignment.course_id', courseIds)
+      .in('status', ['submitted','graded','late'])
+      .order('submitted_at', { ascending: false })
+      .limit(15),
+
+    // Ujian selesai terbaru
+    supabase.from('exam_answers')
+      .select('id, submitted_at, score, attempt_number, exam:exams!inner(title, course_id), student:profiles(full_name, nim, avatar_url)')
+      .in('exams.course_id', courseIds)
+      .not('submitted_at', 'is', null)
+      .order('submitted_at', { ascending: false })
+      .limit(15),
+
+    // Post forum terbaru
+    // Balasan forum terbaru (tabel forum_posts/forum_topics tidak ada; yang dipakai forums + forum_replies)
+    supabase.from('forum_replies')
+      .select('id, created_at, content:body, topic:forums!inner(title, course_id), author:profiles(full_name, nim, avatar_url)')
+      .in('topic.course_id', courseIds)
+      .order('created_at', { ascending: false })
+      .limit(10),
+  ])
+
+  const items = []
+
+  // Submissions
+  ;(subRes.data || []).forEach(s => {
+    const courseId = s.assignment?.course_id
+    items.push({
+      id:        's_' + s.id,
+      type:      s.status === 'late' ? 'late' : s.status === 'graded' ? 'graded' : 'submission',
+      time:      s.submitted_at,
+      student:   s.student,
+      title:     s.assignment?.title || 'Tugas',
+      course:    courseMap[courseId],
+      meta:      s.status === 'graded' ? 'Sudah dinilai' : s.status === 'late' ? 'Terlambat' : 'Menunggu penilaian',
+    })
+  })
+
+  // Exam answers
+  ;(examRes.data || []).forEach(e => {
+    const courseId = e.exam?.course_id
+    items.push({
+      id:      'e_' + e.id,
+      type:    'exam',
+      time:    e.submitted_at,
+      student: e.student,
+      title:   e.exam?.title || 'Ujian',
+      course:  courseMap[courseId],
+      meta:    e.score !== null ? `Skor: ${e.score}` : `Percobaan #${e.attempt_number}`,
+    })
+  })
+
+  // Forum posts
+  ;(forumRes.data || []).forEach(f => {
+    const courseId = f.topic?.course_id
+    items.push({
+      id:      'f_' + f.id,
+      type:    'forum',
+      time:    f.created_at,
+      student: f.author,
+      title:   f.topic?.title || 'Forum',
+      course:  courseMap[courseId],
+      meta:    (f.content || '').slice(0, 80) + (f.content?.length > 80 ? '…' : ''),
+    })
+  })
+
+  // Sort by time desc, take 20
+  items.sort((a, b) => new Date(b.time) - new Date(a.time))
+  return items.slice(0, 20)
+}
+
 export default function DosenDashboard() {
   const { user, profile } = useAuth()
   const _navigate          = useNavigate()
 
-  const [stats,    setStats]    = useState({ courses:0, students:0, activeTasks:0, ungraded:0 })
-  const [loading,  setLoading]  = useState(true)
-  const [activity, setActivity] = useState([])   // recent activities
-  const [actLoad,  setActLoad]  = useState(true)
+  const statistik = useMuatData(user?.id, muatStatistikInstruktur)
+  const stats     = statistik.data ?? { courses:0, students:0, activeTasks:0, ungraded:0 }
+  const loading   = !user || statistik.loading
+  const aktivitas = useMuatData(user?.id, muatAktivitasTerbaru)
+  const activity  = aktivitas.data ?? []   // recent activities
+  const actLoad   = !user || aktivitas.loading
 
-  useEffect(() => { if (user) { fetchStats(); fetchActivity() } }, [user])
 
   /* ── Stats ───────────────────────────────────────────────── */
-  async function fetchStats() {
-    // Courses milik dosen
-    const { data: courses } = await supabase.from('courses')
-      .select('id').eq('dosen_id', user.id)
-    const courseIds = (courses || []).map(c => c.id)
-
-    if (!courseIds.length) { setStats({ courses:0, students:0, activeTasks:0, ungraded:0 }); setLoading(false); return }
-
-    // Total mahasiswa unik
-    const { count: students } = await supabase.from('enrollments')
-      .select('id', { count:'exact', head:true })
-      .in('course_id', courseIds)
-
-    // Tugas aktif (due_date >= hari ini ATAU tidak ada deadline)
-    const today = new Date().toISOString()
-    const { count: activeTasks } = await supabase.from('assignments')
-      .select('id', { count:'exact', head:true })
-      .in('course_id', courseIds)
-      .or(`due_date.gte.${today},due_date.is.null`)
-
-    // Submisi belum dinilai
-    // submissions tidak punya course_id: saring lewat tugasnya (assignments.course_id).
-    const { count: ungraded } = await supabase.from('submissions')
-      .select('id, assignment:assignments!inner(course_id)', { count:'exact', head:true })
-      .in('assignment.course_id', courseIds)
-      .eq('status', 'submitted')
-
-    setStats({ courses: courseIds.length, students: students||0, activeTasks: activeTasks||0, ungraded: ungraded||0 })
-    setLoading(false)
-  }
-
   /* ── Recent Activity ─────────────────────────────────────── */
-  async function fetchActivity() {
-    setActLoad(true)
-
-    const { data: courses } = await supabase.from('courses')
-      .select('id, name, code').eq('dosen_id', user.id)
-    const courseIds = (courses || []).map(c => c.id)
-    const courseMap = Object.fromEntries((courses||[]).map(c => [c.id, c]))
-
-    if (!courseIds.length) { setActivity([]); setActLoad(false); return }
-
-    // Fetch 3 sumber aktivitas secara paralel
-    const [subRes, examRes, forumRes] = await Promise.all([
-      // Submisi tugas terbaru
-      supabase.from('submissions')
-        .select('id, submitted_at, status, assignment:assignments!inner(title, course_id), student:profiles!student_id(full_name, nim, avatar_url)')
-        .in('assignment.course_id', courseIds)
-        .in('status', ['submitted','graded','late'])
-        .order('submitted_at', { ascending: false })
-        .limit(15),
-
-      // Ujian selesai terbaru
-      supabase.from('exam_answers')
-        .select('id, submitted_at, score, attempt_number, exam:exams!inner(title, course_id), student:profiles(full_name, nim, avatar_url)')
-        .in('exams.course_id', courseIds)
-        .not('submitted_at', 'is', null)
-        .order('submitted_at', { ascending: false })
-        .limit(15),
-
-      // Post forum terbaru
-      // Balasan forum terbaru (tabel forum_posts/forum_topics tidak ada; yang dipakai forums + forum_replies)
-      supabase.from('forum_replies')
-        .select('id, created_at, content:body, topic:forums!inner(title, course_id), author:profiles(full_name, nim, avatar_url)')
-        .in('topic.course_id', courseIds)
-        .order('created_at', { ascending: false })
-        .limit(10),
-    ])
-
-    const items = []
-
-    // Submissions
-    ;(subRes.data || []).forEach(s => {
-      const courseId = s.assignment?.course_id
-      items.push({
-        id:        's_' + s.id,
-        type:      s.status === 'late' ? 'late' : s.status === 'graded' ? 'graded' : 'submission',
-        time:      s.submitted_at,
-        student:   s.student,
-        title:     s.assignment?.title || 'Tugas',
-        course:    courseMap[courseId],
-        meta:      s.status === 'graded' ? 'Sudah dinilai' : s.status === 'late' ? 'Terlambat' : 'Menunggu penilaian',
-      })
-    })
-
-    // Exam answers
-    ;(examRes.data || []).forEach(e => {
-      const courseId = e.exam?.course_id
-      items.push({
-        id:      'e_' + e.id,
-        type:    'exam',
-        time:    e.submitted_at,
-        student: e.student,
-        title:   e.exam?.title || 'Ujian',
-        course:  courseMap[courseId],
-        meta:    e.score !== null ? `Skor: ${e.score}` : `Percobaan #${e.attempt_number}`,
-      })
-    })
-
-    // Forum posts
-    ;(forumRes.data || []).forEach(f => {
-      const courseId = f.topic?.course_id
-      items.push({
-        id:      'f_' + f.id,
-        type:    'forum',
-        time:    f.created_at,
-        student: f.author,
-        title:   f.topic?.title || 'Forum',
-        course:  courseMap[courseId],
-        meta:    (f.content || '').slice(0, 80) + (f.content?.length > 80 ? '…' : ''),
-      })
-    })
-
-    // Sort by time desc, take 20
-    items.sort((a, b) => new Date(b.time) - new Date(a.time))
-    setActivity(items.slice(0, 20))
-    setActLoad(false)
-  }
 
   const STATS = [
     { icon: <BookOpen size={16} color="#4f46e5"/>, bg:'#eef2ff', label:'Mata Kuliah',    value: loading ? '–' : stats.courses    },

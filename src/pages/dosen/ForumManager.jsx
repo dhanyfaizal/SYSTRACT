@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useEffectEvent } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import CoursePicker from "@/components/dosen/CoursePicker"
 import { MessageSquare, Plus, Trash2, X, Loader2, Pin, MessageCircle, ExternalLink } from 'lucide-react'
@@ -35,8 +35,12 @@ export default function DosenForumManager() {
   const [form,     setForm]     = useState(BLANK)
   const cpmkKursus = useCpmkKursus(courseId)
 
-  useEffect(() => { if (user) fetchCourses() }, [user])
-  useEffect(() => { if (courseId) fetchForums() }, [courseId])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah1 = useEffectEvent(() => { if (user) fetchCourses() })
+  useEffect(() => { muatSaatBerubah1() }, [user])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah2 = useEffectEvent(() => { if (courseId) fetchForums() })
+  useEffect(() => { muatSaatBerubah2() }, [courseId])
 
   async function fetchCourses() {
     const { data } = await supabase.from('courses').select('id,code,name').eq('dosen_id', user.id).order('name')

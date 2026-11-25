@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useEffectEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Send, Loader2, MessageSquare, Coins } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -18,7 +18,9 @@ export default function ForumDetail() {
   const [enrolledStudents, setEnrolledStudents] = useState([])
   const isStaf = ['dosen', 'admin'].includes(profile?.role)
 
-  useEffect(() => { fetchData() }, [id])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah = useEffectEvent(() => { fetchData() })
+  useEffect(() => { muatSaatBerubah() }, [id])
 
   async function fetchData() {
     const [{ data: f }, { data: r }] = await Promise.all([

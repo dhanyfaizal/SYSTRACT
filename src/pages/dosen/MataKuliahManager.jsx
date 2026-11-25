@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense, useEffectEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, Users, Edit2, Trash2, Loader2, Copy, Search, Info } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -14,6 +14,8 @@ import BatasGalat from '@/components/ui/BatasGalat'
 import ModalKursus from './mataKuliah/ModalKursus'
 import ModalSalinKursus from './mataKuliah/ModalSalinKursus'
 import ModalSoalUjian from './mataKuliah/ModalSoalUjian'
+
+const TANPA_MATERI = []
 
 const TabGeneratorRps = lazy(() => import('./mataKuliah/TabGeneratorRps'))
 const StudioSlideAi = lazy(() => import('./mataKuliah/StudioSlideAi'))
@@ -39,13 +41,16 @@ export default function DosenMataKuliah() {
   const [searchTerm, setSearchTerm] = useState('')
 
   // Active selected course
-  const [selectedCourseId, setSelectedCourseId] = useState(null)
+  // Kursus terpilih = ?courseId= di URL yang ada di daftar kursus (satu sumber kebenaran).
+  const courseIdParam = searchParams.get('courseId')
+  const selectedCourseId = courseIdParam && courses.some(c => c.id === courseIdParam) ? courseIdParam : null
 
   // ── Copy states ────────────────────────────────────────────
   const [salinDari, setSalinDari] = useState(null) // kursus sumber saat modal salin terbuka
 
   // ── Materials states ────────────────────────────────────────
-  const [materials, setMaterials] = useState([])
+  const [materiTermuat, setMaterials] = useState([])
+  const materials = selectedCourseId ? materiTermuat : TANPA_MATERI
   const [loadingMaterials, setLoadingMaterials] = useState(false)
 
   // ── Enrollments states ──────────────────────────────────────
@@ -59,45 +64,28 @@ export default function DosenMataKuliah() {
 
 
 
-  // Load initial courses and config
-  useEffect(() => {
+  // Muat daftar kursus (dan daftar instruktur untuk admin) saat pengguna siap.
+  const muatAwal = useEffectEvent(() => {
     if (user) {
       fetchCourses()
       if (isAdmin) fetchDosenList()
     }
-  }, [user, isAdmin])
+  })
+  useEffect(() => { muatAwal() }, [user, isAdmin])
 
-  // React to course selection changes
-  useEffect(() => {
-    if (selectedCourseId) {
-      fetchMaterials(selectedCourseId)
-    } else {
-      setMaterials([])
-    }
-  }, [selectedCourseId])
-
-  // Track search query parameter changes (for sidebar links compatibility)
-  const courseIdParam = searchParams.get('courseId')
-  useEffect(() => {
-    if (!courseIdParam) {
-      if (selectedCourseId) setSelectedCourseId(null)
-    } else if (courseIdParam !== selectedCourseId) {
-      const match = courses.find(c => c.id === courseIdParam)
-      if (match) {
-        setSelectedCourseId(courseIdParam)
-      }
-    }
-  }, [courseIdParam, courses])
+  // Muat materi setiap kali kursus terpilih berganti.
+  const muatMateriKursus = useEffectEvent(() => { if (selectedCourseId) fetchMaterials(selectedCourseId) })
+  useEffect(() => { muatMateriKursus() }, [selectedCourseId])
 
   const selectedCourse = courses.find(c => c.id === selectedCourseId)
 
 
-  // Reset tab and step only when the selected course ID changes
-  useEffect(() => {
-    if (selectedCourseId) {
-      setActiveTab('overview')
-    }
-  }, [selectedCourseId])
+  // Ganti kursus: kembali ke tab Ringkasan.
+  const [kursusSebelumnya, setKursusSebelumnya] = useState(selectedCourseId)
+  if (selectedCourseId !== kursusSebelumnya) {
+    setKursusSebelumnya(selectedCourseId)
+    if (selectedCourseId) setActiveTab('overview')
+  }
 
   // ── Database Fetch functions ─────────────────────────────────
   async function fetchCourses(selectId = null) {
@@ -125,14 +113,9 @@ export default function DosenMataKuliah() {
     // Sync selected state
     const paramId = selectId || searchParams.get('courseId')
     const match = paramId && data?.find(c => c.id === paramId)
-    if (match) {
-      setSelectedCourseId(match.id)
-      if (searchParams.get('courseId') !== match.id) {
-        setSearchParams({ courseId: match.id })
-      }
-    } else {
-      // Tanpa courseId: tampilkan daftar kursus (kursus dipilih lewat sidebar atau daftar).
-      setSelectedCourseId(null)
+    // Tanpa courseId yang cocok: tampil daftar kursus (kursus terpilih diturunkan dari URL).
+    if (match && searchParams.get('courseId') !== match.id) {
+      setSearchParams({ courseId: match.id })
     }
   }
 
@@ -162,7 +145,6 @@ export default function DosenMataKuliah() {
 
   // ── Select Course helper ─────────────────────────────────────
   function handleSelectCourse(id) {
-    setSelectedCourseId(id)
     setSearchParams({ courseId: id })
   }
 
@@ -200,7 +182,6 @@ export default function DosenMataKuliah() {
       toast.success('Kursus dihapus')
       // Kembali ke daftar kursus.
       setCourses(courses.filter(c => c.id !== id))
-      setSelectedCourseId(null)
       setSearchParams({})
       fetchCourses(null)
       window.dispatchEvent(new Event('systract:courses-changed'))

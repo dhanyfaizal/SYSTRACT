@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useEffectEvent } from 'react'
 import { FileQuestion, Plus, Edit2, Trash2, X, Loader2, Clock, Eye, EyeOff, Database, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -42,8 +42,12 @@ export default function DosenUjianManager() {
   const [topics,      setTopics]      = useState([])  // available topics in bank soal
   const [bankCounts,  setBankCounts]  = useState({})  // { topicName: {mudah,sedang,sulit} }
 
-  useEffect(() => { if (user) fetchCourses() }, [user])
-  useEffect(() => { if (courseId) fetchExams() }, [courseId])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah1 = useEffectEvent(() => { if (user) fetchCourses() })
+  useEffect(() => { muatSaatBerubah1() }, [user])
+  // Dipanggil efek di bawah; selalu memakai fungsi & state terbaru (useEffectEvent).
+  const muatSaatBerubah2 = useEffectEvent(() => { if (courseId) fetchExams() })
+  useEffect(() => { muatSaatBerubah2() }, [courseId])
 
   async function fetchCourses() {
     const { data } = await supabase.from('courses').select('id,code,name').eq('dosen_id', user.id).order('name')
