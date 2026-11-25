@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import { rapikanSoal, periksaSoal, langkahPemutar, awalSegmen, formatDetik, bacaDetik, saranJumlahSoal } from '@/lib/videoInteraktif'
 import { renderSection } from '@/lib/spaBlocks'

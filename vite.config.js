@@ -16,7 +16,9 @@ export default defineConfig({
     chunkSizeWarningLimit: 800,
   },
   test: {
-    environment: 'jsdom',
+    // Bawaan node (ringan). Tes yang butuh DOM menandai dirinya dengan komentar
+    // '// @vitest-environment jsdom' di baris pertama.
+    environment: 'node',
     include: ['src/**/*.test.js'],
   },
 })

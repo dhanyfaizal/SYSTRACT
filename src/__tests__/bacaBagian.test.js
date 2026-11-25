@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest'
 import { teksSlide, hitungKata, targetBacaBagian, totalBaca, bagianTerlihat } from '@/lib/bacaBagian'
 import { renderSection, prepareDeck } from '@/lib/spaBlocks'
