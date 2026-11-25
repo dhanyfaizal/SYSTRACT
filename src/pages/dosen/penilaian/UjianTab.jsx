@@ -1,8 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ChevronDown, ChevronUp, FileText } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import Sk from '@/components/ui/Skeleton'
 import { MODE_LABEL, MODE_COLOR, TYPE_LABEL } from './shared'
+import { useKursusDiampu, useDataKursus } from './useDataKursus'
+
+async function muatUjian(courseId) {
+  const { data, error } = await supabase.from('exams')
+    .select('*, course:courses(name, code)')
+    .eq('course_id', courseId)
+    .order('start_at', { ascending: false })
+  if (error) throw error
+  return data || []
+}
 
 
 
@@ -11,35 +21,20 @@ import { MODE_LABEL, MODE_COLOR, TYPE_LABEL } from './shared'
 /*  TAB: UJIAN                                                 */
 /* ─────────────────────────────────────────────────────────── */
 export default function UjianTab({ userId }) {
-  const [exams,          setExams]          = useState([])
-  const [courses,        setCourses]        = useState([])
-  const [selectedCourse, setSelectedCourse] = useState('')
+  const { courses, courseId: selectedCourse, setCourseId, siap } = useKursusDiampu(userId)
+  const ujian = useDataKursus(selectedCourse, muatUjian)
+  const exams = ujian.data || []
+  const loading = !siap || ujian.loading
   const [expanded,       setExpanded]       = useState({})
   const [answers,        setAnswers]        = useState({})
   const [loadingAns,     setLoadingAns]     = useState({})
-  const [loading,        setLoading]        = useState(true)
   const MAX_VIOL_WARN = 3
 
-  useEffect(() => { fetchCourses() }, [userId])
-  useEffect(() => { if (selectedCourse) fetchExams(selectedCourse) }, [selectedCourse])
-
-  async function fetchCourses() {
-    const { data } = await supabase.from('courses').select('id,name,code').eq('dosen_id', userId).order('name')
-    setCourses(data || [])
-    if (data?.length) setSelectedCourse(data[0].id)
-    else setLoading(false)
-  }
-
-  async function fetchExams(courseId) {
-    setLoading(true)
+  // Ganti kursus: tutup semua rincian ujian kursus sebelumnya.
+  function setSelectedCourse(id) {
+    setCourseId(id)
     setExpanded({})
     setAnswers({})
-    const { data } = await supabase.from('exams')
-      .select('*, course:courses(name, code)')
-      .eq('course_id', courseId)
-      .order('start_at', { ascending: false })
-    setExams(data || [])
-    setLoading(false)
   }
 
 

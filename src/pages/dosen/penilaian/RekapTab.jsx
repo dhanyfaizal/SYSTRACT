@@ -4,13 +4,49 @@ import { supabase } from '@/lib/supabase'
 import { withRetry } from '@/lib/withRetry'
 import toast from 'react-hot-toast'
 import { gradeColor, gradeLetter } from './shared'
+import { useKursusDiampu, useDataKursus } from './useDataKursus'
 
+
+// Matriks nilai satu kursus: peserta × (tugas, keaktifan, ujian). Kolom keaktifan diisi dari
+// state di komponen (bisa diedit langsung), lihat `allColumns`.
+async function muatMatriks(cid) {
+  const [{ data: enrollments }, { data: assignments }, { data: exams }] = await Promise.all([
+    supabase.from('enrollments')
+      .select('student:profiles!student_id(id, full_name, nim)').eq('course_id', cid),
+    supabase.from('assignments')
+      .select('id, title, max_score, submissions(student_id, grade, status)')
+      .eq('course_id', cid).order('created_at'),
+    supabase.from('exams')
+      .select('id, title, type, exam_mode, exam_answers(student_id, score, submitted_at)')
+      .eq('course_id', cid).eq('is_published', true).order('start_at'),
+  ])
+
+  // Sama dengan halaman Nilai Akhir: semua pendaftar kursus, urut nama.
+  const students = (enrollments || []).map(e => e.student).filter(Boolean)
+    .sort((x, y) => (x.full_name || '').localeCompare(y.full_name || '', 'id'))
+
+  const tugasCols = (assignments || []).map(a => ({
+    key: 'tugas_' + a.id, label: a.title, max: a.max_score, kind: 'tugas',
+    dataByStudent: Object.fromEntries((a.submissions || []).map(s => [s.student_id, s.grade]))
+  }))
+  const ujianCols = (exams || []).map(e => {
+    const byStudent = {}
+    ;(e.exam_answers || []).filter(x => x.submitted_at).forEach(x => {
+      if (byStudent[x.student_id] === undefined || (x.score ?? -1) > (byStudent[x.student_id] ?? -1))
+        byStudent[x.student_id] = x.score
+    })
+    return { key: 'ujian_' + e.id, label: e.title, kind: 'ujian', max: 100, dataByStudent: byStudent }
+  })
+  const keaktifanCol = { key: 'keaktifan', label: 'Keaktifan', max: 100, kind: 'keaktifan', dataByStudent: {} }
+
+  return { students, tugasCols, keaktifanCol, ujianCols }
+}
 
 export default function RekapTab({ userId }) {
-  const [courses,     setCourses]     = useState([])
-  const [courseId,    setCourseId]    = useState('')
-  const [matrix,      setMatrix]      = useState(null)
-  const [loading,     setLoading]     = useState(false)
+  const { courses, courseId, setCourseId } = useKursusDiampu(userId)
+  const rekap = useDataKursus(courseId, muatMatriks)
+  const matrix = rekap.loading ? null : rekap.data
+  const loading = rekap.loading
   const [weights,     setWeights]     = useState({})
   const [showConfig,  setShowConfig]  = useState(false)
   const [savingCfg,   setSavingCfg]   = useState(false)
@@ -18,29 +54,23 @@ export default function RekapTab({ userId }) {
   const [editCell,    setEditCell]    = useState(null)  // studentId being edited
   const [editVal,     setEditVal]     = useState('')
 
-  useEffect(() => { fetchCourses() }, [userId])
-  useEffect(() => { if (courseId) { buildMatrix(courseId); loadWeightConfig(courseId); loadKeaktifan(courseId) } }, [courseId])
-
-  async function fetchCourses() {
-    const { data } = await supabase.from('courses').select('id,name,code').eq('dosen_id', userId).order('name')
-    setCourses(data || [])
-    if (data?.length) setCourseId(data[0].id)
-  }
-
-  async function loadWeightConfig(cid) {
-    const { data } = await supabase.from('course_grading_config')
-      .select('config').eq('course_id', cid).eq('dosen_id', userId).maybeSingle()
-    if (data?.config) setWeights(data.config)
-    else setWeights({})
-  }
-
-  async function loadKeaktifan(cid) {
-    const { data } = await supabase.from('student_keaktifan')
-      .select('student_id, score').eq('course_id', cid)
-    const map = {}
-    ;(data || []).forEach(r => { map[r.student_id] = r.score })
-    setKeaktifan(map)
-  }
+  // Bobot nilai dan skor keaktifan kursus terpilih (keduanya bisa diedit instruktur).
+  useEffect(() => {
+    if (!courseId) return undefined
+    let batal = false
+    supabase.from('course_grading_config')
+      .select('config').eq('course_id', courseId).eq('dosen_id', userId).maybeSingle()
+      .then(({ data }) => { if (!batal) setWeights(data?.config || {}) })
+    supabase.from('student_keaktifan')
+      .select('student_id, score').eq('course_id', courseId)
+      .then(({ data }) => {
+        if (batal) return
+        const map = {}
+        ;(data || []).forEach(r => { map[r.student_id] = r.score })
+        setKeaktifan(map)
+      })
+    return () => { batal = true }
+  }, [courseId, userId])
 
   async function saveKeaktifan(studentId, score) {
     const val = score === '' || score === null ? null : Number(score)
@@ -62,46 +92,6 @@ export default function RekapTab({ userId }) {
     if (error) toast.error('Gagal menyimpan bobot')
     else toast.success('Konfigurasi bobot disimpan')
     setSavingCfg(false)
-  }
-
-  async function buildMatrix(cid) {
-    setLoading(true); setMatrix(null)
-
-    // Parallel: fetch semua data sekaligus
-    const [{ data: _enrollments }, { data: assignments }, { data: exams }] = await Promise.all([
-      supabase.from('enrollments')
-        .select('student:profiles!student_id(id, full_name, nim)').eq('course_id', cid),
-      supabase.from('assignments')
-        .select('id, title, max_score, submissions(student_id, grade, status)')
-        .eq('course_id', cid).order('created_at'),
-      supabase.from('exams')
-        .select('id, title, type, exam_mode, exam_answers(student_id, score, submitted_at)')
-        .eq('course_id', cid).eq('is_published', true).order('start_at'),
-    ])
-
-    const tugasCols = (assignments || []).map(a => ({
-      key: 'tugas_' + a.id, label: a.title, max: a.max_score, kind: 'tugas',
-      dataByStudent: Object.fromEntries((a.submissions || []).map(s => [s.student_id, s.grade]))
-    }))
-    const ujianCols = (exams || []).map(e => ({
-      key: 'ujian_' + e.id, label: e.title, kind: 'ujian', max: 100, dataByStudent: {}
-    }))
-    ;(exams || []).forEach((e, ei) => {
-      const byStudent = {}
-      ;(e.exam_answers || []).filter(a => a.submitted_at).forEach(a => {
-        if (byStudent[a.student_id] === undefined || (a.score ?? -1) > (byStudent[a.student_id] ?? -1))
-          byStudent[a.student_id] = a.score
-      })
-      ujianCols[ei].dataByStudent = byStudent
-    })
-
-    const keaktifanCol = {
-      key: 'keaktifan', label: 'Keaktifan', max: 100, kind: 'keaktifan',
-      dataByStudent: {}   // filled from state at render — see `allColumns`
-    }
-
-    setMatrix({ students, tugasCols, keaktifanCol, ujianCols })
-    setLoading(false)
   }
 
   // Compute weighted final score

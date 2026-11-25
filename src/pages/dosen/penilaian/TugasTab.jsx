@@ -1,45 +1,40 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ChevronDown, ChevronUp, Loader2, Star, ClipboardList } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { withRetry } from '@/lib/withRetry'
 import FilePreview from '@/components/drive/FilePreview'
 import toast from 'react-hot-toast'
 import Sk from '@/components/ui/Skeleton'
+import { useKursusDiampu, useDataKursus } from './useDataKursus'
+
+async function muatTugas(courseId) {
+  const { data, error } = await supabase.from('assignments')
+    .select('*, course:courses(name, code)')
+    .eq('course_id', courseId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data || []
+}
 
 
 /* ─────────────────────────────────────────────────────────── */
 /*  TAB: TUGAS                                                 */
 /* ─────────────────────────────────────────────────────────── */
 export default function TugasTab({ userId }) {
-  const [assignments,    setAssignments]    = useState([])
-  const [courses,        setCourses]        = useState([])
-  const [selectedCourse, setSelectedCourse] = useState('')
+  const { courses, courseId: selectedCourse, setCourseId, siap } = useKursusDiampu(userId)
+  const tugas = useDataKursus(selectedCourse, muatTugas)
+  const assignments = tugas.data || []
+  const loading = !siap || tugas.loading
   const [expanded,       setExpanded]       = useState({})
   const [submissions,    setSubmissions]    = useState({})
   const [loadingSubs,    setLoadingSubs]    = useState({})
   const [grading,        setGrading]        = useState({})
-  const [loading,        setLoading]        = useState(true)
 
-  useEffect(() => { fetchCourses() }, [userId])
-  useEffect(() => { if (selectedCourse) fetchAssignments(selectedCourse) }, [selectedCourse])
-
-  async function fetchCourses() {
-    const { data } = await supabase.from('courses').select('id,name,code').eq('dosen_id', userId).order('name')
-    setCourses(data || [])
-    if (data?.length) setSelectedCourse(data[0].id)
-    else setLoading(false)
-  }
-
-  async function fetchAssignments(courseId) {
-    setLoading(true)
+  // Ganti kursus: tutup semua rincian tugas kursus sebelumnya.
+  function setSelectedCourse(id) {
+    setCourseId(id)
     setExpanded({})
     setSubmissions({})
-    const { data } = await supabase.from('assignments')
-      .select('*, course:courses(name, code)')
-      .eq('course_id', courseId)
-      .order('created_at', { ascending: false })
-    setAssignments(data || [])
-    setLoading(false)
   }
 
   async function loadSubmissions(assignmentId) {

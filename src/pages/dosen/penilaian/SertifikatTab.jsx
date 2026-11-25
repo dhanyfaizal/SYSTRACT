@@ -1,8 +1,45 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { CheckCircle2, Award, Lock, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import Sk from '@/components/ui/Skeleton'
+import { useKursusDiampu, useDataKursus } from './useDataKursus'
+
+// Semua data yang dibutuhkan untuk menilai kelayakan sertifikat peserta satu kursus.
+async function muatDataKelas(cid) {
+  try {
+    const [enrRes, matRes, assignRes, examRes] = await Promise.all([
+      supabase.from('enrollments').select('*, student:profiles!student_id(id, full_name, nim, avatar_url)').eq('course_id', cid).eq('status', 'approved'),
+      supabase.from('materials').select('*').eq('course_id', cid),
+      supabase.from('assignments').select('*').eq('course_id', cid),
+      supabase.from('exams').select('*').eq('course_id', cid).eq('is_published', true)
+    ])
+
+    const assigns = assignRes.data || []
+    const exms = examRes.data || []
+    const assignIds = assigns.map(a => a.id)
+    const examIds = exms.map(e => e.id)
+
+    const [progRes, subRes, exAnsRes] = await Promise.all([
+      supabase.from('course_progress').select('*').eq('course_id', cid),
+      assignIds.length > 0 ? supabase.from('submissions').select('*').in('assignment_id', assignIds) : Promise.resolve({ data: [] }),
+      examIds.length > 0 ? supabase.from('exam_answers').select('*').in('exam_id', examIds) : Promise.resolve({ data: [] })
+    ])
+
+    return {
+      enrollments: enrRes.data || [],
+      materials: matRes.data || [],
+      progress: progRes.data || [],
+      assignments: assigns,
+      submissions: subRes.data || [],
+      exams: exms,
+      examAnswers: exAnsRes.data || [],
+    }
+  } catch (err) {
+    toast.error('Gagal memuat data kelas')
+    throw err
+  }
+}
 
 
 
@@ -10,71 +47,16 @@ import Sk from '@/components/ui/Skeleton'
 /*  TAB: VALIDASI SERTIFIKAT                                   */
 /* ─────────────────────────────────────────────────────────── */
 export default function SertifikatTab({ userId }) {
-  const [courses, setCourses] = useState([])
-  const [selectedCourse, setSelectedCourse] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [enrollments, setEnrollments] = useState([])
-  const [materials, setMaterials] = useState([])
-  const [progress, setProgress] = useState([])
-  const [assignments, setAssignments] = useState([])
-  const [submissions, setSubmissions] = useState([])
-  const [exams, setExams] = useState([])
-  const [examAnswers, setExamAnswers] = useState([])
+  const { courses, courseId: selectedCourse, setCourseId: setSelectedCourse, siap } = useKursusDiampu(userId)
+  const kelas = useDataKursus(selectedCourse, muatDataKelas)
+  const loading = !siap || kelas.loading
+  const { enrollments = [], materials = [], progress = [], assignments = [], submissions = [], exams = [], examAnswers = [] } = kelas.data || {}
+  const loadClassData = () => kelas.muatUlang()
 
   const [activeStudent, setActiveStudent] = useState(null)
   const [certNotes, setCertNotes] = useState('')
   const [savingCert, setSavingCert] = useState(false)
   const [taskGrading, setTaskGrading] = useState({})
-
-  useEffect(() => { fetchCourses() }, [userId])
-  useEffect(() => { if (selectedCourse) loadClassData(selectedCourse) }, [selectedCourse])
-
-  async function fetchCourses() {
-    setLoading(true)
-    const { data } = await supabase.from('courses').select('id,name,code').eq('dosen_id', userId).order('name')
-    setCourses(data || [])
-    if (data?.length) setSelectedCourse(data[0].id)
-    else setLoading(false)
-  }
-
-  async function loadClassData(cid) {
-    setLoading(true)
-    try {
-      const [enrRes, matRes, assignRes, examRes] = await Promise.all([
-        supabase.from('enrollments').select('*, student:profiles!student_id(id, full_name, nim, avatar_url)').eq('course_id', cid).eq('status', 'approved'),
-        supabase.from('materials').select('*').eq('course_id', cid),
-        supabase.from('assignments').select('*').eq('course_id', cid),
-        supabase.from('exams').select('*').eq('course_id', cid).eq('is_published', true)
-      ])
-
-      const enrs = enrRes.data || []
-      const mats = matRes.data || []
-      const assigns = assignRes.data || []
-      const exms = examRes.data || []
-
-      const assignIds = assigns.map(a => a.id)
-      const examIds = exms.map(e => e.id)
-
-      const [progRes, subRes, exAnsRes] = await Promise.all([
-        supabase.from('course_progress').select('*').eq('course_id', cid),
-        assignIds.length > 0 ? supabase.from('submissions').select('*').in('assignment_id', assignIds) : Promise.resolve({ data: [] }),
-        examIds.length > 0 ? supabase.from('exam_answers').select('*').in('exam_id', examIds) : Promise.resolve({ data: [] })
-      ])
-
-      setEnrollments(enrs)
-      setMaterials(mats)
-      setProgress(progRes.data || [])
-      setAssignments(assigns)
-      setSubmissions(subRes.data || [])
-      setExams(exms)
-      setExamAnswers(exAnsRes.data || [])
-    } catch(err) {
-      console.error(err)
-      toast.error('Gagal memuat data kelas')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   async function saveTaskGrade(sub, assignment) {
     const g = taskGrading[sub.id] || {}
