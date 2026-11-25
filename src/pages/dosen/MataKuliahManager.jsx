@@ -1,15 +1,14 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Users, Edit2, Trash2, Loader2, X, Copy, CheckCircle2, Circle, Search, Bot, RefreshCw, Info, HelpCircle, Check } from 'lucide-react'
+import { Plus, Users, Edit2, Trash2, Loader2, Copy, Search, Info } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
-import { generateSlideContent, generateWebSlideData, generateMcqQuestions, generateSingleSlide, generateSingleWebSlideData, PROGRES_MENUNGGU } from '@/lib/ai'
+import { generateSlideContent, generateWebSlideData, generateSingleSlide, generateSingleWebSlideData, PROGRES_MENUNGGU } from '@/lib/ai'
 import { generateWebSlideHtml } from '@/lib/webslideTemplate'
 import { parseWebSlideHtml, WebSlideImportError } from '@/lib/webslideImport'
 import { slideVideo, spaDariSlideVideo, terapkanSlideVideo } from '@/lib/sisipSlide'
-import { COLORS, SEMESTERS, BLANK_COURSE_FORM, pecahKompetensi } from './mataKuliah/konstanta'
 import LaporanProgresMateri from '@/components/dosen/LaporanProgresMateri'
 import LengkapiBebanCpmk from '@/components/dosen/LengkapiBebanCpmk'
 import StudioSlide from './mataKuliah/StudioSlide'
@@ -17,6 +16,9 @@ import TabRingkasan from './mataKuliah/TabRingkasan'
 import TabPendaftar from './mataKuliah/TabPendaftar'
 import TabSilabus from './mataKuliah/TabSilabus'
 import BatasGalat from '@/components/ui/BatasGalat'
+import ModalKursus from './mataKuliah/ModalKursus'
+import ModalSalinKursus from './mataKuliah/ModalSalinKursus'
+import ModalSoalUjian from './mataKuliah/ModalSoalUjian'
 
 const TabGeneratorRps = lazy(() => import('./mataKuliah/TabGeneratorRps'))
 
@@ -37,24 +39,14 @@ export default function DosenMataKuliah() {
   const [courses,    setCourses]    = useState([])
   const [dosenList,  setDosenList]  = useState([])
   const [loadingCourses, setLoadingCourses] = useState(true)
-  const [courseModal, setCourseModal] = useState(false)
-  const [editingCourseId, setEditingCourseId] = useState(null)
-  const [savingCourse, setSavingCourse] = useState(false)
-  const [courseForm, setCourseForm] = useState(BLANK_COURSE_FORM)
+  const [modalKursus, setModalKursus] = useState(null) // null | { kursus: null (baru) | objek kursus }
   const [searchTerm, setSearchTerm] = useState('')
 
   // Active selected course
   const [selectedCourseId, setSelectedCourseId] = useState(null)
 
   // ── Copy states ────────────────────────────────────────────
-  const [copyModal,  setCopyModal]  = useState(false)
-  const [copySource, setCopySource] = useState(null)
-  const [copying,    setCopying]    = useState(false)
-  const [copyStep,   setCopyStep]   = useState('')
-  const [copyForm,   setCopyForm]   = useState({ code:'', name:'', semester: SEMESTERS[0], dosen_id:'' })
-  const [copyOpts,   setCopyOpts]   = useState({
-    materials: true, assignments: true, questions: true, exams: true, forums: true,
-  })
+  const [salinDari, setSalinDari] = useState(null) // kursus sumber saat modal salin terbuka
 
   // ── Materials states ────────────────────────────────────────
   const [materials, setMaterials] = useState([])
@@ -72,7 +64,7 @@ export default function DosenMataKuliah() {
   const [slideOutline, setSlideOutline] = useState(null)
   const [webslideData, setWebslideData] = useState(null)
   const [aiSlideProgressText, setAiSlideProgressText] = useState('')
-  const [mcqData, setMcqData] = useState(null) // for UTS/UAS questions
+  const [soalUjian, setSoalUjian] = useState(null) // materi UTS/UAS yang modal soalnya terbuka
 
   const [regeneratingSlideNo, setRegeneratingSlideNo] = useState(null)
   const [regeneratingLayoutSlideNo, setRegeneratingLayoutSlideNo] = useState(null)
@@ -80,7 +72,6 @@ export default function DosenMataKuliah() {
   const [laporanMateri, setLaporanMateri] = useState(null) // materi yang laporan progresnya sedang dibuka
   const [lengkapiBeban, setLengkapiBeban] = useState(false) // alat isi beban & CPMK sekaligus
 
-  const isOutlineEmpty = !slideOutline || !slideOutline.slides || slideOutline.slides.length === 0
 
 
   const handleAiSlideProgress = (event) => {
@@ -200,63 +191,14 @@ export default function DosenMataKuliah() {
   }
 
   // ── Course Handlers ──────────────────────────────────────────
-  function openNewCourse() {
-    setCourseForm({ ...BLANK_COURSE_FORM, dosen_id: isAdmin ? '' : user.id })
-    setEditingCourseId(null)
-    setCourseModal(true)
-  }
+  const openNewCourse = () => setModalKursus({ kursus: null })
+  const openEditCourse = (c) => setModalKursus({ kursus: c })
 
-  function openEditCourse(c) {
-    setCourseForm({
-      code:        c.code,
-      name:        c.name,
-      description: c.description || '',
-      credits:     c.credits,
-      semester:    c.semester || SEMESTERS[0],
-      cover_color: c.cover_color || '#4f46e5',
-      dosen_id:    c.dosen_id || '',
-      kompetensi_teks: (c.kompetensi_singkat || []).join(', '),
-    })
-    setEditingCourseId(c.id)
-    setCourseModal(true)
-  }
-
-  async function handleSaveCourse() {
-    if (!courseForm.code || !courseForm.name) { toast.error('Kode dan nama wajib diisi'); return }
-    if (isAdmin && !courseForm.dosen_id) { toast.error('Pilih dosen pengampu terlebih dahulu'); return }
-
-    setSavingCourse(true)
-    const { kompetensi_teks, ...isiForm } = courseForm
-    const payload = {
-      ...isiForm,
-      kompetensi_singkat: pecahKompetensi(kompetensi_teks),
-      dosen_id: isAdmin ? courseForm.dosen_id : user.id,
-    }
-
-    let error
-    let returnedData = null
-    if (editingCourseId) {
-      ;({ error } = await supabase.from('courses').update(payload).eq('id', editingCourseId))
-    } else {
-      const res = await supabase.from('courses').insert(payload).select().single()
-      error = res.error
-      returnedData = res.data
-    }
-
-    if (error) {
-      console.error('[EduSYS] save course:', error)
-      toast.error(`Gagal menyimpan: ${error.message}`)
-    } else {
-      toast.success(editingCourseId ? 'Kursus diperbarui' : 'Kursus ditambahkan')
-      setCourseModal(false)
-      // Kursus baru langsung dibuka; edit dari daftar tetap di daftar.
-      const targetId = editingCourseId
-        ? (searchParams.get('courseId') ? editingCourseId : null)
-        : (returnedData?.id || null)
-      fetchCourses(targetId)
-      window.dispatchEvent(new Event('systract:courses-changed'))
-    }
-    setSavingCourse(false)
+  // Kursus baru langsung dibuka; edit dari daftar tetap di daftar.
+  function kursusTersimpan({ id, baru }) {
+    setModalKursus(null)
+    fetchCourses(baru ? id : (searchParams.get('courseId') ? id : null))
+    window.dispatchEvent(new Event('systract:courses-changed'))
   }
 
   async function handleDeleteCourse(id) {
@@ -289,106 +231,18 @@ export default function DosenMataKuliah() {
     }
   }
 
-  // ── Copy Helpers ─────────────────────────────────────────────
-  function openCopy(c) {
-    setCopySource(c)
-    setCopyForm({ code: c.code + '-COPY', name: 'Salinan ' + c.name, semester: SEMESTERS[0], dosen_id: c.dosen_id || '' })
-    setCopyOpts({ materials: true, assignments: true, questions: true, exams: true, forums: true })
-    setCopyStep('')
-    setCopyModal(true)
-  }
-
-  async function handleCopy() {
-    if (!copyForm.code.trim() || !copyForm.name.trim()) { toast.error('Kode dan nama wajib diisi'); return }
-    if (!copyForm.dosen_id) { toast.error('Pilih dosen pengampu'); return }
-    setCopying(true)
-    try {
-      setCopyStep('Membuat kursus baru...')
-      const { data: newCourse, error: cErr } = await supabase.from('courses').insert({
-        code: copyForm.code.trim(), name: copyForm.name.trim(),
-        description: copySource.description || '',
-        credits: copySource.credits, semester: copyForm.semester,
-        cover_color: copySource.cover_color || '#4f46e5',
-        dosen_id: copyForm.dosen_id, is_active: true,
-      }).select().single()
-      if (cErr) throw new Error('Gagal membuat kursus: ' + cErr.message)
-
-      const sid = copySource.id, nid = newCourse.id
-
-      await Promise.all([
-        copyOpts.materials   && copyMaterials(sid, nid),
-        copyOpts.assignments && copyAssignments(sid, nid),
-        copyOpts.questions   && copyQuestions(sid, nid),
-        copyOpts.exams       && copyExams(sid, nid),
-        copyOpts.forums      && copyForums(sid, nid),
-      ].filter(Boolean))
-
-      toast.success(`Kursus "${newCourse.name}" berhasil disalin!`)
-      setCopyModal(false)
-      fetchCourses(nid)
-    } catch (err) {
-      toast.error(err.message || 'Gagal menyalin kursus')
-    } finally {
-      setCopying(false)
-      setCopyStep('')
-    }
-  }
-
-  async function copyMaterials(fromId, toId) {
-    setCopyStep('Menyalin materi...')
-    const { data } = await supabase.from('materials').select('*').eq('course_id', fromId)
-    if (!data?.length) return
-    const rows = data.map(({ id: _id, course_id: _c, created_at: _ca, updated_at: _ua, ...rest }) => ({ ...rest, course_id: toId }))
-    await supabase.from('materials').insert(rows)
-  }
-
-  async function copyAssignments(fromId, toId) {
-    setCopyStep('Menyalin tugas...')
-    const { data } = await supabase.from('assignments').select('*').eq('course_id', fromId)
-    if (!data?.length) return
-    const rows = data.map(({ id: _id, course_id: _c, created_at: _ca, updated_at: _ua, ...rest }) => ({
-      ...rest, course_id: toId, due_date: null,
-    }))
-    await supabase.from('assignments').insert(rows)
-  }
-
-  async function copyQuestions(fromId, toId) {
-    setCopyStep('Menyalin bank soal...')
-    const { data } = await supabase.from('questions').select('*').eq('course_id', fromId)
-    if (!data?.length) return
-    const rows = data.map(({ id: _id, course_id: _c, created_at: _ca, ...rest }) => ({ ...rest, course_id: toId }))
-    await supabase.from('questions').insert(rows)
-  }
-
-  async function copyExams(fromId, toId) {
-    setCopyStep('Menyalin struktur ujian...')
-    const { data } = await supabase.from('exams').select('*').eq('course_id', fromId)
-    if (!data?.length) return
-    const rows = data.map(({ id: _id, course_id: _c, created_at: _ca, updated_at: _ua, ...rest }) => ({
-      ...rest, course_id: toId,
-      is_published: false,
-      start_at: null, end_at: null,
-    }))
-    await supabase.from('exams').insert(rows)
-  }
-
-  async function copyForums(fromId, toId) {
-    setCopyStep('Menyalin forum...')
-    const { data } = await supabase.from('forums').select('*').eq('course_id', fromId)
-    if (!data?.length) return
-    const rows = data.map(({ id: _id, course_id: _c, created_at: _ca, updated_at: _ua, ...rest }) => ({ ...rest, course_id: toId }))
-    await supabase.from('forums').insert(rows)
-  }
+  // ── Salin kursus (ModalSalinKursus) ──────────────────────────
+  const openCopy = (c) => setSalinDari(c)
 
   // ── Material & Attachments Handlers ──────────────────────────
 
   // ── AI Slide Generator Actions ──────────────────────────────
   function openSlideGenerator(m) {
+    if (pertemuanUjian(m)) { setSoalUjian(m); return } // UTS/UAS: modal soal pilihan ganda
     setActiveMeeting(m)
     setSlideOutline(m.slide_content || null)
     setWebslideData(m.webslide_content || null)
     setSnapshotSlide(JSON.stringify({ o: m.slide_content || null, w: m.webslide_content || null }))
-    setMcqData(null)
     setAiSlideProgressText('')
     setSlideModal(true)
   }
@@ -397,7 +251,7 @@ export default function DosenMataKuliah() {
   const slideBelumDisimpan = slideModal && JSON.stringify({ o: slideOutline, w: webslideData }) !== snapshotSlide
 
   async function tutupSlideModal() {
-    if (slideBelumDisimpan && !mcqData) {
+    if (slideBelumDisimpan) {
       const ok = await showConfirm({
         title: 'Tutup tanpa menyimpan?',
         message: 'Perubahan outline, slide video, dan pertanyaan video belum tersimpan ke silabus, jadi peserta belum akan melihatnya. Tekan "Simpan ke Silabus" bila ingin menyimpannya.',
@@ -481,68 +335,6 @@ export default function DosenMataKuliah() {
     }
   }
 
-  async function handleGenerateMcqQuestions() {
-    setLoadingSlide(true)
-    setAiSlideProgressText("Menghubungi Gateway API Server...")
-
-    let subTimer = null
-    const steps = [
-      "Menganalisis Cakupan Materi Pembelajaran...",
-      "Merancang 25 Soal Pilihan Ganda (MCQ)...",
-      "Menyusun Kunci Jawaban & Penjelasan...",
-      "Menyeimbangkan Opsi Distractor Jawaban...",
-      "Mempersiapkan Output Draft Soal..."
-    ]
-    let currentStep = 0
-
-    const handleProgress = (event) => {
-      if (typeof event === 'string') {
-        if (event === PROGRES_MENUNGGU) {
-          setAiSlideProgressText(steps[0])
-          subTimer = setInterval(() => {
-            currentStep++
-            if (currentStep < steps.length) {
-              setAiSlideProgressText(steps[currentStep])
-            } else {
-              setAiSlideProgressText("AI sedang merumuskan soal...")
-            }
-          }, 2500)
-        } else {
-          if (subTimer) clearInterval(subTimer)
-          setAiSlideProgressText(event)
-        }
-      } else if (event && event.type === 'chunk') {
-        if (subTimer) clearInterval(subTimer)
-        const matches = event.text.match(/"id"\s*:\s*"q_(\d+)"/g)
-        let currentQuestion = 1
-        if (matches && matches.length > 0) {
-          const lastMatch = matches[matches.length - 1]
-          const numMatch = lastMatch.match(/\d+/)
-          if (numMatch) currentQuestion = parseInt(numMatch[0])
-        }
-        setAiSlideProgressText(`AI sedang merumuskan Soal Pilihan Ganda ${currentQuestion}/25... (${event.text.length.toLocaleString('id-ID')} karakter)`)
-      }
-    }
-
-    try {
-      const examType = activeMeeting.week_number === 8 ? 'UTS' : 'UAS'
-      const result = await generateMcqQuestions(
-        selectedCourse.name,
-        examType,
-        activeMeeting.title,
-        activeMeeting.description,
-        handleProgress
-      )
-      setMcqData(result)
-      toast.success("Soal Ujian Pilihan Ganda berhasil disusun AI! 📝")
-    } catch (err) {
-      toast.error("Gagal generate soal: " + err.message)
-    } finally {
-      if (subTimer) clearInterval(subTimer)
-      setLoadingSlide(false)
-      setAiSlideProgressText('')
-    }
-  }
 
   async function handleRegenerateSlide(slideNo, slideTitle, currentContent) {
     setRegeneratingSlideNo(slideNo)
@@ -844,73 +636,7 @@ export default function DosenMataKuliah() {
     toast.success('Outline slide berhasil disalin ke clipboard!')
   }
 
-  function handleCopyMcqQuestions() {
-    if (!mcqData) return
-    let text = `=== ${mcqData.title} ===\n\n`
-    mcqData.questions?.forEach((q, idx) => {
-      text += `Soal ${idx + 1}\n`
-      text += `Pertanyaan:\n${q.text}\n`
-      q.options?.forEach((opt, oi) => {
-        text += `  ${String.fromCharCode(65 + oi)}. ${opt}\n`
-      })
-      text += `Kunci Jawaban: ${q.answer}\n`
-      text += `Penjelasan: ${q.explanation || '—'}\n\n`
-    })
-    navigator.clipboard.writeText(text)
-    toast.success('Soal pilihan ganda berhasil disalin ke clipboard!')
-  }
 
-  async function handleSaveMcqExam() {
-    if (!mcqData) return
-    setSavingSlide(true)
-    try {
-      const rawType = activeMeeting.week_number === 8 ? 'uts' : 'uas'
-      
-      // Check if there is already an exam of this type for this course
-      const { data: existingExams } = await supabase
-        .from('exams')
-        .select('id')
-        .eq('course_id', selectedCourseId)
-        .eq('type', rawType)
-      
-      if (existingExams && existingExams.length > 0) {
-        // Update the existing exam
-        const examId = existingExams[0].id
-        const { error } = await supabase
-          .from('exams')
-          .update({
-            title: `Evaluasi ${rawType.toUpperCase()}`,
-            questions: mcqData.questions,
-            duration_minutes: 90,
-            is_published: true
-          })
-          .eq('id', examId)
-        if (error) throw error
-      } else {
-        // Insert a new exam
-        const { error } = await supabase
-          .from('exams')
-          .insert({
-            course_id: selectedCourseId,
-            title: `Evaluasi ${rawType.toUpperCase()}`,
-            type: rawType,
-            questions: mcqData.questions,
-            duration_minutes: 90,
-            is_published: true,
-            created_by: user.id
-          })
-        if (error) throw error
-      }
-      
-      toast.success('Soal Evaluasi berhasil disimpan ke database!')
-      setSlideModal(false)
-      fetchMaterials(selectedCourseId)
-    } catch (err) {
-      toast.error('Gagal menyimpan evaluasi ke database: ' + err.message)
-    } finally {
-      setSavingSlide(false)
-    }
-  }
 
   // ── Logic Data Grouping ──────────────────────────────────────
   const filteredCourses = courses.filter(c =>
@@ -1197,171 +923,14 @@ export default function DosenMataKuliah() {
       )}
 
       {/* ── MODAL: Tambah / Edit Mata Kuliah ── */}
-      {courseModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 500 }}>
-            <div className="modal-header">
-              <span className="modal-title">{editingCourseId ? 'Edit' : 'Tambah'} Mata Kuliah</span>
-              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setCourseModal(false)}><X size={14}/></button>
-            </div>
-            <div className="modal-body">
-              {isAdmin && (
-                <div className="input-group">
-                  <label className="input-label">Instruktur Pengampu *</label>
-                  <select className="input" value={courseForm.dosen_id} onChange={e => setCourseForm(f => ({...f, dosen_id: e.target.value}))}>
-                    <option value="">— Pilih Instruktur —</option>
-                    {dosenList.map(d => (
-                      <option key={d.id} value={d.id}>{d.full_name} ({d.email})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className="form-grid form-grid-2">
-                <div className="input-group">
-                  <label className="input-label">Kode Kursus *</label>
-                  <input className="input" placeholder="MIF123" value={courseForm.code} onChange={e => setCourseForm(f=>({...f, code:e.target.value}))}/>
-                </div>
-                <div className="input-group">
-                  <label className="input-label">SKS</label>
-                  <input className="input" type="number" min={1} max={6} value={courseForm.credits} onChange={e => setCourseForm(f=>({...f, credits:+e.target.value}))}/>
-                </div>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Nama Kursus *</label>
-                <input className="input" placeholder="Pemrograman Web" value={courseForm.name} onChange={e => setCourseForm(f=>({...f, name:e.target.value}))}/>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Deskripsi</label>
-                <textarea className="input" rows={2} style={{ resize:'vertical' }} value={courseForm.description} onChange={e => setCourseForm(f=>({...f, description:e.target.value}))}/>
-              </div>
-              <div className="input-group">
-                <label className="input-label" htmlFor="kompetensi-singkat">Kompetensi singkat (tercetak di sertifikat)</label>
-                <input id="kompetensi-singkat" className="input" placeholder="cth: Excel, Word, PowerPoint" value={courseForm.kompetensi_teks || ''} onChange={e => setCourseForm(f=>({...f, kompetensi_teks:e.target.value}))}/>
-                <span className="input-hint">
-                  Pisahkan dengan koma, maks. 6 butir pendek.{pecahKompetensi(courseForm.kompetensi_teks).length > 0 && ` Tampil: ${pecahKompetensi(courseForm.kompetensi_teks).join(' · ')}`}
-                </span>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Semester</label>
-                <select className="input" value={courseForm.semester} onChange={e => setCourseForm(f=>({...f, semester:e.target.value}))}>
-                  {SEMESTERS.map(s => <option key={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Warna Kelas</label>
-                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                  {COLORS.map(c => (
-                    <button key={c} type="button" onClick={() => setCourseForm(f=>({...f,cover_color:c}))}
-                      style={{ width:28, height:28, borderRadius:'50%', background:c,
-                        border: courseForm.cover_color===c ? '3px solid var(--gray-900)' : '3px solid transparent',
-                        cursor:'pointer' }}/>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary btn-sm" onClick={() => setCourseModal(false)}>Batal</button>
-              <button className="btn btn-primary btn-sm" onClick={handleSaveCourse} disabled={savingCourse}>
-                {savingCourse ? <Loader2 size={13} style={{ animation:'spin .7s linear infinite' }}/> : null}
-                {editingCourseId ? 'Simpan' : 'Tambahkan'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {modalKursus && (
+        <ModalKursus kursus={modalKursus.kursus} dosenList={dosenList} onClose={() => setModalKursus(null)} onSaved={kursusTersimpan} />
       )}
 
       {/* ── MODAL: Salin Kursus (Admin Only) ── */}
-      {copyModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth:520 }}>
-            <div className="modal-header">
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <Copy size={15} color="var(--indigo-600)"/>
-                <span className="modal-title">Salin Kursus</span>
-              </div>
-              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setCopyModal(false)} disabled={copying}><X size={14}/></button>
-            </div>
-            <div className="modal-body">
-              <div style={{ background:'var(--gray-50)', borderRadius:10, padding:'10px 14px', marginBottom:16, border:'1px solid var(--gray-200)' }}>
-                <div style={{ fontSize:11, color:'var(--gray-400)', fontWeight:600, marginBottom:3 }}>SUMBER KURSUS</div>
-                <div style={{ fontWeight:700, fontSize:14 }}>{copySource?.name}</div>
-                <div style={{ fontSize:12, color:'var(--gray-400)' }}>{copySource?.code} · {copySource?.semester} · {copySource?.credits} SKS</div>
-              </div>
-
-              <div className="input-group">
-                <label className="input-label">Instruktur Pengampu Baru *</label>
-                <select className="input" value={copyForm.dosen_id} onChange={e => setCopyForm(f => ({...f, dosen_id: e.target.value}))}>
-                  <option value="">— Pilih Instruktur —</option>
-                  {dosenList.map(d => <option key={d.id} value={d.id}>{d.full_name} ({d.email})</option>)}
-                </select>
-              </div>
-
-              <div className="form-grid form-grid-2">
-                <div className="input-group">
-                  <label className="input-label">Kode Kursus Baru *</label>
-                  <input className="input" placeholder="MIF123-COPY" value={copyForm.code} onChange={e => setCopyForm(f => ({...f, code: e.target.value}))}/>
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Semester Baru</label>
-                  <select className="input" value={copyForm.semester} onChange={e => setCopyForm(f => ({...f, semester: e.target.value}))}>
-                    {SEMESTERS.map(s => <option key={s}>{s}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Nama Kursus Baru *</label>
-                <input className="input" value={copyForm.name} onChange={e => setCopyForm(f => ({...f, name: e.target.value}))}/>
-              </div>
-
-              <div style={{ marginTop:4 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:'var(--gray-600)', marginBottom:8 }}>Salin Konten Silabus:</div>
-                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                  {[
-                    { key:'materials',   label:'Materi & Modul',        desc:'Semua berkas lampiran materi per minggu' },
-                    { key:'assignments', label:'Tugas Praktik/Kelas',   desc:'Struktur tugas (deadline dikosongkan)' },
-                    { key:'questions',   label:'Bank Soal',              desc:'Semua soal pilihan ganda dari modul' },
-                    { key:'exams',       label:'Ujian',                  desc:'Struktur ujian (di-reset, belum dipublikasi)' },
-                    { key:'forums',      label:'Topik Forum Diskusi',    desc:'Thread forum baru (tanpa balasan diskusi)' },
-                  ].map(({ key, label, desc }) => (
-                    <div key={key}
-                      onClick={() => !copying && setCopyOpts(o => ({...o, [key]: !o[key]}))}
-                      style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8,
-                        background: copyOpts[key] ? '#eef2ff' : 'var(--gray-50)',
-                        border: `1px solid ${copyOpts[key] ? '#c7d2fe' : 'var(--gray-200)'}`,
-                        cursor: copying ? 'default' : 'pointer', transition:'all .15s' }}
-                    >
-                      {copyOpts[key]
-                        ? <CheckCircle2 size={15} color="var(--indigo-600)" style={{ flexShrink:0 }}/>
-                        : <Circle size={15} color="var(--gray-300)" style={{ flexShrink:0 }}/>}
-                      <div>
-                        <div style={{ fontSize:13, fontWeight:600, color: copyOpts[key] ? 'var(--indigo-700)' : 'var(--gray-700)' }}>{label}</div>
-                        <div style={{ fontSize:11, color:'var(--gray-400)' }}>{desc}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {copying && copyStep && (
-                <div style={{ marginTop:14, display:'flex', alignItems:'center', gap:8, color:'var(--indigo-600)', fontSize:13 }}>
-                  <Loader2 size={14} style={{ animation:'spin .7s linear infinite', flexShrink:0 }}/>
-                  {copyStep}
-                </div>
-              )}
-            </div>
-
-            <div className="modal-footer">
-              <button className="btn btn-secondary btn-sm" onClick={() => setCopyModal(false)} disabled={copying}>Batal</button>
-              <button className="btn btn-primary btn-sm" onClick={handleCopy} disabled={copying}
-                style={{ display:'flex', alignItems:'center', gap:6 }}>
-                {copying
-                  ? <><Loader2 size={13} style={{ animation:'spin .7s linear infinite' }}/> Menyalin...</>
-                  : <><Copy size={13}/> Salin Sekarang</>}
-              </button>
-            </div>
-          </div>
-        </div>
+      {salinDari && (
+        <ModalSalinKursus sumber={salinDari} dosenList={dosenList} onClose={() => setSalinDari(null)}
+          onSaved={(id) => { setSalinDari(null); fetchCourses(id) }} />
       )}
 
 
@@ -1404,107 +973,9 @@ export default function DosenMataKuliah() {
         />
       )}
 
-      {slideModal && activeMeeting && pertemuanUjian(activeMeeting) && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 800, maxHeight: '85vh', overflow: 'auto' }}>
-            <div className="modal-header" style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 2 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Bot size={16} color="var(--indigo-600)" />
-                <span className="modal-title">
-                  {+activeMeeting.week_number === 8 || +activeMeeting.week_number === 16 ? 'AI MCQ Questions Generator' : 'AI Slide & WebSlide Generator'}
-                </span>
-              </div>
-              <button className="btn btn-ghost btn-icon btn-sm" onClick={tutupSlideModal} aria-label="Tutup"><X size={14}/></button>
-            </div>
-
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* Meeting Info */}
-              <div style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--gray-200)' }}>
-                <div style={{ fontSize: 10, color: 'var(--gray-400)', fontWeight: 700, textTransform: 'uppercase' }}>Topik {activeMeeting.week_number}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)', marginTop: 2 }}>{activeMeeting.title}</div>
-                {activeMeeting.description && <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 4 }}>{activeMeeting.description}</div>}
-              </div>
-
-              {/* Progress feedback */}
-              {aiSlideProgressText && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#eef2ff', border: '1px solid #c7d2fe', padding: 12, borderRadius: 8, color: 'var(--indigo-700)', fontSize: 12, fontWeight: 600 }}>
-                  <Loader2 size={14} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
-                  <span>{aiSlideProgressText}</span>
-                </div>
-              )}
-
-              {/* ── FLOW FOR UTS/UAS: MCQ Questions ── */}
-              {(+activeMeeting.week_number === 8 || +activeMeeting.week_number === 16) ? (
-                <div>
-                  {!mcqData && !loadingSlide && (
-                    <div style={{ textAlign: 'center', padding: '30px 10px' }}>
-                      <HelpCircle size={40} color="var(--indigo-300)" style={{ marginBottom: 12 }} />
-                      <p style={{ fontSize: 13, color: 'var(--gray-500)' }}>Belum ada soal pilihan ganda yang dirumuskan AI untuk evaluasi ini.</p>
-                      <button className="btn btn-primary btn-sm" style={{ marginTop: 12, gap: 6 }} onClick={handleGenerateMcqQuestions}>
-                        <Bot size={13} /> Susun Soal Evaluasi (Pilihan Ganda)
-                      </button>
-                    </div>
-                  )}
-
-                  {mcqData && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>Draf Soal Evaluasi AI (25 Soal MCQ):</span>
-                        <button className="btn btn-secondary btn-sm" style={{ padding: '2px 8px', fontSize: 11, gap: 4 }} onClick={handleCopyMcqQuestions}>
-                          <Copy size={12}/> Salin Soal
-                        </button>
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: '#fafafa', border: '1px solid var(--gray-200)', borderRadius: 8, padding: 12, maxHeight: 300, overflowY: 'auto' }}>
-                        <h4 style={{ fontSize: 13, fontWeight: 800, margin: '0 0 8px 0', color: 'var(--gray-800)' }}>{mcqData.title}</h4>
-                        {mcqData.questions?.map((q, idx) => (
-                          <div key={idx} style={{ borderBottom: idx < mcqData.questions.length - 1 ? '1px solid var(--gray-200)' : 'none', paddingBottom: idx < mcqData.questions.length - 1 ? 10 : 0, paddingTop: idx > 0 ? 8 : 0 }}>
-                            <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--indigo-700)' }}>Soal {idx + 1}</div>
-                            <div style={{ fontSize: 12, color: 'var(--gray-800)', marginTop: 4, fontWeight: 600 }}>{q.text}</div>
-                            <div style={{ paddingLeft: 12, marginTop: 4 }}>
-                              {q.options?.map((opt, oi) => (
-                                <div key={oi} style={{ fontSize: 11, color: 'var(--gray-600)' }}>
-                                  {String.fromCharCode(65 + oi)}. {opt}
-                                </div>
-                              ))}
-                            </div>
-                            <div style={{ fontSize: 11, color: '#059669', marginTop: 4, background: '#ecfdf5', padding: 6, borderRadius: 4 }}>
-                              <strong>Kunci Jawaban: {q.answer}</strong>. {q.explanation}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                        <button className="btn btn-secondary btn-sm" style={{ gap: 4 }} onClick={handleGenerateMcqQuestions} disabled={loadingSlide}>
-                          <RefreshCw size={12}/> Generate Ulang Soal
-                        </button>
-                        <button className="btn btn-primary btn-sm" style={{ gap: 4, background: 'var(--success)', borderColor: '#059669' }} onClick={handleSaveMcqExam} disabled={savingSlide}>
-                          {savingSlide ? <Loader2 size={13} className="spinner" style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={13}/>}
-                          Simpan Evaluasi ke Database
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="modal-footer" style={{ position: 'sticky', bottom: 0, background: 'var(--surface)', zIndex: 2, display: 'flex', alignItems: 'center', gap: 8 }}>
-              {slideBelumDisimpan && !mcqData && (slideOutline || webslideData) && (
-                <span style={{ marginRight: 'auto', fontSize: 12, fontWeight: 600, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 20, padding: '4px 10px' }} aria-live="polite">
-                  Ada perubahan yang belum disimpan ke silabus
-                </span>
-              )}
-              <button className="btn btn-secondary btn-sm" onClick={tutupSlideModal}>Tutup</button>
-              {slideBelumDisimpan && !mcqData && (slideOutline || webslideData) && (
-                <button className="btn btn-primary btn-sm" style={{ gap: 4 }} onClick={handleSaveAiSlideContent} disabled={savingSlide || isOutlineEmpty}>
-                  {savingSlide ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={13} />} Simpan ke Silabus
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+      {soalUjian && selectedCourse && (
+        <ModalSoalUjian course={selectedCourse} meeting={soalUjian} onClose={() => setSoalUjian(null)}
+          onSaved={() => { setSoalUjian(null); fetchMaterials(selectedCourseId) }} />
       )}
     </div>
     </>
